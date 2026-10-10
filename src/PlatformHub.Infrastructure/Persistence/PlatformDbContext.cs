@@ -11,8 +11,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("dbo");
-
         modelBuilder.Entity<AppUser>(e =>
         {
             e.ToTable("AppUsers");
