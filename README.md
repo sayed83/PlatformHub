@@ -16,29 +16,48 @@ A single solution with a central API and a separate MVC client. Both login panel
 - SQL Server
 - Visual Studio 2022
 
-## Configure
-1. Update `PlatformHub.Api/appsettings.json` connection string.
-2. In `PlatformHub.Mvc/appsettings.json`, set `Api:BaseUrl` to the API URL (default `https://localhost:7201/`).
-3. Run from solution folder:
-   ```bash
-   dotnet restore
-   dotnet dev-certs https --trust
-   dotnet run --project src/PlatformHub.Api
-   dotnet run --project src/PlatformHub.Mvc
-   ```
-   Or set both projects as startup projects in Visual Studio.
-4. Apply database migrations after reviewing the model:
-   ```bash
-   dotnet tool install --global dotnet-ef --version 8.*
-   dotnet ef migrations add InitialPlatformSchema --project src/PlatformHub.Infrastructure --startup-project src/PlatformHub.Api
-   dotnet ef database update --project src/PlatformHub.Infrastructure --startup-project src/PlatformHub.Api
-   ```
-5. Provision the first Platform Admin securely. This starter intentionally does **not** ship a hard-coded administrator password or a public admin-registration endpoint. Implement a one-time CLI/bootstrap command or private deployment seed before production.
+## Local configuration (User Secrets)
+Sensitive values must not be committed to source control. From the solution directory run:
 
-## Important security notes
+```powershell
+dotnet user-secrets set "ConnectionStrings:PlatformDb" "YOUR_SQL_SERVER_CONNECTION_STRING" --project src/PlatformHub.Api
+dotnet user-secrets set "Jwt:SigningKey" "GENERATE-A-RANDOM-SECRET-AT-LEAST-32-CHARACTERS" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformBootstrap:SetupKey" "GENERATE-A-DIFFERENT-RANDOM-SECRET-AT-LEAST-32-CHARACTERS" --project src/PlatformHub.Api
+```
+
+Ensure the local API signing key is random and at least 32 characters. The bootstrap secret must be different from the JWT signing key.
+
+Configure `Api:BaseUrl` in `src/PlatformHub.Mvc/appsettings.json` to match the API URL (default `https://localhost:7201/`).
+
+## Run
+```powershell
+dotnet restore
+dotnet dev-certs https --trust
+dotnet run --project src/PlatformHub.Api
+dotnet run --project src/PlatformHub.Mvc
+```
+Or set both web projects as startup projects in Visual Studio.
+
+## Database migrations
+Review and apply migrations using EF Core tools:
+```powershell
+dotnet tool install --global dotnet-ef --version 8.*
+dotnet ef database update --project src/PlatformHub.Infrastructure --startup-project src/PlatformHub.Api
+```
+Do not create another initial migration if one has already been generated.
+
+## First Platform Admin (local development only)
+This repo contains a one-time API endpoint for local initialization:
+- `POST /api/v1/platform-bootstrap/first-admin`
+- Header: `X-Platform-Setup-Key: <your PlatformBootstrap:SetupKey>`
+- JSON body: `{ "userName": "platformadmin", "displayName": "Platform Administrator", "password": "<a long unique password>" }`
+
+The endpoint returns 404 outside Development, refuses initialization if any Platform Admin already exists, verifies the private setup key in constant time, and hashes the password with ASP.NET Core's `PasswordHasher`. Configure the setup key with User Secrets. Do not expose this endpoint in a deployed environment; use a private provisioning process for production.
+
+## Security notes
 - The API is the authority for identity and permissions.
-- The MVC app does not connect directly to SQL Server.
-- MVC uses a server-side session cookie for its own browser session and calls the API from server-side `HttpClient`; it does not expose API credentials or tokens to browser JavaScript.
-- The API returns an opaque session token in this demo scaffold only if you implement the TODO. For production, prefer API-managed secure cookies on a same-site deployment, or short-lived access tokens plus refresh-token rotation. Do not store bearer tokens in localStorage.
-- Platform Admin access is checked against the database on each protected admin API request, not solely from a user-supplied claim.
-- This is a scaffold, not a production-certified security implementation. Add rate limiting, CSRF protections, lockout, password reset, email verification, secret management, logging redaction, and automated security tests before deployment.
+- MVC does not connect directly to SQL Server.
+- Platform Admin access must be checked server-side for every protected operation, not merely from a client-supplied claim.
+- Use environment variables or a secret manager in deployments. Do not commit credentials.
+- If credentials were ever committed, rotate them; replacing the file alone does not remove them from Git history.
+- This is a starter scaffold, not production-certified. Add rate limiting, lockout, CSRF protection where applicable, refresh-token rotation, logging redaction and automated security tests before deployment.
