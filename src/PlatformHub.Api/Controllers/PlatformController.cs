@@ -22,13 +22,8 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     [HttpPost("tenants")]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequest request, CancellationToken cancellationToken)
     {
-        var userIdRaw = User.FindFirst(AppClaimTypes.UserId)?.Value;
-        if (!long.TryParse(userIdRaw, NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
-            return Forbid();
-
-        // Do not trust a token claim alone for the platform super-admin invariant.
-        if (!await platform.IsPlatformAdminAsync(userId, cancellationToken))
-            return Forbid();
+        var userId = await GetVerifiedPlatformAdminIdAsync(cancellationToken);
+        if (userId is null) return Forbid();
 
         try
         {
@@ -37,5 +32,35 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    [HttpGet("projects")]
+    public async Task<IActionResult> GetProjects([FromQuery] long? tenantId, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        return Ok(await platform.GetProjectsAsync(tenantId, cancellationToken));
+    }
+
+    [HttpPost("projects")]
+    public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+
+        try
+        {
+            var created = await platform.CreateProjectAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetProjects), new { tenantId = created.TenantId }, created);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    private async Task<long?> GetVerifiedPlatformAdminIdAsync(CancellationToken cancellationToken)
+    {
+        var userIdRaw = User.FindFirst(AppClaimTypes.UserId)?.Value;
+        if (!long.TryParse(userIdRaw, NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return null;
+
+        return await platform.IsPlatformAdminAsync(userId, cancellationToken) ? userId : null;
     }
 }
