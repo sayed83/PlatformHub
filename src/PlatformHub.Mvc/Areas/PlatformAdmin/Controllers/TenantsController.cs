@@ -1,0 +1,76 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PlatformHub.Mvc.Areas.PlatformAdmin.Models;
+using PlatformHub.Mvc.Services;
+
+namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
+
+[Area("PlatformAdmin")]
+[Authorize]
+public sealed class TenantsController(PlatformApiClient api) : Controller
+{
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true")
+            return Forbid();
+
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+            return Challenge();
+
+        var tenants = await api.GetAsync<List<TenantViewModel>>("api/v1/platform/tenants", token, ct);
+        if (tenants is null)
+        {
+            ModelState.AddModelError(string.Empty, "Unable to load tenants from the Platform API.");
+            tenants = new List<TenantViewModel>();
+        }
+
+        return View(new TenantManagementViewModel { Tenants = tenants });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(TenantManagementViewModel model, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true")
+            return Forbid();
+
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+            return Challenge();
+
+        if (!ModelState.IsValid)
+        {
+            var current = await api.GetAsync<List<TenantViewModel>>("api/v1/platform/tenants", token, ct);
+            model = new TenantManagementViewModel
+            {
+                Code = model.Code,
+                Name = model.Name,
+                Tenants = current ?? new List<TenantViewModel>()
+            };
+            return View("Index", model);
+        }
+
+        var created = await api.PostAsync<TenantViewModel>(
+            "api/v1/platform/tenants",
+            new { model.Code, model.Name },
+            ct,
+            token);
+
+        if (created is null)
+        {
+            ModelState.AddModelError(string.Empty,
+                "Tenant could not be created. The code may already exist, or the API rejected the request.");
+            var current = await api.GetAsync<List<TenantViewModel>>("api/v1/platform/tenants", token, ct);
+            return View("Index", new TenantManagementViewModel
+            {
+                Code = model.Code,
+                Name = model.Name,
+                Tenants = current ?? new List<TenantViewModel>()
+            });
+        }
+
+        TempData["SuccessMessage"] = $"Tenant '{created.Name}' created successfully.";
+        return RedirectToAction(nameof(Index));
+    }
+}
