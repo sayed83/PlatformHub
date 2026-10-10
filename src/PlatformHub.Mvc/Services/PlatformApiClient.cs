@@ -8,11 +8,21 @@ public sealed class PlatformApiClient(IHttpClientFactory factory)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<T?> PostAsync<T>(string path, object body, CancellationToken ct = default)
+    public async Task<T?> PostAsync<T>(
+        string path,
+        object body,
+        CancellationToken ct = default,
+        string? token = null)
     {
         var client = factory.CreateClient("PlatformApi");
-        using var response = await client.PostAsync(path,
-            new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json"), ct);
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
+        };
+        if (!string.IsNullOrWhiteSpace(token))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) return default;
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
     }
