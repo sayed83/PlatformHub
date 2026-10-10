@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlatformHub.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace PlatformHub.Infrastructure.Migrations;
 
+[DbContext(typeof(PlatformDbContext))]
+[Migration("20261010130000_AddTenantOwnershipToProjects")]
 public partial class AddTenantOwnershipToProjects : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
