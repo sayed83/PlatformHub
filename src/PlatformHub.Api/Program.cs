@@ -49,6 +49,20 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// Opt-in first-admin seeding. Credentials must come from User Secrets or environment variables.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var services = scope.ServiceProvider;
+    var db = services.GetRequiredService<PlatformDbContext>();
+    var passwordHasher = services.GetRequiredService<IPasswordHasher<AppUser>>();
+
+    await PlatformAdminSeeder.SeedAsync(
+        db,
+        app.Configuration,
+        passwordHasher);
+}
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
