@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PlatformHub.Domain.Entities;
 
 namespace PlatformHub.Infrastructure.Persistence;
