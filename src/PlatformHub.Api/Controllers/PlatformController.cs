@@ -12,7 +12,8 @@ namespace PlatformHub.Api.Controllers;
 public sealed class PlatformController(IPlatformService platform) : ControllerBase
 {
     [HttpGet("summary")]
-    public IActionResult Summary() => Ok(new { service = "PlatformHub", status = "ok" });
+    public async Task<IActionResult> Summary(CancellationToken cancellationToken) =>
+        Ok(await platform.GetSummaryAsync(cancellationToken));
 
     [HttpGet("tenants")]
     public async Task<IActionResult> GetTenants(CancellationToken cancellationToken) =>
