@@ -11,6 +11,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("dbo");
+
         modelBuilder.Entity<AppUser>(e =>
         {
             e.ToTable("AppUsers");
@@ -34,8 +36,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.ToTable("Projects");
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
-            e.HasIndex(x => x.Code).IsUnique();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.BaseUrl).HasMaxLength(500);
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         });
     }
 }
