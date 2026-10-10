@@ -42,7 +42,7 @@ namespace PlatformHub.Infrastructure.Migrations
                 {
                     b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<string>("BaseUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<string>("BaseUrl").HasColumnType("nvarchar(max)");
                     b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
                     b.Property<bool>("IsActive").HasColumnType("bit");
                     b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
