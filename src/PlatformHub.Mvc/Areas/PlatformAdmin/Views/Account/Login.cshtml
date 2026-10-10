@@ -1,6 +1,10 @@
 @using PlatformHub.Mvc.Models
 @model LoginViewModel
-@{ ViewData["Title"] = "Platform Admin Login"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+@{
+    ViewData["Title"] = "Platform Admin Login";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
 <div class="row justify-content-center mt-5">
     <div class="col-md-5">
         <div class="card shadow border-0">
@@ -8,19 +12,39 @@
                 <div class="text-primary fw-semibold mb-2">PLATFORMHUB · SECURE ADMINISTRATION</div>
                 <h2 class="mb-1">Platform Admin</h2>
                 <p class="text-secondary">Authorized platform administrators only.</p>
-                <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-                <form asp-area="PlatformAdmin" asp-controller="Account" asp-action="Login" method="post">
+
+                <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+
+                <form asp-area="PlatformAdmin"
+                      asp-controller="Account"
+                      asp-action="Login"
+                      method="post">
                     @Html.AntiForgeryToken()
+
                     <div class="mb-3">
-                        <label asp-for="UserName" class="form-label"></label>
-                        <input asp-for="UserName" class="form-control" autocomplete="username" />
+                        <label for="UserName" class="form-label">User name</label>
+                        <input type="text"
+                               id="UserName"
+                               name="UserName"
+                               value="@Model?.UserName"
+                               class="form-control"
+                               autocomplete="username"
+                               required
+                               maxlength="100" />
                         <span asp-validation-for="UserName" class="text-danger"></span>
                     </div>
+
                     <div class="mb-3">
-                        <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                        <label for="Password" class="form-label">Password</label>
+                        <input type="password"
+                               id="Password"
+                               name="Password"
+                               class="form-control"
+                               autocomplete="current-password"
+                               required />
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
+
                     <button type="submit" class="btn btn-dark w-100">Secure sign in</button>
                 </form>
             </div>
