@@ -1,0 +1,92 @@
+@using PlatformHub.Mvc.Areas.PlatformAdmin.Models
+@model ProjectManagementViewModel
+@{
+    ViewData["Title"] = "Project Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small">&larr; Dashboard</a>
+        <h1 class="h3 mt-2 mb-1">Project management</h1>
+        <p class="text-secondary mb-0">Each project belongs to a tenant.</p>
+    </div>
+    <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-secondary">Manage tenants</a>
+</div>
+@if (TempData["SuccessMessage"] is string successMessage) { <div class="alert alert-success" role="status">@successMessage</div> }
+<div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm"><div class="card-body p-4">
+            <h2 class="h5 mb-3">Create project</h2>
+            @if (Model.Tenants.Count == 0)
+            {
+                <div class="alert alert-info">Create a tenant before adding projects.</div>
+                <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-primary">Create tenant</a>
+            }
+            else
+            {
+                <form asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label asp-for="TenantId" class="form-label">Tenant</label>
+                        <select asp-for="TenantId" class="form-select">
+                            <option value="0">-- Select tenant --</option>
+                            @foreach (var tenant in Model.Tenants.Where(t => t.IsActive)) { <option value="@tenant.Id">@tenant.Code — @tenant.Name</option> }
+                        </select>
+                        <span asp-validation-for="TenantId" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Code" class="form-label">Project code</label>
+                        <input asp-for="Code" class="form-control" placeholder="ERP" maxlength="50" />
+                        <span asp-validation-for="Code" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label">Project name</label>
+                        <input asp-for="Name" class="form-control" placeholder="Enterprise Resource Planning" maxlength="200" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="BaseUrl" class="form-label">Base URL (optional)</label>
+                        <input asp-for="BaseUrl" class="form-control" placeholder="https://erp.example.com" maxlength="500" />
+                        <span asp-validation-for="BaseUrl" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Create project</button>
+                </form>
+            }
+        </div></div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h2 class="h5 mb-0">Projects <span class="badge bg-secondary">@Model.Projects.Count</span></h2>
+                <form asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index" method="get" class="d-flex gap-2">
+                    <select name="tenantId" class="form-select form-select-sm" aria-label="Filter by tenant">
+                        <option value="">All tenants</option>
+                        @foreach (var tenant in Model.Tenants)
+                        {
+                            if (Model.TenantId == tenant.Id) { <option value="@tenant.Id" selected>@tenant.Code</option> }
+                            else { <option value="@tenant.Id">@tenant.Code</option> }
+                        }
+                    </select>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Filter</button>
+                </form>
+            </div>
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Tenant</th><th>Code</th><th>Project</th><th>Base URL</th><th>Status</th></tr></thead>
+                <tbody>
+                @if (Model.Projects.Count == 0) { <tr><td colspan="5" class="text-center text-secondary py-4">No projects found.</td></tr> }
+                else
+                {
+                    @foreach (var project in Model.Projects)
+                    {
+                        <tr><td>@project.TenantName</td><td class="fw-semibold">@project.Code</td><td>@project.Name</td>
+                            <td>@if (!string.IsNullOrWhiteSpace(project.BaseUrl)) { <a href="@project.BaseUrl" target="_blank" rel="noopener noreferrer">@project.BaseUrl</a> } else { <span class="text-secondary">—</span> }</td>
+                            <td>@if (project.IsActive) { <span class="badge bg-success">Active</span> } else { <span class="badge bg-secondary">Inactive</span> }</td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
