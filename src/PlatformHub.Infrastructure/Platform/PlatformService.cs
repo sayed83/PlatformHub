@@ -47,6 +47,59 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
         return new TenantDto(tenant.Id, tenant.Code, tenant.Name, tenant.IsActive);
     }
 
+    public async Task<IReadOnlyList<ProjectDto>> GetProjectsAsync(long? tenantId, CancellationToken cancellationToken)
+    {
+        var query = db.Projects.AsNoTracking().Include(x => x.Tenant).AsQueryable();
+        if (tenantId.HasValue)
+            query = query.Where(x => x.TenantId == tenantId.Value);
+
+        return await query
+            .OrderBy(x => x.Tenant.Name)
+            .ThenBy(x => x.Name)
+            .Select(x => new ProjectDto(
+                x.Id, x.TenantId, x.Tenant.Name, x.Code, x.Name, x.BaseUrl, x.IsActive))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ProjectDto> CreateProjectAsync(CreateProjectRequest request, CancellationToken cancellationToken)
+    {
+        var code = request.Code?.Trim().ToUpperInvariant();
+        var name = request.Name?.Trim();
+        var baseUrl = string.IsNullOrWhiteSpace(request.BaseUrl) ? null : request.BaseUrl.Trim();
+
+        if (request.TenantId <= 0 || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Tenant, project code, and project name are required.");
+
+        if (code.Length > 50 || name.Length > 200 || (baseUrl?.Length ?? 0) > 500)
+            throw new ArgumentException("Project code must be at most 50 characters, name 200, and URL 500.");
+
+        var tenant = await db.Tenants.SingleOrDefaultAsync(
+            x => x.Id == request.TenantId, cancellationToken);
+        if (tenant is null)
+            throw new ArgumentException("The selected tenant does not exist.");
+        if (!tenant.IsActive)
+            throw new InvalidOperationException("Projects cannot be created for an inactive tenant.");
+
+        if (await db.Projects.AnyAsync(
+                x => x.TenantId == request.TenantId && x.Code == code, cancellationToken))
+            throw new InvalidOperationException("This project code already exists for the selected tenant.");
+
+        var project = new Project
+        {
+            TenantId = tenant.Id,
+            Tenant = tenant,
+            Code = code,
+            Name = name,
+            BaseUrl = baseUrl
+        };
+
+        db.Projects.Add(project);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new ProjectDto(
+            project.Id, tenant.Id, tenant.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
+    }
+
     public Task<bool> IsPlatformAdminAsync(long userId, CancellationToken cancellationToken) =>
         db.Users.AnyAsync(x => x.Id == userId && x.IsActive && x.IsPlatformAdmin, cancellationToken);
 }
