@@ -1,0 +1,14 @@
+@model LoginViewModel
+@{ ViewData["Title"] = "Platform Admin Login"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+<div class="row justify-content-center mt-5"><div class="col-md-5">
+<div class="card shadow border-0"><div class="card-body p-4">
+<div class="text-primary fw-semibold mb-2">PLATFORMHUB · SECURE ADMINISTRATION</div>
+<h2 class="mb-1">Platform Admin</h2><p class="text-secondary">Authorized platform administrators only.</p>
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<form method="post">
+@Html.AntiForgeryToken()
+<div class="mb-3"><label asp-for="UserName" class="form-label"></label><input asp-for="UserName" class="form-control" autocomplete="username" /><span asp-validation-for="UserName" class="text-danger"></span></div>
+<div class="mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" class="form-control" autocomplete="current-password" /><span asp-validation-for="Password" class="text-danger"></span></div>
+<button class="btn btn-dark w-100">Secure sign in</button>
+</form>
+</div></div></div></div>

@@ -1,0 +1,4 @@
+@{ ViewData["Title"] = "Workspace"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+<h1 class="h3">Workspace</h1>
+<p>You are signed in to the user panel. Tenant, branch and project selection will be added as the next feature.</p>
+<form method="post" action="/Account/Logout">@Html.AntiForgeryToken()<button class="btn btn-outline-secondary">Sign out</button></form>
