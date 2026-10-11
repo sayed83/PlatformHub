@@ -50,6 +50,9 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "User.Create")]
     public async Task<IActionResult> CreateUser([FromBody] CreatePlatformUserRequest request, CancellationToken cancellationToken)
     {
+        if (request.IsPlatformAdmin && !IsSuperAdmin())
+            return Forbid();
+
         var userName = request.UserName?.Trim();
         var displayName = request.DisplayName?.Trim();
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(displayName)
@@ -65,7 +68,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             UserName = userName,
             DisplayName = displayName,
             IsActive = true,
-            IsPlatformAdmin = false,
+            IsPlatformAdmin = request.IsPlatformAdmin,
             BaseRedirectUrl = string.IsNullOrWhiteSpace(request.BaseRedirectUrl) ? null : request.BaseRedirectUrl.Trim(),
             CreatedUtc = DateTime.UtcNow
         };
@@ -321,6 +324,6 @@ public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? Branch
 public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
 public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
 
-public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl);
+public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl, bool IsPlatformAdmin = false);
 public sealed record UpdatePlatformUserRequest(string DisplayName, bool IsActive, string? BaseRedirectUrl);
 public sealed record ResetPlatformUserPasswordRequest(string NewPassword);
