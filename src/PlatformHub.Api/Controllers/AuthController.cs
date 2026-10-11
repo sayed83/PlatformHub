@@ -23,13 +23,25 @@ public sealed class AuthController(IAuthService auth, IConfiguration configurati
         var jwt = configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(AppClaimTypes.UserId, user.UserId.ToString()),
-            new Claim(AppClaimTypes.UserName, user.UserName),
-            new Claim(AppClaimTypes.DisplayName, user.DisplayName),
-            new Claim(AppClaimTypes.PlatformAdmin, user.IsPlatformAdmin ? "true" : "false")
+            new(AppClaimTypes.UserId, user.UserId.ToString()),
+            new(AppClaimTypes.UserName, user.UserName),
+            new(AppClaimTypes.DisplayName, user.DisplayName),
+            new(AppClaimTypes.PlatformAdmin, user.IsPlatformAdmin ? "true" : "false")
         };
+        claims.AddRange(user.Roles.Select(role => new Claim(AppClaimTypes.Role, role)));
+        claims.AddRange(user.Permissions.Select(permission => new Claim(AppClaimTypes.Permission, permission)));
+        foreach (var scope in user.Scopes)
+        {
+            if (scope.TenantId.HasValue)
+                claims.Add(new Claim(AppClaimTypes.TenantId, scope.TenantId.Value.ToString()));
+            if (scope.BranchId.HasValue)
+                claims.Add(new Claim(AppClaimTypes.BranchId, scope.BranchId.Value.ToString()));
+            if (scope.ProjectId.HasValue)
+                claims.Add(new Claim(AppClaimTypes.ProjectId, scope.ProjectId.Value.ToString()));
+        }
+
         var token = new JwtSecurityToken(jwt["Issuer"], jwt["Audience"], claims,
             expires: DateTime.UtcNow.AddMinutes(15), signingCredentials: credentials);
         return Ok(new { accessToken = new JwtSecurityTokenHandler().WriteToken(token), expiresIn = 900, user });
