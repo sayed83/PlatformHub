@@ -8,6 +8,7 @@ public sealed record LoginResponse(
     string DisplayName,
     bool IsPlatformAdmin,
     string? BaseRedirectUrl,
+    string? RoleRedirectUrl,
     IReadOnlyList<string> Roles,
     IReadOnlyList<string> Permissions,
     IReadOnlyList<RoleScopeDto> Scopes);
