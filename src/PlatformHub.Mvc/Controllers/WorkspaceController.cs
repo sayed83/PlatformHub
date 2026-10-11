@@ -34,6 +34,14 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
                 "That tenant, branch, or project is not assigned to your account.");
         }
 
+        IReadOnlyList<WorkspaceMenuItemViewModel> menus = Array.Empty<WorkspaceMenuItemViewModel>();
+        if (selected?.ProjectId is > 0)
+        {
+            var projectMenus = await api.GetAsync<List<WorkspaceMenuItemViewModel>>(
+                $"api/v1/navigation/menus?projectId={selected.ProjectId.Value}", token, ct);
+            menus = projectMenus ?? Array.Empty<WorkspaceMenuItemViewModel>();
+        }
+
         var permissions = User.FindAll("ph_permission").Select(x => x.Value)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var roles = User.FindAll("ph_role").Select(x => x.Value)
@@ -46,7 +54,8 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
             Roles = roles,
             Permissions = permissions,
             Scopes = scopes,
-            SelectedScope = selected
+            SelectedScope = selected,
+            Menus = menus
         };
 
         return View(model);
