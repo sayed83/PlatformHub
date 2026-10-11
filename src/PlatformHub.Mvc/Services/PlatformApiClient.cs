@@ -10,6 +10,60 @@ public sealed class PlatformApiClient(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<(T? Value, string? Error)> PostWithErrorAsync<T>(
+        string path, object body, CancellationToken ct = default, string? token = null)
+    {
+        var client = factory.CreateClient("PlatformApi");
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
+        };
+        if (!string.IsNullOrWhiteSpace(token))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            using var response = await client.SendAsync(request, ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Platform API POST {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
+                    path, (int)response.StatusCode, Truncate(responseBody));
+                var message = TryReadApiMessage(responseBody) ?? $"Platform API returned HTTP {(int)response.StatusCode}.";
+                return (default, message);
+            }
+            if (string.IsNullOrWhiteSpace(responseBody)) return (default, null);
+            return (JsonSerializer.Deserialize<T>(responseBody, JsonOptions), null);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Could not connect to Platform API for POST {Path}", path);
+            return (default, "Could not connect to the Platform API.");
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Platform API POST {Path} timed out", path);
+            return (default, "The Platform API request timed out.");
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Platform API returned invalid JSON for POST {Path}", path);
+            return (default, "The Platform API returned an unexpected response.");
+        }
+    }
+
+    private static string? TryReadApiMessage(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            foreach (var name in new[] { "message", "detail", "title", "error" })
+                if (document.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                    return value.GetString();
+        }
+        catch (JsonException) { }
+        return string.IsNullOrWhiteSpace(body) ? null : Truncate(body);
+    }
+
     public async Task<T?> PostAsync<T>(
         string path,
         object body,
