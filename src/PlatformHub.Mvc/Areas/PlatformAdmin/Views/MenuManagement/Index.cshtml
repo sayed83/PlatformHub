@@ -1,0 +1,70 @@
+@{
+    ViewData["Title"] = "Project Menu Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div><div class="text-primary small fw-semibold text-uppercase">Configuration</div><h1 class="h3 mb-1">Project Menu Management</h1><p class="text-secondary mb-0">Configure project modules and navigation menus.</p></div>
+</div>
+<div id="notice" class="alert d-none" role="alert"></div>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body">
+  <label for="projectSelect" class="form-label fw-semibold">Project</label>
+  <div class="row g-2"><div class="col-md-8"><select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select></div><div class="col-md-4"><button id="refreshBtn" class="btn btn-outline-secondary w-100" type="button">Refresh data</button></div></div>
+</div></div>
+<ul class="nav nav-tabs mb-3" role="tablist"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#modulesPane" type="button">Modules</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#menusPane" type="button">Menu items</button></li></ul>
+<div class="tab-content">
+ <section class="tab-pane fade show active" id="modulesPane">
+  <div class="card border-0 shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h2 class="h5 mb-0">Project modules</h2><small class="text-secondary">Modules group related menus.</small></div><button class="btn btn-primary btn-sm" id="addModule">Add module</button></div>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Code</th><th>Name</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody id="moduleRows"><tr><td colspan="5" class="text-center text-secondary py-4">Select a project.</td></tr></tbody></table></div></div>
+ </section>
+ <section class="tab-pane fade" id="menusPane">
+  <div class="card border-0 shadow-sm"><div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h2 class="h5 mb-0">Navigation menus</h2><small class="text-secondary">Standalone, module and nested menus.</small></div><button class="btn btn-primary btn-sm" id="addMenu">Add menu</button></div>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Code / Name</th><th>Module</th><th>Parent</th><th>Route</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody id="menuRows"><tr><td colspan="7" class="text-center text-secondary py-4">Select a project.</td></tr></tbody></table></div></div>
+ </section>
+</div>
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+<form id="editForm"><div class="modal-header"><h2 class="modal-title fs-5" id="modalTitle">Add entry</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+<div class="modal-body"><div id="formError" class="alert alert-danger d-none"></div><input type="hidden" id="entryId"><input type="hidden" id="entryKind">
+<div class="row g-3"><div class="col-md-6"><label class="form-label" for="entryCode">Code *</label><input id="entryCode" class="form-control" maxlength="50" required></div><div class="col-md-6"><label class="form-label" for="entryName">Name *</label><input id="entryName" class="form-control" maxlength="200" required></div>
+<div class="col-md-6 module-only"><label class="form-label" for="entryDescription">Description</label><input id="entryDescription" class="form-control" maxlength="500"></div><div class="col-md-6 module-only"><label class="form-label" for="entryIcon">Icon</label><input id="entryIcon" class="form-control" maxlength="100" placeholder="bi bi-box"></div>
+<div class="col-md-6 menu-only"><label class="form-label" for="moduleId">Module (optional)</label><select id="moduleId" class="form-select"></select></div><div class="col-md-6 menu-only"><label class="form-label" for="parentId">Parent menu (optional)</label><select id="parentId" class="form-select"></select></div>
+<div class="col-md-4 menu-only"><label class="form-label" for="entryArea">Area</label><input id="entryArea" class="form-control" maxlength="100"></div><div class="col-md-4 menu-only"><label class="form-label" for="entryController">Controller</label><input id="entryController" class="form-control" maxlength="100"></div><div class="col-md-4 menu-only"><label class="form-label" for="entryAction">Action</label><input id="entryAction" class="form-control" maxlength="100"></div>
+<div class="col-md-8 menu-only"><label class="form-label" for="entryRoute">Route URL</label><input id="entryRoute" class="form-control" maxlength="500" placeholder="/Sales/Index or https://example.com"></div><div class="col-md-4 menu-only"><label class="form-label" for="entryMenuIcon">Icon</label><input id="entryMenuIcon" class="form-control" maxlength="100" placeholder="bi bi-list"></div>
+<div class="col-md-4"><label class="form-label" for="entrySort">Sort order</label><input id="entrySort" class="form-control" type="number" value="0" min="0" max="100000"></div><div class="col-md-4 menu-only d-flex align-items-end"><div class="form-check mb-2"><input id="entryExternal" class="form-check-input" type="checkbox"><label class="form-check-label" for="entryExternal">External link</label></div></div><div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input id="entryActive" class="form-check-input" type="checkbox" checked><label class="form-check-label" for="entryActive">Active</label></div></div>
+</div></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary" id="saveBtn">Save</button></div></form>
+</div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+ const projectSelect=document.getElementById('projectSelect'), moduleRows=document.getElementById('moduleRows'), menuRows=document.getElementById('menuRows');
+ const modal=new bootstrap.Modal(document.getElementById('editModal')); let modules=[], menus=[], kind='modules';
+ const url=(action)=>'@Url.Action("__ACTION__", "MenuManagement", new { area = "PlatformAdmin" })'.replace('__ACTION__',action);
+ const notice=(message,type='success')=>{const n=document.getElementById('notice');n.textContent=message;n.className='alert alert-'+type;};
+ const fail=(message)=>{const e=document.getElementById('formError');e.textContent=message;e.classList.remove('d-none');};
+ const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const selectedProject=()=>Number(projectSelect.value||0);
+ const send=async(path,body)=>{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':document.querySelector('input[name="__RequestVerificationToken"]')?.value||''},body:JSON.stringify(body)});const data=await r.json().catch(()=>({}));if(!r.ok)throw Error(data.message||'Request failed.');return data;};
+ async function loadProjects(){const r=await fetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })');if(!r.ok)throw Error('Unable to load projects.');const ps=await r.json();projectSelect.innerHTML='<option value="">Choose a project…</option>'+ps.map(p=>'<option value="'+p.id+'">'+esc(p.tenantName)+' / '+esc(p.name)+' ('+esc(p.code)+')</option>').join('');}
+ async function refresh(){const p=selectedProject();if(!p){modules=[];menus=[];render();return;}const [mr,ir]=await Promise.all([fetch(url('Data')+'?kind=modules&projectId='+p),fetch(url('Data')+'?kind=items&projectId='+p)]);if(!mr.ok||!ir.ok)throw Error('Unable to load project menu data.');modules=await mr.json();menus=await ir.json();render();}
+ function status(v){return v?'<span class="badge text-bg-success">Active</span>':'<span class="badge text-bg-secondary">Inactive</span>';}
+ function render(){moduleRows.innerHTML=modules.length?modules.map(x=>'<tr><td class="fw-semibold">'+esc(x.code)+'</td><td>'+esc(x.name)+'</td><td>'+x.sortOrder+'</td><td>'+status(x.isActive)+'</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="'+x.id+'">Edit</button></td></tr>').join(''):'<tr><td colspan="5" class="text-center text-secondary py-4">No modules yet.</td></tr>';
+ menuRows.innerHTML=menus.length?menus.map(x=>'<tr><td><span class="fw-semibold">'+esc(x.code)+'</span><div class="small text-secondary">'+esc(x.name)+'</div></td><td>'+esc(modules.find(m=>m.id===x.moduleId)?.name||'Standalone')+'</td><td>'+esc(menus.find(m=>m.id===x.parentMenuId)?.name||'—')+'</td><td><small>'+esc(x.routeUrl||[x.area,x.controller,x.action].filter(Boolean).join('/ ')||'No route')+'</small></td><td>'+x.sortOrder+'</td><td>'+status(x.isActive)+'</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="'+x.id+'">Edit</button></td></tr>').join(''):'<tr><td colspan="7" class="text-center text-secondary py-4">No menus yet.</td></tr>';}
+ function openEditor(type,item={}){kind=type;document.getElementById('editForm').reset();document.getElementById('formError').classList.add('d-none');document.getElementById('entryId').value=item.id||'';document.getElementById('entryKind').value=type;document.getElementById('modalTitle').textContent=(item.id?'Edit ':'Add ')+(type==='modules'?'module':'menu item');
+ document.querySelectorAll('.module-only').forEach(e=>e.classList.toggle('d-none',type!=='modules'));document.querySelectorAll('.menu-only').forEach(e=>e.classList.toggle('d-none',type!=='items'));
+ for(const [id,key] of [['entryCode','code'],['entryName','name'],['entryDescription','description'],['entryIcon',type==='modules'?'icon':'icon'],['entryArea','area'],['entryController','controller'],['entryAction','action'],['entryRoute','routeUrl'],['entryMenuIcon','icon'],['entrySort','sortOrder']]){const el=document.getElementById(id);if(el)el.value=item[key]??(id==='entrySort'?0:'');}
+ document.getElementById('entryActive').checked=item.isActive??true;document.getElementById('entryExternal').checked=item.isExternal??false;
+ document.getElementById('moduleId').innerHTML='<option value="">No module (standalone)</option>'+modules.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
+ document.getElementById('parentId').innerHTML='<option value="">No parent</option>'+menus.filter(x=>x.id!==item.id).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
+ document.getElementById('moduleId').value=item.moduleId||'';document.getElementById('parentId').value=item.parentMenuId||'';modal.show();}
+ document.getElementById('addModule').addEventListener('click',()=>openEditor('modules'));document.getElementById('addMenu').addEventListener('click',()=>openEditor('items'));
+ moduleRows.addEventListener('click',e=>{const b=e.target.closest('[data-edit-module]');if(b)openEditor('modules',modules.find(x=>x.id===Number(b.dataset.editModule)));});
+ menuRows.addEventListener('click',e=>{const b=e.target.closest('[data-edit-menu]');if(b)openEditor('items',menus.find(x=>x.id===Number(b.dataset.editMenu)));});
+ projectSelect.addEventListener('change',()=>refresh().catch(e=>notice(e.message,'danger')));document.getElementById('refreshBtn').addEventListener('click',()=>refresh().catch(e=>notice(e.message,'danger')));
+ document.getElementById('editForm').addEventListener('submit',async e=>{e.preventDefault();if(!selectedProject()){fail('Choose a project first.');return;}const common={id:Number(document.getElementById('entryId').value)||null,projectId:selectedProject(),code:document.getElementById('entryCode').value,name:document.getElementById('entryName').value,sortOrder:Number(document.getElementById('entrySort').value)||0,isActive:document.getElementById('entryActive').checked};let body,action;
+ if(kind==='modules'){body={...common,description:document.getElementById('entryDescription').value,icon:document.getElementById('entryIcon').value};action='SaveModule';}
+ else{body={...common,moduleId:Number(document.getElementById('moduleId').value)||null,parentMenuId:Number(document.getElementById('parentId').value)||null,area:document.getElementById('entryArea').value,controller:document.getElementById('entryController').value,action:document.getElementById('entryAction').value,routeUrl:document.getElementById('entryRoute').value,icon:document.getElementById('entryMenuIcon').value,isExternal:document.getElementById('entryExternal').checked};action='SaveMenu';}
+ const btn=document.getElementById('saveBtn');btn.disabled=true;try{await send(url(action),body);modal.hide();await refresh();notice('Saved successfully.');}catch(err){fail(err.message);}finally{btn.disabled=false;}
+ });
+ const form=document.getElementById('editForm');form.insertAdjacentHTML('beforeend','<input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken().ToString().Replace("\"","&quot;")" />');
+ loadProjects().catch(e=>notice(e.message,'danger'));
+})();
+</script>
