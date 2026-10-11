@@ -56,8 +56,24 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.Permission, "Branch.Create"));
     options.AddPolicy("Project.Create", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Project.Create"));
-    options.AddPolicy("Role.Manage", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(AppClaimTypes.Permission, "Role.Assign"));
+    options.AddPolicy("Role.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Role.View"));
+    options.AddPolicy("Permission.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Permission.View"));
+    options.AddPolicy("Platform.Dashboard.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Platform.Dashboard.View"));
+    options.AddPolicy("Tenant.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Tenant.View"));
+    options.AddPolicy("Tenant.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Tenant.Create"));
+    options.AddPolicy("Branch.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Branch.View"));
+    options.AddPolicy("Branch.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Branch.Create"));
+    options.AddPolicy("Project.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Project.View"));
+    options.AddPolicy("Project.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Project.Create"));
 });
 
 var app = builder.Build();
