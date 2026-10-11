@@ -7,6 +7,8 @@ public sealed class UserAccessViewModel
     public List<ManagedUserViewModel> Users { get; set; } = [];
     public List<ManagedRoleViewModel> Roles { get; set; } = [];
     public List<ManagedTenantViewModel> Tenants { get; set; } = [];
+    public List<ManagedBranchViewModel> Branches { get; set; } = [];
+    public List<ManagedProjectViewModel> Projects { get; set; } = [];
     public string? Search { get; set; }
     public bool? ActiveFilter { get; set; }
 
@@ -74,3 +76,21 @@ public sealed class ManagedTenantViewModel
 }
 
 public sealed record UserOperationResult(string Message);
+
+public sealed class ManagedBranchViewModel
+{
+    public long Id { get; set; }
+    public long TenantId { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+}
+
+public sealed class ManagedProjectViewModel
+{
+    public long Id { get; set; }
+    public long TenantId { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+}
