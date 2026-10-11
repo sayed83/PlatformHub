@@ -9,7 +9,7 @@ namespace PlatformHub.Mvc.Controllers;
 public sealed class WorkspaceController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(long? tenantId, long? branchId, long? projectId, CancellationToken ct)
+    public async Task<IActionResult> Index(int? scopeIndex, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value == "true")
             return RedirectToAction("Index", "Dashboard", new { area = "PlatformAdmin" });
@@ -22,12 +22,11 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 "Could not load your workspace assignments. Check that the Platform API is running.");
 
-        var selected = scopes.FirstOrDefault(x =>
-            (!tenantId.HasValue || x.Id == tenantId.Value)
-            && (!branchId.HasValue || x.BranchId == branchId)
-            && (!projectId.HasValue || x.ProjectId == projectId));
+        var selected = scopeIndex.HasValue && scopeIndex.Value >= 0 && scopeIndex.Value < scopes.Count
+            ? scopes[scopeIndex.Value]
+            : null;
 
-        var hasSelection = tenantId.HasValue || branchId.HasValue || projectId.HasValue;
+        var hasSelection = scopeIndex.HasValue;
         if (hasSelection && selected is null)
         {
             Response.StatusCode = StatusCodes.Status403Forbidden;
