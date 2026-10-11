@@ -31,5 +31,8 @@ jobs:
       - name: Build solution
         run: dotnet build PlatformHub.sln --configuration Release --no-restore
 
+      - name: Restore security test project
+        run: dotnet restore tests/PlatformHub.SecurityTests/PlatformHub.SecurityTests.csproj
+
       - name: Run security tests
         run: dotnet test tests/PlatformHub.SecurityTests/PlatformHub.SecurityTests.csproj --configuration Release --no-restore
