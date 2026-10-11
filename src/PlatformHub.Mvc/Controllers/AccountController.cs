@@ -38,7 +38,12 @@ public sealed class AccountController(PlatformApiClient api) : Controller
         return RedirectToAction(nameof(Login));
     }
 
-    public IActionResult Denied() => Forbid();
+    [HttpGet]
+    public IActionResult Denied()
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        return View();
+    }
 
     private async Task SignIn(ApiLoginResponse result)
     {
