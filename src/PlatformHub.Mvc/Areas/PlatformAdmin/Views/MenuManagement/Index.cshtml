@@ -22,7 +22,7 @@
  </section>
 </div>
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
-<form id="editForm"><div class="modal-header"><h2 class="modal-title fs-5" id="modalTitle">Add entry</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+<form id="editForm">@Html.AntiForgeryToken()<div class="modal-header"><h2 class="modal-title fs-5" id="modalTitle">Add entry</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
 <div class="modal-body"><div id="formError" class="alert alert-danger d-none"></div><input type="hidden" id="entryId"><input type="hidden" id="entryKind">
 <div class="row g-3"><div class="col-md-6"><label class="form-label" for="entryCode">Code *</label><input id="entryCode" class="form-control" maxlength="50" required></div><div class="col-md-6"><label class="form-label" for="entryName">Name *</label><input id="entryName" class="form-control" maxlength="200" required></div>
 <div class="col-md-6 module-only"><label class="form-label" for="entryDescription">Description</label><input id="entryDescription" class="form-control" maxlength="500"></div><div class="col-md-6 module-only"><label class="form-label" for="entryIcon">Icon</label><input id="entryIcon" class="form-control" maxlength="100" placeholder="bi bi-box"></div>
