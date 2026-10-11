@@ -32,7 +32,7 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         if (ModelState.IsValid)
         {
             var created = await api.PostAsync<ManagedUserViewModel>("api/v1/platform/access/users",
-                new { model.UserName, model.DisplayName, model.Password, model.BaseRedirectUrl }, ct, token);
+                new { model.UserName, model.DisplayName, model.Password, model.BaseRedirectUrl, model.IsPlatformAdmin }, ct, token);
             if (created is not null)
             {
                 TempData["SuccessMessage"] = $"User '{created.UserName}' created. Assign a role and scope before they access tenant data.";
