@@ -27,6 +27,7 @@ public sealed class AuthService(PlatformDbContext db, IPasswordHasher<AppUser> h
             .Select(x => new
             {
                 x.Role.Code,
+                x.Role.BaseRedirectUrl,
                 x.TenantId,
                 x.BranchId,
                 x.ProjectId
@@ -34,6 +35,7 @@ public sealed class AuthService(PlatformDbContext db, IPasswordHasher<AppUser> h
             .ToListAsync(cancellationToken);
 
         var roleCodes = assignments.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var roleRedirectUrl = assignments.Select(x => x.BaseRedirectUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
         var permissionCodes = await (
             from assignment in db.UserRoleAssignments.AsNoTracking()
             join rolePermission in db.RolePermissions.AsNoTracking() on assignment.RoleId equals rolePermission.RoleId
@@ -54,6 +56,7 @@ public sealed class AuthService(PlatformDbContext db, IPasswordHasher<AppUser> h
             user.DisplayName,
             user.IsPlatformAdmin,
             user.BaseRedirectUrl,
+            roleRedirectUrl,
             roleCodes,
             permissionCodes,
             scopes);
