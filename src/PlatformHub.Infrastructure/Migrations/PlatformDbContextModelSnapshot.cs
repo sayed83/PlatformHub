@@ -141,7 +141,7 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.Property<bool>("IsExternal")
                         .HasColumnType("bit");
 
-                    b.Property<long>("ModuleId")
+                    b.Property<long?>("ModuleId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Name")
@@ -511,8 +511,7 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.HasOne("PlatformHub.Domain.Entities.ProjectModule", "Module")
                         .WithMany()
                         .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("PlatformHub.Domain.Entities.MenuItem", "ParentMenu")
                         .WithMany()

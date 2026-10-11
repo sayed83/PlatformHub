@@ -46,7 +46,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         });
         modelBuilder.Entity<Branch>(e =>
