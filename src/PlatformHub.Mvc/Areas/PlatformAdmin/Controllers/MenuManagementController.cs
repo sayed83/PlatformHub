@@ -12,6 +12,16 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         User.FindFirst("ph_platform_admin")?.Value == "true" ? View() : Forbid();
 
     [HttpGet]
+    public async Task<IActionResult> Projects(CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var data = await api.GetAsync<object>("api/v1/project-menus/projects", token, ct);
+        return data is null ? StatusCode(502, new { message = "Could not load projects from Platform API." }) : Json(data);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Data(string kind, long projectId, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
