@@ -7,6 +7,7 @@
     var canUpdate = User.HasClaim("ph_permission", "User.Update");
     var canDeactivate = User.HasClaim("ph_permission", "User.Deactivate");
     var canAssign = User.HasClaim("ph_permission", "Role.Assign");
+    var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
 }
 
 <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
@@ -54,6 +55,14 @@
                             <input asp-for="BaseRedirectUrl" class="form-control" placeholder="/Workspace" />
                             <span asp-validation-for="BaseRedirectUrl" class="text-danger small"></span>
                         </div>
+                        @if (isSuperAdmin)
+                        {
+                            <div class="form-check border rounded p-3 ps-5 mb-3">
+                                <input asp-for="IsPlatformAdmin" class="form-check-input" />
+                                <label asp-for="IsPlatformAdmin" class="form-check-label fw-semibold">Create as Platform Admin (not Super Admin)</label>
+                                <div class="form-text">This account can manage the platform but cannot view, edit, deactivate, or reset passwords for platform-admin accounts. It will not receive the Super Admin role.</div>
+                            </div>
+                        }
                         <button class="btn btn-primary w-100" type="submit">Create user</button>
                     </form>
                 </div>
