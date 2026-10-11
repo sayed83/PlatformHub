@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using PlatformHub.Api;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
@@ -26,6 +25,64 @@ public sealed class PlatformAccessController(PlatformDbContext db) : ControllerB
                     .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
             }).ToListAsync(cancellationToken);
         return Ok(roles);
+    }
+
+    [HttpPost("roles")]
+    [Authorize(Policy = "Role.Create")]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request, CancellationToken cancellationToken)
+    {
+        var code = request.Code?.Trim().ToUpperInvariant();
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "Role code and name are required." });
+        if (code.Length > 100 || name.Length > 150 || (request.Description?.Length ?? 0) > 500
+            || (request.BaseRedirectUrl?.Length ?? 0) > 500)
+            return BadRequest(new { message = "Role fields exceed their allowed length." });
+        if (code == PlatformRbacSeeder.SuperAdminCode || code.Contains(' '))
+            return BadRequest(new { message = "This role code is reserved or invalid." });
+        if (await db.Roles.AnyAsync(x => x.Code == code, cancellationToken))
+            return Conflict(new { message = "Role code already exists." });
+
+        var role = new PlatformRole
+        {
+            Code = code,
+            Name = name,
+            Description = request.Description?.Trim(),
+            BaseRedirectUrl = request.BaseRedirectUrl?.Trim(),
+            IsSystemRole = false,
+            IsActive = true
+        };
+        db.Roles.Add(role);
+        await db.SaveChangesAsync(cancellationToken);
+        return CreatedAtAction(nameof(GetRoles), new { id = role.Id }, new
+        {
+            role.Id, role.Code, role.Name, role.Description, role.IsSystemRole, role.IsActive, role.BaseRedirectUrl
+        });
+    }
+
+    [HttpPut("roles/{roleId:long}/permissions")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> SetRolePermissions(long roleId, [FromBody] SetRolePermissionsRequest request, CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "Built-in system roles and their critical permissions cannot be modified." });
+
+        var permissionIds = request.PermissionIds?.Distinct().ToArray() ?? [];
+        if (permissionIds.Length > 0)
+        {
+            var found = await db.Permissions.CountAsync(x => permissionIds.Contains(x.Id), cancellationToken);
+            if (found != permissionIds.Length)
+                return BadRequest(new { message = "One or more permission IDs are invalid." });
+        }
+
+        var current = await db.RolePermissions.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
+        db.RolePermissions.RemoveRange(current);
+        foreach (var permissionId in permissionIds)
+            db.RolePermissions.Add(new PlatformRolePermission { RoleId = roleId, PermissionId = permissionId });
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Role permissions updated.", roleId, permissionCount = permissionIds.Length });
     }
 
     [HttpGet("permissions")]
@@ -135,3 +192,5 @@ public sealed class PlatformAccessController(PlatformDbContext db) : ControllerB
 }
 
 public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? BranchId, long? ProjectId);
+public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
+public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
