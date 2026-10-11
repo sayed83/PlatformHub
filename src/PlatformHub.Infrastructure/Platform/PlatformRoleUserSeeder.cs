@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 
@@ -25,6 +26,7 @@ public static class PlatformRoleUserSeeder
         PlatformDbContext db,
         IConfiguration configuration,
         IPasswordHasher<AppUser> passwordHasher,
+        ILogger<PlatformRoleUserSeeder> logger,
         CancellationToken cancellationToken = default)
     {
         foreach (var seed in SeedAccounts)
@@ -38,7 +40,11 @@ public static class PlatformRoleUserSeeder
                 || !string.IsNullOrWhiteSpace(password);
 
             // Opt-in per account. This avoids silently creating predictable default credentials.
-            if (!hasAnyValue) continue;
+            if (!hasAnyValue)
+            {
+                logger.LogWarning("Skipping default account for role {RoleCode}: configuration section {ConfigKey} is not set.", seed.RoleCode, seed.ConfigKey);
+                continue;
+            }
 
             if (string.IsNullOrWhiteSpace(userName)
                 || string.IsNullOrWhiteSpace(displayName)
@@ -68,6 +74,7 @@ public static class PlatformRoleUserSeeder
                 user.PasswordHash = passwordHasher.HashPassword(user, password);
                 db.Users.Add(user);
                 await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Created configured default account {UserName} for role {RoleCode}.", user.UserName, seed.RoleCode);
             }
             else if (user.IsPlatformAdmin != seed.IsPlatformAdmin)
             {
@@ -135,6 +142,11 @@ public static class PlatformRoleUserSeeder
                     ProjectId = projectId
                 });
                 await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Assigned role {RoleCode} to user {UserName}.", seed.RoleCode, user.UserName);
+            }
+            else
+            {
+                logger.LogInformation("Default user {UserName} already has role {RoleCode}; no change needed.", user.UserName, seed.RoleCode);
             }
         }
     }
