@@ -16,7 +16,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<PlatformDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("PlatformDb")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("PlatformDb"),
+        sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo")));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
@@ -50,17 +52,13 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// Opt-in first-admin seeding. Credentials must come from User Secrets or environment variables.
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<PlatformDbContext>();
     var passwordHasher = services.GetRequiredService<IPasswordHasher<AppUser>>();
 
-    await PlatformAdminSeeder.SeedAsync(
-        db,
-        app.Configuration,
-        passwordHasher);
+    await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
 }
 
 app.UseHttpsRedirection();
