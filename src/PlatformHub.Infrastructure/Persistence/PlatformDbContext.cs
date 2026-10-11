@@ -11,9 +11,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("dbo");
+
         modelBuilder.Entity<AppUser>(e =>
         {
-            e.ToTable("AppUsers");
+            e.ToTable("AppUsers", "dbo");
             e.HasKey(x => x.Id);
             e.Property(x => x.UserName).HasMaxLength(100).IsRequired();
             e.HasIndex(x => x.UserName).IsUnique();
@@ -23,7 +25,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         });
         modelBuilder.Entity<Tenant>(e =>
         {
-            e.ToTable("Tenants");
+            e.ToTable("Tenants", "dbo");
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.HasIndex(x => x.Code).IsUnique();
@@ -31,7 +33,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         });
         modelBuilder.Entity<Project>(e =>
         {
-            e.ToTable("Projects");
+            e.ToTable("Projects", "dbo");
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
