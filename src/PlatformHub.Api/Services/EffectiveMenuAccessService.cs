@@ -106,7 +106,7 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
                 (a.ProjectId == projectId ||
                  (a.ProjectId == null && a.BranchId == null && a.TenantId == project.TenantId) ||
                  (a.ProjectId == null && a.BranchId != null &&
-                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId)))
+                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId))))
             .Select(a => a.RoleId)
             .Distinct()
             .ToListAsync(ct);
