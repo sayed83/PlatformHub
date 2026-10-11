@@ -13,6 +13,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<PlatformPermission> Permissions => Set<PlatformPermission>();
     public DbSet<PlatformRolePermission> RolePermissions => Set<PlatformRolePermission>();
     public DbSet<UserRoleAssignment> UserRoleAssignments => Set<UserRoleAssignment>();
+    public DbSet<ProjectModule> ProjectModules => Set<ProjectModule>();
+    public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<RoleWiseMenuAccess> RoleWiseMenuAccesses => Set<RoleWiseMenuAccess>();
+    public DbSet<UserWiseMenuAccess> UserWiseMenuAccesses => Set<UserWiseMenuAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,6 +96,54 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProjectModule>(e =>
+        {
+            e.ToTable("ProjectModules", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.Icon).HasMaxLength(100);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.SortOrder });
+        });
+        modelBuilder.Entity<MenuItem>(e =>
+        {
+            e.ToTable("MenuItems", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Area).HasMaxLength(100);
+            e.Property(x => x.Controller).HasMaxLength(100);
+            e.Property(x => x.Action).HasMaxLength(100);
+            e.Property(x => x.RouteUrl).HasMaxLength(1000);
+            e.Property(x => x.Icon).HasMaxLength(100);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Module).WithMany().HasForeignKey(x => x.ModuleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.ParentMenu).WithMany().HasForeignKey(x => x.ParentMenuId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.ProjectId, x.ModuleId, x.ParentMenuId, x.SortOrder });
+        });
+        modelBuilder.Entity<RoleWiseMenuAccess>(e =>
+        {
+            e.ToTable("RoleWiseMenuAccess", "dbo");
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.MenuItem).WithMany().HasForeignKey(x => x.MenuItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ProjectId, x.RoleId, x.MenuItemId }).IsUnique();
+        });
+        modelBuilder.Entity<UserWiseMenuAccess>(e =>
+        {
+            e.ToTable("UserWiseMenuAccess", "dbo");
+            e.HasKey(x => x.Id);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.MenuItem).WithMany().HasForeignKey(x => x.MenuItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ProjectId, x.UserId, x.MenuItemId }).IsUnique();
         });
     }
 }
