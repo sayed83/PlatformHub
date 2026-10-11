@@ -1,0 +1,17 @@
+@{ ViewData["Title"] = "Workspace"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-primary fw-semibold small text-uppercase mb-2">PlatformHub · Workspace</div>
+                <h1 class="h3 mb-2">Welcome, @User.FindFirst("ph_display_name")?.Value</h1>
+                <p class="text-secondary mb-4">You are signed in. Your available features depend on your assigned role and tenant, branch, or project scope.</p>
+                <div class="alert alert-info mb-4" role="status">Workspace landing page is available. Business modules can be added here as they are implemented.</div>
+                <form method="post" asp-controller="Account" asp-action="Logout">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-outline-secondary" type="submit">Sign out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
