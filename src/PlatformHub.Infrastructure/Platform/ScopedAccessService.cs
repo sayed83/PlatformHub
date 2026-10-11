@@ -68,11 +68,19 @@ public sealed class ScopedAccessService(PlatformDbContext db) : IScopedAccessSer
                                      && permission.Code == permissionCode
                                  select assignment;
 
-        // Every non-null scope on an assignment must match the requested resource.
-        // A tenant-only assignment covers all branches/projects under that tenant;
-        // a branch/project assignment is restricted to that exact branch/project.
+        // An assignment must be anchored to the requested tenant either directly or
+        // through the exact active branch/project. A null TenantId is NOT a wildcard.
+        // This prevents branch-only/project-only assignments from granting tenant-wide access.
         matchingAssignment = matchingAssignment.Where(a =>
-            a.TenantId == null || a.TenantId == tenantId);
+            a.TenantId == tenantId
+            || (a.TenantId == null && branchId.HasValue
+                && a.BranchId == branchId.Value
+                && db.Branches.Any(b => b.Id == branchId.Value
+                    && b.TenantId == tenantId && b.IsActive))
+            || (a.TenantId == null && projectId.HasValue
+                && a.ProjectId == projectId.Value
+                && db.Projects.Any(p => p.Id == projectId.Value
+                    && p.TenantId == tenantId && p.IsActive)));
 
         matchingAssignment = matchingAssignment.Where(a =>
             a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value));
