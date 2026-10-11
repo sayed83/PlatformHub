@@ -103,6 +103,56 @@
             </div>
         }
 
+        @if (Model.SelectedScope?.ProjectId is > 0)
+        {
+            <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Project navigation</h2>
+                    <p class="text-secondary small mb-0">Menus below reflect your role permissions and personal menu overrides.</p>
+                </div>
+            </div>
+            @if (Model.Menus.Count == 0)
+            {
+                <div class="alert alert-info border-0 shadow-sm">No project menus are currently allowed for this account. Ask your administrator to configure menu access.</div>
+            }
+            else
+            {
+                <div class="row g-3 mb-4">
+                    @foreach (var menu in Model.Menus)
+                    {
+                        var href = menu.IsExternal
+                            ? (Uri.TryCreate(menu.RouteUrl, UriKind.Absolute, out var externalUri) &&
+                               (externalUri.Scheme == Uri.UriSchemeHttp || externalUri.Scheme == Uri.UriSchemeHttps)
+                                ? menu.RouteUrl : null)
+                            : (!string.IsNullOrWhiteSpace(menu.RouteUrl) && Url.IsLocalUrl(menu.RouteUrl)
+                                ? menu.RouteUrl
+                                : (!string.IsNullOrWhiteSpace(menu.Controller)
+                                    ? Url.Action(menu.Action ?? "Index", menu.Controller, new { area = menu.Area })
+                                    : null));
+                        if (!string.IsNullOrWhiteSpace(href))
+                        {
+                            <div class="col-sm-6 col-xl-4">
+                                <a href="@href" class="card ws-card border-0 shadow-sm text-decoration-none text-reset h-100"
+                                   target="@(menu.IsExternal ? "_blank" : null)"
+                                   rel="@(menu.IsExternal ? "noopener noreferrer" : null)"
+                                   style="@(menu.ParentMenuId.HasValue ? "margin-left:1rem;" : null)">
+                                    <div class="card-body p-4">
+                                        <div class="ws-icon mb-3">@(string.IsNullOrWhiteSpace(menu.Icon) ? "☷" : menu.Icon)</div>
+                                        <h3 class="h6">@menu.Name</h3>
+                                        @if (!string.IsNullOrWhiteSpace(menu.ModuleName))
+                                        {
+                                            <p class="text-secondary small mb-0">@menu.ModuleName</p>
+                                        }
+                                    </div>
+                                </a>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        }
+        @if (Model.Menus.Count == 0)
+        {
         <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
             <div>
                 <h2 class="h5 mb-1">Available modules</h2>
@@ -151,6 +201,7 @@
                 <div class="col-12"><div class="alert alert-info border-0">Your account has no workspace module permissions yet. Ask your administrator to review your role permissions.</div></div>
             }
         </div>
+        }
     }
 
     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
