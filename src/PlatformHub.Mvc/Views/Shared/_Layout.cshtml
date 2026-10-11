@@ -53,6 +53,10 @@
         && User.FindFirst("ph_platform_admin")?.Value == "true";
     var currentArea = ViewContext.RouteData.Values["area"]?.ToString();
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var showAdminShell = isPlatformAdmin && !(string.Equals(currentArea, "PlatformAdmin", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(currentController, "Account", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(currentAction, "Login", StringComparison.OrdinalIgnoreCase));
     var canViewRoles = User.HasClaim("ph_permission", "Role.View");
     var canViewUsers = User.HasClaim("ph_permission", "User.View");
     string Active(string controller) =>
@@ -64,9 +68,9 @@
     <div class="container-fluid px-3 px-lg-4">
         <a class="navbar-brand d-flex align-items-center gap-2 mb-0 me-auto" asp-area="" asp-controller="Home" asp-action="Index">
             <span class="ph-brand-mark">P</span>
-            <span class="fw-semibold ph-brand-text">PlatformHub <span class="text-white-50 small fw-normal ph-brand-subtitle">@(isPlatformAdmin ? "· Control Center" : "")</span></span>
+            <span class="fw-semibold ph-brand-text">PlatformHub <span class="text-white-50 small fw-normal ph-brand-subtitle">@(showAdminShell ? "· Control Center" : "")</span></span>
         </a>
-        @if (isPlatformAdmin)
+        @if (showAdminShell)
         {
             <span class="ph-user-chip">Administrator · @User.FindFirst("ph_display_name")?.Value</span>
             <button class="btn btn-outline-light btn-sm ph-mobile-menu" type="button"
