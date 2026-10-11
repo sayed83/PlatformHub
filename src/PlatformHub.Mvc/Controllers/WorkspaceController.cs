@@ -39,7 +39,7 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
         {
             var projectMenus = await api.GetAsync<List<WorkspaceMenuItemViewModel>>(
                 $"api/v1/navigation/menus?projectId={selected.ProjectId.Value}", token, ct);
-            menus = projectMenus ?? Array.Empty<WorkspaceMenuItemViewModel>();
+            menus = projectMenus ?? new List<WorkspaceMenuItemViewModel>();
         }
 
         var permissions = User.FindAll("ph_permission").Select(x => x.Value)
