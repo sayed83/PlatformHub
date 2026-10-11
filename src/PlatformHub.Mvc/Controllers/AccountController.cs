@@ -24,8 +24,11 @@ public sealed class AccountController(PlatformApiClient api) : Controller
             return View(model);
         }
 
-        await SignIn(result, ct);
-        return LocalRedirect(Url.IsLocalUrl(result.User.BaseRedirectUrl) ? result.User.BaseRedirectUrl! : "/Home/Index");
+        await SignIn(result);
+        var redirect = !string.IsNullOrWhiteSpace(result.User.BaseRedirectUrl)
+            ? result.User.BaseRedirectUrl
+            : result.User.RoleRedirectUrl;
+        return LocalRedirect(Url.IsLocalUrl(redirect) ? redirect! : "/Home/Index");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -37,9 +40,9 @@ public sealed class AccountController(PlatformApiClient api) : Controller
 
     public IActionResult Denied() => Forbid();
 
-    private async Task SignIn(ApiLoginResponse result, CancellationToken ct)
+    private async Task SignIn(ApiLoginResponse result)
     {
-        // Keep access token server-side in auth ticket claims. Never expose it to browser JavaScript.
+        // Keep the access token in the server-side auth ticket; never expose it to browser JavaScript.
         var claims = new List<Claim>
         {
             new("ph_user_id", result.User.UserId.ToString()),
@@ -48,6 +51,14 @@ public sealed class AccountController(PlatformApiClient api) : Controller
             new("ph_platform_admin", "false"),
             new("ph_api_access_token", result.AccessToken)
         };
+        claims.AddRange(result.User.Roles.Select(x => new Claim("ph_role", x)));
+        claims.AddRange(result.User.Permissions.Select(x => new Claim("ph_permission", x)));
+        foreach (var scope in result.User.Scopes)
+        {
+            if (scope.TenantId.HasValue) claims.Add(new Claim("ph_tenant_id", scope.TenantId.Value.ToString()));
+            if (scope.BranchId.HasValue) claims.Add(new Claim("ph_branch_id", scope.BranchId.Value.ToString()));
+            if (scope.ProjectId.HasValue) claims.Add(new Claim("ph_project_id", scope.ProjectId.Value.ToString()));
+        }
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false, AllowRefresh = true });
