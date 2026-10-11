@@ -17,62 +17,87 @@ namespace PlatformHub.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("dbo")
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.AppUser", b =>
-                {
-                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<string>("BaseRedirectUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
-                    b.Property<DateTime>("CreatedUtc").HasColumnType("datetime2");
-                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
-                    b.Property<bool>("IsActive").HasColumnType("bit");
-                    b.Property<bool>("IsPlatformAdmin").HasColumnType("bit");
-                    b.Property<string>("PasswordHash").IsRequired().HasMaxLength(500).HasColumnType("nvarchar(500)");
-                    b.Property<string>("UserName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
-                    b.HasKey("Id");
-                    b.HasIndex("UserName").IsUnique();
-                    b.ToTable("AppUsers", (string)null);
-                });
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("BaseRedirectUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<DateTime>("CreatedUtc").HasColumnType("datetime2");
+                b.Property<string>("DisplayName").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                b.Property<bool>("IsActive").HasColumnType("bit");
+                b.Property<bool>("IsPlatformAdmin").HasColumnType("bit");
+                b.Property<string>("PasswordHash").IsRequired().HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<string>("UserName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                b.HasKey("Id");
+                b.HasIndex("UserName").IsUnique();
+                b.ToTable("AppUsers", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.Branch", b =>
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("Address").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+                b.Property<bool>("IsActive").HasColumnType("bit");
+                b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                b.Property<long>("TenantId").HasColumnType("bigint");
+                b.HasKey("Id");
+                b.HasIndex("TenantId", "Code").IsUnique();
+                b.ToTable("Branches", "dbo");
+            });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Project", b =>
-                {
-                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<string>("BaseUrl").HasColumnType("nvarchar(max)");
-                    b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
-                    b.Property<bool>("IsActive").HasColumnType("bit");
-                    b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
-                    b.Property<long>("TenantId").HasColumnType("bigint");
-                    b.HasKey("Id");
-                    b.HasIndex("TenantId", "Code").IsUnique();
-                    b.ToTable("Projects", (string)null);
-                });
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("BaseUrl").HasColumnType("nvarchar(max)");
+                b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+                b.Property<bool>("IsActive").HasColumnType("bit");
+                b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                b.Property<long>("TenantId").HasColumnType("bigint");
+                b.HasKey("Id");
+                b.HasIndex("TenantId", "Code").IsUnique();
+                b.ToTable("Projects", "dbo");
+            });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Tenant", b =>
-                {
-                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
-                    b.Property<bool>("IsActive").HasColumnType("bit");
-                    b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
-                    b.HasKey("Id");
-                    b.HasIndex("Code").IsUnique();
-                    b.ToTable("Tenants", (string)null);
-                });
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("Code").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+                b.Property<bool>("IsActive").HasColumnType("bit");
+                b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                b.HasKey("Id");
+                b.HasIndex("Code").IsUnique();
+                b.ToTable("Tenants", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.Branch", b =>
+            {
+                b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired();
+                b.Navigation("Tenant");
+            });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Project", b =>
-                {
-                    b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                    b.Navigation("Tenant");
-                });
+            {
+                b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
+                    .WithMany()
+                    .HasForeignKey("TenantId")
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired();
+                b.Navigation("Tenant");
+            });
 #pragma warning restore 612, 618
         }
     }
