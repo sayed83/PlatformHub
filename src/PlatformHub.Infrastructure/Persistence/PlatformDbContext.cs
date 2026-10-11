@@ -8,6 +8,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Project> Projects => Set<Project>();
+    public DbSet<Branch> Branches => Set<Branch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +38,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        });
+        modelBuilder.Entity<Branch>(e =>
+        {
+            e.ToTable("Branches", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Address).HasMaxLength(500);
             e.HasOne(x => x.Tenant)
                 .WithMany()
                 .HasForeignKey(x => x.TenantId)
