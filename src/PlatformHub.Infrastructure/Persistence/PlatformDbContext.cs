@@ -86,7 +86,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             e.ToTable("UserRoleAssignments", "dbo");
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.UserId, x.RoleId, x.TenantId, x.BranchId, x.ProjectId }).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.RoleId, x.TenantId, x.BranchId, x.ProjectId });
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
