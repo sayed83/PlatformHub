@@ -54,6 +54,7 @@
     var currentArea = ViewContext.RouteData.Values["area"]?.ToString();
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
     var canViewRoles = User.HasClaim("ph_permission", "Role.View");
+    var canViewUsers = User.HasClaim("ph_permission", "User.View");
     string Active(string controller) =>
         string.Equals(currentArea, "PlatformAdmin", StringComparison.OrdinalIgnoreCase)
         && string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
@@ -97,6 +98,13 @@
                     <a class="nav-link @Active("Projects")" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index">
                         <span class="ph-nav-icon" aria-hidden="true">◈</span> Projects
                     </a>
+                    @if (canViewUsers)
+                    {
+                        <a class="nav-link @Active("Users")" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index">
+                            <span class="ph-nav-icon" aria-hidden="true">♙</span> Users &amp; access
+                        </a>
+                    }
+
                     @if (canViewRoles)
                     {
                     <a class="nav-link @Active("Roles")" asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index">
