@@ -50,12 +50,6 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.PlatformAdmin, "true"));
     options.AddPolicy("PlatformSuperAdmin", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode));
-    options.AddPolicy("Tenant.Create", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(AppClaimTypes.Permission, "Tenant.Create"));
-    options.AddPolicy("Branch.Create", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(AppClaimTypes.Permission, "Branch.Create"));
-    options.AddPolicy("Project.Create", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(AppClaimTypes.Permission, "Project.Create"));
     options.AddPolicy("Role.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Role.View"));
     options.AddPolicy("Permission.View", policy => policy.RequireAuthenticatedUser()
