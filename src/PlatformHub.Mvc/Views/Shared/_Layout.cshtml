@@ -53,6 +53,7 @@
         && User.FindFirst("ph_platform_admin")?.Value == "true";
     var currentArea = ViewContext.RouteData.Values["area"]?.ToString();
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var canViewRoles = User.HasClaim("ph_permission", "Role.View");
     string Active(string controller) =>
         string.Equals(currentArea, "PlatformAdmin", StringComparison.OrdinalIgnoreCase)
         && string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
@@ -96,9 +97,12 @@
                     <a class="nav-link @Active("Projects")" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index">
                         <span class="ph-nav-icon" aria-hidden="true">◈</span> Projects
                     </a>
+                    @if (canViewRoles)
+                    {
                     <a class="nav-link @Active("Roles")" asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index">
                         <span class="ph-nav-icon" aria-hidden="true">⚿</span> Roles &amp; permissions
                     </a>
+                    }
                 </nav>
                 <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
             </div>
