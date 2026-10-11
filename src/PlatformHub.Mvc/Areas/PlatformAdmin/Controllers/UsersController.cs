@@ -75,12 +75,14 @@ public sealed class UsersController(PlatformApiClient api) : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var result = await api.PostAsync<UserOperationResult>(
+        var response = await api.PostWithErrorAsync<UserOperationResult>(
             $"api/v1/platform/access/users/{model.AssignUserId}/roles",
             new { roleId = model.RoleId, tenantId = model.TenantId, branchId = model.BranchId, projectId = model.ProjectId },
             ct, token);
-        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] =
-            result?.Message ?? "Role assignment failed. Verify the role, scope IDs, and Role.Assign permission.";
+        if (response.Value is not null)
+            TempData["SuccessMessage"] = response.Value.Message ?? "Role assigned successfully.";
+        else
+            TempData["ErrorMessage"] = $"Role assignment failed: {response.Error ?? "The API returned no response."}";
         return RedirectToAction(nameof(Index));
     }
 
