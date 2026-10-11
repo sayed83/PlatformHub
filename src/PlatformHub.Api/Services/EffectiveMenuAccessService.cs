@@ -1,6 +1,4 @@
-using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 
 namespace PlatformHub.Api.Services;
@@ -15,20 +13,27 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
     public async Task<IReadOnlyList<EffectiveMenuDto>> GetForUserAsync(
         long userId, long projectId, CancellationToken ct = default)
     {
+        if (userId <= 0 || projectId <= 0)
+            return [];
+
+        var activeUser = await db.Users.AsNoTracking()
+            .AnyAsync(u => u.Id == userId && u.IsActive, ct);
+        if (!activeUser)
+            return [];
+
         var project = await db.Projects.AsNoTracking()
             .Where(p => p.Id == projectId && p.IsActive)
             .Select(p => new { p.Id, p.TenantId })
             .SingleOrDefaultAsync(ct);
         if (project is null) return [];
 
-        // Project and tenant assignments apply to this project's menu set.
-        // Branch-scoped assignments are included through the branch's tenant.
+        // Only assignments applicable to this project and its tenant contribute permissions.
         var roleIds = await db.UserRoleAssignments.AsNoTracking()
             .Where(a => a.UserId == userId &&
                 (a.ProjectId == projectId ||
                  (a.ProjectId == null && a.BranchId == null && a.TenantId == project.TenantId) ||
                  (a.ProjectId == null && a.BranchId != null &&
-                    db.Branches.Any(b => b.Id == a.BranchId && b.TenantId == project.TenantId))))
+                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId))))
             .Select(a => a.RoleId)
             .Distinct()
             .ToListAsync(ct);
