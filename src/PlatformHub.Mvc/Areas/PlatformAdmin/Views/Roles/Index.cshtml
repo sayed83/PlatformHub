@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Roles & Permissions";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
 }
 
 <div class="mb-4">
@@ -99,9 +100,13 @@
                         </tr>
                         <tr>
                             <td colspan="4" class="bg-body-tertiary">
-                                @if (role.IsSystemRole)
+                                @if (role.Code == "PLATFORM_SUPER_ADMIN")
                                 {
-                                    <div class="small text-secondary py-2"><span class="me-2">🔒</span>System role is protected. Its permissions cannot be changed from this screen.</div>
+                                    <div class="small text-secondary py-2"><span class="me-2">🔒</span>Protected Super Admin role. It always retains the full permission catalog.</div>
+                                }
+                                else if (role.IsSystemRole && !isSuperAdmin)
+                                {
+                                    <div class="small text-secondary py-2"><span class="me-2">🔒</span>Only Platform Super Admin can configure permissions for this built-in role.</div>
                                 }
                                 else
                                 {
