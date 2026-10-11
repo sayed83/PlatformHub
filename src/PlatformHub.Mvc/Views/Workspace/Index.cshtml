@@ -2,8 +2,7 @@
 @{
     ViewData["Title"] = "Workspace";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var scopeIndex = Context.Request.Query["scopeIndex"].ToString();
-    var isFirstVisit = string.IsNullOrWhiteSpace(scopeIndex);
+    var scopeKey = Context.Request.Query["scopeKey"].ToString();
 }
 <style>
     .ws-hero { background:linear-gradient(120deg,#182433,#263f5c); color:#fff; border-radius:1rem; }
@@ -56,18 +55,18 @@
                     </div>
                     <form method="get" asp-controller="Workspace" asp-action="Index" class="d-flex flex-column flex-sm-row gap-2" style="min-width:min(100%,520px)">
                         <label class="visually-hidden" for="scopeIndex">Workspace assignment</label>
-                        <select class="form-select" id="scopeIndex" name="scopeIndex" required>
+                        <select class="form-select" id="scopeKey" name="scopeKey" required>
                             @for (var i = 0; i < Model.Scopes.Count; i++)
                             {
                                 var scope = Model.Scopes[i];
                                 var label = $"{scope.ScopeLabel} — {scope.RoleName}";
-                                if (Model.SelectedScope == scope)
+                                if (Model.SelectedScope?.Key == scope.Key)
                                 {
-                                    <option value="@i" selected>@label</option>
+                                    <option value="@scope.Key" selected>@label</option>
                                 }
                                 else
                                 {
-                                    <option value="@i">@label</option>
+                                    <option value="@scope.Key">@label</option>
                                 }
                             }
                         </select>
