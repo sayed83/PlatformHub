@@ -175,3 +175,16 @@ dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:ProjectId" "1" --proj
 ```
 
 If an account's settings are only partially configured, startup fails with a clear configuration error rather than creating an insecure default. Leave a role's section entirely unset to skip seeding that account. After configuring the desired accounts, restart the API. Remove or rotate these seed secrets after initial provisioning if they are no longer needed.
+
+
+## Security tests
+
+A focused automated test project is available under `tests/PlatformHub.SecurityTests`. It covers branch-to-tenant isolation, exact branch scope, missing permission denial, and inactive-user denial.
+
+Run it from the repository root:
+
+```powershell
+dotnet test tests/PlatformHub.SecurityTests/PlatformHub.SecurityTests.csproj
+```
+
+The tests use EF Core InMemory and do not connect to or modify your development SQL Server database. Add equivalent integration tests for every new tenant-facing API endpoint before release.
