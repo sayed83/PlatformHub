@@ -26,9 +26,11 @@ public static class PlatformRoleUserSeeder
         PlatformDbContext db,
         IConfiguration configuration,
         IPasswordHasher<AppUser> passwordHasher,
-        ILogger<PlatformRoleUserSeeder> logger,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
+        var logger = loggerFactory.CreateLogger(nameof(PlatformRoleUserSeeder));
+
         foreach (var seed in SeedAccounts)
         {
             var section = configuration.GetSection(seed.ConfigKey);
