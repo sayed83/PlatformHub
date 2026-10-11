@@ -76,6 +76,24 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             return BadRequest(new { message = "Redirect URL cannot exceed 500 characters." });
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         db.Users.Add(user);
+
+        if (request.IsPlatformAdmin)
+        {
+            var platformAdminRole = await db.Roles.SingleOrDefaultAsync(
+                x => x.Code == "PLATFORM_ADMIN" && x.IsActive, cancellationToken);
+            if (platformAdminRole is null)
+                return Conflict(new { message = "The built-in PLATFORM_ADMIN role is missing or inactive." });
+
+            db.UserRoleAssignments.Add(new UserRoleAssignment
+            {
+                User = user,
+                RoleId = platformAdminRole.Id,
+                TenantId = null,
+                BranchId = null,
+                ProjectId = null
+            });
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return CreatedAtAction(nameof(GetUsers), new { }, new
         {
