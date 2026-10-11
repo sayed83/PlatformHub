@@ -7,11 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --ph-sidebar: #182433; --ph-sidebar-muted: #aebdd0; --ph-accent: #367cf7; }
-        html, body { min-height: 100%; }
+        html, body { min-height: 100%; width:100%; }
         body { min-height: 100vh; overflow-x: hidden; }
         .ph-topbar { background: var(--ph-sidebar); min-height: 62px; }
         .ph-brand-mark { width: 34px; height: 34px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; background:var(--ph-accent); color:#fff; font-weight:800; }
-        .ph-admin-shell { display:flex; min-height:calc(100vh - 62px); }
+        .ph-admin-shell { display:flex; min-height:calc(100vh - 62px); width:100%; max-width:100vw; }
         .ph-sidebar { width:250px; flex:0 0 250px; background:var(--ph-sidebar); color:#fff; padding:1.25rem .85rem; }
         .ph-sidebar-inner.collapse:not(.show) { display:block; }
         .ph-nav-label { color:#8194ac; font-size:.68rem; font-weight:700; letter-spacing:.12em; padding:.85rem .8rem .45rem; text-transform:uppercase; }
@@ -19,7 +19,8 @@
         .ph-sidebar .nav-link:hover { color:#fff; background:rgba(255,255,255,.08); }
         .ph-sidebar .nav-link.active { color:#fff; background:rgba(54,124,247,.23); box-shadow:inset 3px 0 0 var(--ph-accent); }
         .ph-sidebar .nav-link .ph-nav-icon { width:1.2rem; text-align:center; opacity:.9; flex:0 0 1.2rem; }
-        .ph-admin-content { min-width:0; flex:1; padding:1.5rem clamp(1rem,2.5vw,2rem); }
+        .ph-admin-content { min-width:0; width:calc(100% - 250px); flex:1 1 0; padding:1.5rem clamp(1rem,2.5vw,2rem); overflow-x:auto; }
+        .ph-admin-content > * { max-width:100%; }
         .ph-user-chip { border:1px solid rgba(255,255,255,.18); border-radius:2rem; padding:.35rem .75rem; color:#e7edf5; font-size:.85rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .ph-mobile-menu { display:none; }
         @@media (max-width: 767.98px) {
@@ -119,20 +120,19 @@
                             <span class="ph-nav-icon" aria-hidden="true">♙</span> Users &amp; access
                         </a>
                     }
-
                     @if (canViewRoles)
                     {
-                    <a class="nav-link @Active("Roles")" asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index">
-                        <span class="ph-nav-icon" aria-hidden="true">⚿</span> Roles &amp; permissions
-                    </a>
+                        <a class="nav-link @Active("Roles")" asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index">
+                            <span class="ph-nav-icon" aria-hidden="true">⚿</span> Roles &amp; permissions
+                        </a>
                     }
-                </nav>
                     <a class="nav-link @Active("MenuAccess")" asp-area="PlatformAdmin" asp-controller="MenuAccess" asp-action="Index">
                         <span class="ph-nav-icon" aria-hidden="true">♙</span> Menu access
                     </a>
                     <a class="nav-link @Active("MenuManagement")" asp-area="PlatformAdmin" asp-controller="MenuManagement" asp-action="Index">
                         <span class="ph-nav-icon" aria-hidden="true">☷</span> Project menus
                     </a>
+                </nav>
                 <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
             </div>
         </aside>
