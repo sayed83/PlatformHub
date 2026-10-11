@@ -22,9 +22,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     [HttpPost("tenants")]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequest request, CancellationToken cancellationToken)
     {
-        var userId = await GetVerifiedPlatformAdminIdAsync(cancellationToken);
-        if (userId is null) return Forbid();
-
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
         try
         {
             var created = await platform.CreateTenantAsync(request, cancellationToken);
@@ -45,11 +43,31 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
-
         try
         {
             var created = await platform.CreateProjectAsync(request, cancellationToken);
             return CreatedAtAction(nameof(GetProjects), new { tenantId = created.TenantId }, created);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    [HttpGet("branches")]
+    public async Task<IActionResult> GetBranches([FromQuery] long tenantId, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { return Ok(await platform.GetBranchesAsync(tenantId, cancellationToken)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("branches")]
+    public async Task<IActionResult> CreateBranch([FromBody] CreateBranchRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try
+        {
+            var created = await platform.CreateBranchAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetBranches), new { tenantId = created.TenantId }, created);
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
@@ -60,7 +78,6 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         var userIdRaw = User.FindFirst(AppClaimTypes.UserId)?.Value;
         if (!long.TryParse(userIdRaw, NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
             return null;
-
         return await platform.IsPlatformAdminAsync(userId, cancellationToken) ? userId : null;
     }
 }
