@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Application.Auth;
+using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 
 namespace PlatformHub.Infrastructure.Auth;
 
-public sealed class AuthService(PlatformDbContext db, IPasswordHasher<PlatformHub.Domain.Entities.AppUser> hasher) : IAuthService
+public sealed class AuthService(PlatformDbContext db, IPasswordHasher<AppUser> hasher) : IAuthService
 {
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
@@ -16,11 +17,45 @@ public sealed class AuthService(PlatformDbContext db, IPasswordHasher<PlatformHu
             == PasswordVerificationResult.Failed)
             return null;
 
-        // Panel separation is enforced here, not by hiding UI links.
         var wantsAdmin = string.Equals(request.Panel, "platform-admin", StringComparison.OrdinalIgnoreCase);
         if (wantsAdmin != user.IsPlatformAdmin)
             return null;
 
-        return new LoginResponse(user.Id, user.UserName, user.DisplayName, user.IsPlatformAdmin, user.BaseRedirectUrl);
+        var assignments = await db.UserRoleAssignments
+            .AsNoTracking()
+            .Where(x => x.UserId == user.Id && x.Role.IsActive)
+            .Select(x => new
+            {
+                x.Role.Code,
+                x.TenantId,
+                x.BranchId,
+                x.ProjectId
+            })
+            .ToListAsync(cancellationToken);
+
+        var roleCodes = assignments.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var permissionCodes = await (
+            from assignment in db.UserRoleAssignments.AsNoTracking()
+            join rolePermission in db.RolePermissions.AsNoTracking() on assignment.RoleId equals rolePermission.RoleId
+            join permission in db.Permissions.AsNoTracking() on rolePermission.PermissionId equals permission.Id
+            where assignment.UserId == user.Id && assignment.Role.IsActive
+            select permission.Code)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var scopes = assignments
+            .Select(x => new RoleScopeDto(x.TenantId, x.BranchId, x.ProjectId))
+            .Distinct()
+            .ToArray();
+
+        return new LoginResponse(
+            user.Id,
+            user.UserName,
+            user.DisplayName,
+            user.IsPlatformAdmin,
+            user.BaseRedirectUrl,
+            roleCodes,
+            permissionCodes,
+            scopes);
     }
 }
