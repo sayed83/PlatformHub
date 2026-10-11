@@ -48,6 +48,16 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("PlatformAdmin", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.PlatformAdmin, "true"));
+    options.AddPolicy("PlatformSuperAdmin", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode));
+    options.AddPolicy("Tenant.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Tenant.Create"));
+    options.AddPolicy("Branch.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Branch.Create"));
+    options.AddPolicy("Project.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Project.Create"));
+    options.AddPolicy("Role.Manage", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Role.Assign"));
 });
 
 var app = builder.Build();
@@ -59,6 +69,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     var passwordHasher = services.GetRequiredService<IPasswordHasher<AppUser>>();
 
     await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
+    await PlatformRbacSeeder.SeedAsync(db);
 }
 
 app.UseHttpsRedirection();
@@ -78,4 +89,9 @@ public static class AppClaimTypes
     public const string UserName = "ph_user_name";
     public const string DisplayName = "ph_display_name";
     public const string PlatformAdmin = "ph_platform_admin";
+    public const string Role = "ph_role";
+    public const string Permission = "ph_permission";
+    public const string TenantId = "ph_tenant_id";
+    public const string BranchId = "ph_branch_id";
+    public const string ProjectId = "ph_project_id";
 }
