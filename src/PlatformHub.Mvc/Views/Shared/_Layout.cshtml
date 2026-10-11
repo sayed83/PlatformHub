@@ -83,6 +83,25 @@
                 <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
             </form>
         }
+        else if (User.Identity?.IsAuthenticated == true)
+        {
+            <nav class="d-flex align-items-center gap-2 gap-lg-3 me-2" aria-label="Main navigation">
+                <a class="nav-link text-white px-2 py-1" asp-area="" asp-controller="Workspace" asp-action="Index">Workspace</a>
+                @if (User.HasClaim("ph_permission", "Tenant.View"))
+                {
+                    <a class="nav-link text-white px-2 py-1 d-none d-md-inline" asp-area="" asp-controller="Workspace" asp-action="Index">Organization</a>
+                }
+                @if (User.HasClaim("ph_permission", "User.View"))
+                {
+                    <a class="nav-link text-white px-2 py-1 d-none d-md-inline" asp-area="" asp-controller="Workspace" asp-action="Index">Users</a>
+                }
+            </nav>
+            <span class="ph-user-chip d-none d-lg-inline">@User.FindFirst("ph_display_name")?.Value</span>
+            <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
+            </form>
+        }
     </div>
 </header>
 
