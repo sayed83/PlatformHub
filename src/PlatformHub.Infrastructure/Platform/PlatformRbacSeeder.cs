@@ -129,7 +129,7 @@ public static class PlatformRbacSeeder
                 "Project.View", "Project.Create", "Project.Update", "Project.Deactivate",
                 "User.View", "User.Create", "User.Update", "User.Deactivate",
                 "Role.View", "Role.Create", "Role.Update", "Role.Assign", "Permission.View",
-                "AuditLog.View"
+                "AuditLog.View", "Platform.Settings.Manage"
             ],
             ["TENANT_ADMIN"] =
             [
