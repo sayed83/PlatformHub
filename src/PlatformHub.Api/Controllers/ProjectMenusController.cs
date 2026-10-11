@@ -43,8 +43,9 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         ProjectModule entity;
         if (request.Id.HasValue)
         {
-            entity = await db.ProjectModules.SingleOrDefaultAsync(x => x.Id == request.Id && x.ProjectId == request.ProjectId, ct)
-                ?? throw new KeyNotFoundException("Module not found for this project.");
+            var existing = await db.ProjectModules.SingleOrDefaultAsync(x => x.Id == request.Id && x.ProjectId == request.ProjectId, ct);
+            if (existing is null) return NotFound(new { message = "Module not found for this project." });
+            entity = existing;
         }
         else { entity = new ProjectModule { ProjectId = request.ProjectId }; db.ProjectModules.Add(entity); }
         entity.Code = code; entity.Name = name; entity.Description = request.Description?.Trim();
@@ -82,16 +83,20 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
             return BadRequest(new { message = "Parent menu must belong to this project and cannot be itself." });
         if (request.ParentMenuId.HasValue && await IsDescendantAsync(request.ParentMenuId.Value, request.Id, request.ProjectId, ct))
             return BadRequest(new { message = "A menu cannot be placed beneath one of its descendants." });
-        if (request.IsExternal && !Uri.TryCreate(request.RouteUrl, UriKind.Absolute, out var externalUri) ||
-            request.IsExternal && externalUri?.Scheme is not ("https" or "http"))
-            return BadRequest(new { message = "External menus require an absolute HTTP or HTTPS URL." });
+        if (request.IsExternal)
+        {
+            if (!Uri.TryCreate(request.RouteUrl, UriKind.Absolute, out var externalUri) ||
+                (externalUri.Scheme != Uri.UriSchemeHttp && externalUri.Scheme != Uri.UriSchemeHttps))
+                return BadRequest(new { message = "External menus require an absolute HTTP or HTTPS URL." });
+        }
         var duplicate = await db.MenuItems.AnyAsync(x => x.ProjectId == request.ProjectId && x.Code == code && x.Id != request.Id, ct);
         if (duplicate) return Conflict(new { message = "This menu code already exists in the project." });
         MenuItem entity;
         if (request.Id.HasValue)
         {
-            entity = await db.MenuItems.SingleOrDefaultAsync(x => x.Id == request.Id && x.ProjectId == request.ProjectId, ct)
-                ?? throw new KeyNotFoundException("Menu not found for this project.");
+            var existing = await db.MenuItems.SingleOrDefaultAsync(x => x.Id == request.Id && x.ProjectId == request.ProjectId, ct);
+            if (existing is null) return NotFound(new { message = "Menu not found for this project." });
+            entity = existing;
         }
         else { entity = new MenuItem { ProjectId = request.ProjectId }; db.MenuItems.Add(entity); }
         entity.ModuleId = request.ModuleId; entity.ParentMenuId = request.ParentMenuId;
