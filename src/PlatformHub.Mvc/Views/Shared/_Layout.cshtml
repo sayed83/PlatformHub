@@ -7,25 +7,43 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --ph-sidebar: #182433; --ph-sidebar-muted: #aebdd0; --ph-accent: #367cf7; }
-        body { min-height: 100vh; }
-        .ph-topbar { background: var(--ph-sidebar); }
+        html, body { min-height: 100%; }
+        body { min-height: 100vh; overflow-x: hidden; }
+        .ph-topbar { background: var(--ph-sidebar); min-height: 62px; }
         .ph-brand-mark { width: 34px; height: 34px; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; background:var(--ph-accent); color:#fff; font-weight:800; }
         .ph-admin-shell { display:flex; min-height:calc(100vh - 62px); }
         .ph-sidebar { width:250px; flex:0 0 250px; background:var(--ph-sidebar); color:#fff; padding:1.25rem .85rem; }
+        .ph-sidebar-inner.collapse:not(.show) { display:block; }
         .ph-nav-label { color:#8194ac; font-size:.68rem; font-weight:700; letter-spacing:.12em; padding:.85rem .8rem .45rem; text-transform:uppercase; }
         .ph-sidebar .nav-link { color:var(--ph-sidebar-muted); border-radius:.6rem; padding:.7rem .8rem; display:flex; align-items:center; gap:.7rem; margin:.12rem 0; }
         .ph-sidebar .nav-link:hover { color:#fff; background:rgba(255,255,255,.08); }
         .ph-sidebar .nav-link.active { color:#fff; background:rgba(54,124,247,.23); box-shadow:inset 3px 0 0 var(--ph-accent); }
-        .ph-sidebar .nav-link .ph-nav-icon { width:1.2rem; text-align:center; opacity:.9; }
+        .ph-sidebar .nav-link .ph-nav-icon { width:1.2rem; text-align:center; opacity:.9; flex:0 0 1.2rem; }
         .ph-admin-content { min-width:0; flex:1; padding:1.5rem clamp(1rem,2.5vw,2rem); }
-        .ph-user-chip { border:1px solid rgba(255,255,255,.18); border-radius:2rem; padding:.35rem .75rem; color:#e7edf5; font-size:.85rem; }
+        .ph-user-chip { border:1px solid rgba(255,255,255,.18); border-radius:2rem; padding:.35rem .75rem; color:#e7edf5; font-size:.85rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .ph-mobile-menu { display:none; }
         @@media (max-width: 767.98px) {
-            .ph-admin-shell { display:block; }
-            .ph-sidebar { width:100%; padding:.55rem .75rem; }
-            .ph-sidebar .ph-nav-list { display:flex; gap:.35rem; overflow-x:auto; padding-bottom:.15rem; }
-            .ph-sidebar .nav-link { white-space:nowrap; margin:0; padding:.55rem .7rem; }
-            .ph-nav-label, .ph-sidebar .ph-nav-icon { display:none; }
-            .ph-admin-content { padding:1rem; }
+            .ph-topbar .container-fluid { gap:.5rem; }
+            .ph-brand-mark { width:30px; height:30px; }
+            .ph-brand-text { font-size:1rem; }
+            .ph-mobile-menu { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; }
+            .ph-user-chip { display:none !important; }
+            .ph-admin-shell { display:flex; flex-direction:column; min-height:calc(100vh - 58px); }
+            .ph-sidebar { width:100%; flex:0 0 auto; padding:0; }
+            .ph-sidebar-inner.collapse:not(.show) { display:none; }
+            .ph-sidebar-inner { padding:.65rem .85rem .9rem; border-top:1px solid rgba(255,255,255,.08); }
+            .ph-nav-label { padding:.55rem .7rem .35rem; }
+            .ph-sidebar .nav-link { min-height:44px; padding:.65rem .75rem; margin:.12rem 0; }
+            .ph-sidebar .nav-link .ph-nav-icon { display:inline-block; }
+            .ph-admin-content { width:100%; padding:1rem .85rem 1.5rem; overflow-wrap:anywhere; }
+            .ph-admin-content .display-6 { font-size:1.8rem; }
+            .ph-admin-content .table-responsive { max-width:100%; }
+        }
+        @@media (max-width: 380px) {
+            .ph-brand-text { font-size:.92rem; }
+            .ph-brand-subtitle { display:none; }
+            .ph-mobile-menu .ph-menu-text { display:none; }
+            .ph-admin-content { padding:.85rem .65rem 1.25rem; }
         }
     </style>
 </head>
@@ -42,19 +60,22 @@
 }
 <header class="ph-topbar navbar navbar-dark py-2">
     <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand d-flex align-items-center gap-2 mb-0" asp-area="" asp-controller="Home" asp-action="Index">
+        <a class="navbar-brand d-flex align-items-center gap-2 mb-0 me-auto" asp-area="" asp-controller="Home" asp-action="Index">
             <span class="ph-brand-mark">P</span>
-            <span class="fw-semibold">PlatformHub <span class="text-white-50 small fw-normal">@(isPlatformAdmin ? "· Control Center" : "")</span></span>
+            <span class="fw-semibold ph-brand-text">PlatformHub <span class="text-white-50 small fw-normal ph-brand-subtitle">@(isPlatformAdmin ? "· Control Center" : "")</span></span>
         </a>
         @if (isPlatformAdmin)
         {
-            <div class="d-flex align-items-center gap-3">
-                <span class="ph-user-chip d-none d-sm-inline">Administrator · @User.FindFirst("ph_display_name")?.Value</span>
-                <form asp-area="PlatformAdmin" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
-                </form>
-            </div>
+            <span class="ph-user-chip">Administrator · @User.FindFirst("ph_display_name")?.Value</span>
+            <button class="btn btn-outline-light btn-sm ph-mobile-menu" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#phAdminNav"
+                    aria-controls="phAdminNav" aria-expanded="false" aria-label="Toggle administration menu">
+                <span aria-hidden="true">☰</span><span class="ph-menu-text">Menu</span>
+            </button>
+            <form asp-area="PlatformAdmin" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
+            </form>
         }
     </div>
 </header>
@@ -63,19 +84,21 @@
 {
     <div class="ph-admin-shell">
         <aside class="ph-sidebar">
-            <div class="ph-nav-label">Platform</div>
-            <nav class="ph-nav-list nav flex-column" aria-label="Platform administration">
-                <a class="nav-link @Active("Dashboard")" asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index">
-                    <span class="ph-nav-icon">▦</span> Dashboard
-                </a>
-                <a class="nav-link @Active("Tenants")" asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index">
-                    <span class="ph-nav-icon">▣</span> Tenants &amp; branches
-                </a>
-                <a class="nav-link @Active("Projects")" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index">
-                    <span class="ph-nav-icon">◈</span> Projects
-                </a>
-            </nav>
-            <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
+            <div id="phAdminNav" class="ph-sidebar-inner collapse show">
+                <div class="ph-nav-label">Platform</div>
+                <nav class="nav flex-column" aria-label="Platform administration">
+                    <a class="nav-link @Active("Dashboard")" asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index">
+                        <span class="ph-nav-icon" aria-hidden="true">▦</span> Dashboard
+                    </a>
+                    <a class="nav-link @Active("Tenants")" asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index">
+                        <span class="ph-nav-icon" aria-hidden="true">▣</span> Tenants &amp; branches
+                    </a>
+                    <a class="nav-link @Active("Projects")" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index">
+                        <span class="ph-nav-icon" aria-hidden="true">◈</span> Projects
+                    </a>
+                </nav>
+                <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
+            </div>
         </aside>
         <main class="ph-admin-content">@RenderBody()</main>
     </div>
