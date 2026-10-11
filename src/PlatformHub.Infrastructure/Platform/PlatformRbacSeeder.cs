@@ -118,6 +118,60 @@ public static class PlatformRbacSeeder
             }
         }
 
+        // Give built-in non-super-admin roles useful least-privilege permission sets.
+        // Custom roles remain administrator-configured in the Role & Permissions UI.
+        var rolePermissionCodes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PLATFORM_ADMIN"] =
+            [
+                "Platform.Dashboard.View",
+                "Tenant.View", "Tenant.Create", "Tenant.Update", "Tenant.Deactivate",
+                "Branch.View", "Branch.Create", "Branch.Update", "Branch.Deactivate",
+                "Project.View", "Project.Create", "Project.Update", "Project.Deactivate",
+                "User.View", "User.Create", "User.Update", "User.Deactivate",
+                "Role.View", "Role.Create", "Role.Update", "Role.Assign", "Permission.View",
+                "AuditLog.View"
+            ],
+            ["TENANT_ADMIN"] =
+            [
+                "Platform.Dashboard.View",
+                "Tenant.View",
+                "Branch.View", "Branch.Create", "Branch.Update",
+                "Project.View", "Project.Create", "Project.Update",
+                "User.View", "User.Create", "User.Update",
+                "Role.View", "Role.Assign", "Permission.View"
+            ],
+            ["BRANCH_ADMIN"] =
+            [
+                "Platform.Dashboard.View",
+                "Tenant.View", "Branch.View", "Branch.Update",
+                "Project.View", "User.View", "User.Create", "User.Update",
+                "Role.View", "Permission.View"
+            ],
+            ["PROJECT_USER"] = ["Project.View"]
+        };
+
+        foreach (var (roleCode, permissionCodes) in rolePermissionCodes)
+        {
+            var role = await db.Roles.SingleAsync(x => x.Code == roleCode, cancellationToken);
+            var ids = await db.Permissions
+                .Where(x => permissionCodes.Contains(x.Code))
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+            var existingIds = await db.RolePermissions
+                .Where(x => x.RoleId == role.Id)
+                .Select(x => x.PermissionId)
+                .ToListAsync(cancellationToken);
+            foreach (var permissionId in ids.Except(existingIds))
+            {
+                db.RolePermissions.Add(new PlatformRolePermission
+                {
+                    RoleId = role.Id,
+                    PermissionId = permissionId
+                });
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }
