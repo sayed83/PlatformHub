@@ -98,3 +98,30 @@ Do not drop or recreate `AppUsers`, `Tenants`, `Projects`, or `Branches`.
 - `DELETE /api/v1/platform/access/users/{userId}/roles/{assignmentId}` — remove a non-Super-Admin assignment
 
 These endpoints require Platform Admin authentication plus the corresponding permission claim. A new login is required after role or permission changes because permissions are placed in the short-lived JWT. Scope assignments are stored independently in the database; every tenant-facing API must enforce the relevant scope server-side before exposing tenant data.
+
+
+## User & Access Management
+
+The Platform Admin UI includes **Users & access** for accounts with the `User.View` permission.
+
+- Create regular user accounts with a password hashed by ASP.NET Core Identity's `PasswordHasher<AppUser>`; platform-admin status cannot be self-selected on the create form.
+- Search users and filter by active/inactive state.
+- Update display name, user-specific redirect URL, and account status.
+- Reset a user's password (minimum 12 characters).
+- Assign multiple roles to a user, with optional tenant, branch, and project scope.
+- Remove non-Super-Admin role assignments.
+- Prevent deactivation of the last active Platform Super Admin.
+- Validate scope references server-side and reject inconsistent tenant/branch/project assignments.
+
+API routes:
+- `GET /api/v1/platform/access/users?search=&active=`
+- `POST /api/v1/platform/access/users`
+- `PUT /api/v1/platform/access/users/{userId}`
+- `POST /api/v1/platform/access/users/{userId}/reset-password`
+- `GET /api/v1/platform/access/users/{userId}/roles`
+- `POST /api/v1/platform/access/users/{userId}/roles`
+- `DELETE /api/v1/platform/access/users/{userId}/roles/{assignmentId}`
+
+All routes require a valid Platform Admin JWT and the corresponding `User.View`, `User.Create`, `User.Update`, `User.Deactivate`, or `Role.Assign` permission. The MVC screen is only a UI layer; authorization is enforced by the API.
+
+After a role/permission change, users should sign in again to refresh claims. Before production, implement forced session/token invalidation and a first-login password-change flow; do not distribute temporary passwords over insecure channels.
