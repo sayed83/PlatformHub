@@ -35,11 +35,9 @@
         && User.FindFirst("ph_platform_admin")?.Value == "true";
     var currentArea = ViewContext.RouteData.Values["area"]?.ToString();
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
-    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-    string Active(string controller, string? action = null) =>
+    string Active(string controller) =>
         string.Equals(currentArea, "PlatformAdmin", StringComparison.OrdinalIgnoreCase)
         && string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
-        && (action is null || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase))
             ? "active" : string.Empty;
 }
 <header class="ph-topbar navbar navbar-dark py-2">
@@ -71,16 +69,10 @@
                     <span class="ph-nav-icon">▦</span> Dashboard
                 </a>
                 <a class="nav-link @Active("Tenants")" asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index">
-                    <span class="ph-nav-icon">▣</span> Tenants & branches
+                    <span class="ph-nav-icon">▣</span> Tenants &amp; branches
                 </a>
                 <a class="nav-link @Active("Projects")" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index">
                     <span class="ph-nav-icon">◈</span> Projects
-                </a>
-            </nav>
-            <div class="ph-nav-label mt-3">Account</div>
-            <nav class="ph-nav-list nav flex-column" aria-label="Account">
-                <a class="nav-link" asp-area="PlatformAdmin" asp-controller="Account" asp-action="Logout" onclick="event.preventDefault(); this.closest('aside').parentElement.querySelector('header form')?.requestSubmit();">
-                    <span class="ph-nav-icon">↪</span> Sign out
                 </a>
             </nav>
             <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
