@@ -122,7 +122,24 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         var roles = await api.GetAsync<List<ManagedRoleViewModel>>("api/v1/platform/access/roles", token, ct);
         var tenants = await api.GetAsync<List<ManagedTenantViewModel>>("api/v1/platform/tenants", token, ct);
         if (users is null || roles is null || tenants is null) return null;
-        return new UserAccessViewModel { Users = users, Roles = roles.Where(x => x.IsActive).ToList(), Tenants = tenants, Search = search, ActiveFilter = active };
+
+        var branches = new List<ManagedBranchViewModel>();
+        var projects = new List<ManagedProjectViewModel>();
+        foreach (var tenant in tenants)
+        {
+            var tenantBranches = await api.GetAsync<List<ManagedBranchViewModel>>(
+                $"api/v1/platform/branches?tenantId={tenant.Id}", token, ct);
+            var tenantProjects = await api.GetAsync<List<ManagedProjectViewModel>>(
+                $"api/v1/platform/projects?tenantId={tenant.Id}", token, ct);
+            if (tenantBranches is not null) branches.AddRange(tenantBranches);
+            if (tenantProjects is not null) projects.AddRange(tenantProjects);
+        }
+
+        return new UserAccessViewModel
+        {
+            Users = users, Roles = roles.Where(x => x.IsActive).ToList(), Tenants = tenants,
+            Branches = branches, Projects = projects, Search = search, ActiveFilter = active
+        };
     }
 
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
