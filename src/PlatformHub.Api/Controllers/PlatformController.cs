@@ -12,14 +12,17 @@ namespace PlatformHub.Api.Controllers;
 public sealed class PlatformController(IPlatformService platform) : ControllerBase
 {
     [HttpGet("summary")]
+    [Authorize(Policy = "Platform.Dashboard.View")]
     public async Task<IActionResult> Summary(CancellationToken cancellationToken) =>
         Ok(await platform.GetSummaryAsync(cancellationToken));
 
     [HttpGet("tenants")]
+    [Authorize(Policy = "Tenant.View")]
     public async Task<IActionResult> GetTenants(CancellationToken cancellationToken) =>
         Ok(await platform.GetTenantsAsync(cancellationToken));
 
     [HttpPost("tenants")]
+    [Authorize(Policy = "Tenant.Create")]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
@@ -33,6 +36,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     }
 
     [HttpGet("projects")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> GetProjects([FromQuery] long? tenantId, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
@@ -40,6 +44,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     }
 
     [HttpPost("projects")]
+    [Authorize(Policy = "Project.Create")]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
@@ -53,6 +58,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     }
 
     [HttpGet("branches")]
+    [Authorize(Policy = "Branch.View")]
     public async Task<IActionResult> GetBranches([FromQuery] long tenantId, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
@@ -61,6 +67,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     }
 
     [HttpPost("branches")]
+    [Authorize(Policy = "Branch.Create")]
     public async Task<IActionResult> CreateBranch([FromBody] CreateBranchRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
