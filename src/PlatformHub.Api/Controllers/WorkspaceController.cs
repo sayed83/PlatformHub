@@ -18,6 +18,84 @@ public sealed class WorkspaceController(
     PlatformDbContext db,
     IScopedAccessService scopedAccess) : ControllerBase
 {
+
+    [HttpGet("scopes")]
+    public async Task<IActionResult> GetAvailableScopes(CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+
+        var userIsActive = await db.Users.AsNoTracking()
+            .AnyAsync(x => x.Id == userId && x.IsActive && !x.IsPlatformAdmin, cancellationToken);
+        if (!userIsActive) return Forbid();
+
+        var assignments = await db.UserRoleAssignments.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Role.IsActive)
+            .Select(x => new
+            {
+                x.TenantId,
+                x.BranchId,
+                x.ProjectId,
+                RoleCode = x.Role.Code,
+                RoleName = x.Role.Name
+            })
+            .ToListAsync(cancellationToken);
+
+        var tenantIds = assignments.Where(x => x.TenantId.HasValue)
+            .Select(x => x.TenantId!.Value).Distinct().ToArray();
+        var tenants = await db.Tenants.AsNoTracking()
+            .Where(x => tenantIds.Contains(x.Id) && x.IsActive)
+            .Select(x => new { x.Id, x.Code, x.Name })
+            .ToListAsync(cancellationToken);
+
+        var branchIds = assignments.Where(x => x.BranchId.HasValue)
+            .Select(x => x.BranchId!.Value).Distinct().ToArray();
+        var branches = await db.Branches.AsNoTracking()
+            .Where(x => branchIds.Contains(x.Id) && x.IsActive)
+            .Select(x => new { x.Id, x.TenantId, x.Code, x.Name })
+            .ToListAsync(cancellationToken);
+
+        var projectIds = assignments.Where(x => x.ProjectId.HasValue)
+            .Select(x => x.ProjectId!.Value).Distinct().ToArray();
+        var projects = await db.Projects.AsNoTracking()
+            .Where(x => projectIds.Contains(x.Id) && x.IsActive)
+            .Select(x => new { x.Id, x.TenantId, x.Code, x.Name })
+            .ToListAsync(cancellationToken);
+
+        var scopes = assignments.Select(a =>
+        {
+            var tenant = a.TenantId.HasValue ? tenants.FirstOrDefault(t => t.Id == a.TenantId.Value) : null;
+            var branch = a.BranchId.HasValue ? branches.FirstOrDefault(x => x.Id == a.BranchId.Value) : null;
+            var project = a.ProjectId.HasValue ? projects.FirstOrDefault(x => x.Id == a.ProjectId.Value) : null;
+            var resolvedTenantId = a.TenantId ?? branch?.TenantId ?? project?.TenantId;
+            tenant ??= resolvedTenantId.HasValue ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
+            if (tenant is null || (branch is not null && branch.TenantId != tenant.Id)
+                || (project is not null && project.TenantId != tenant.Id))
+                return null;
+
+            return new
+            {
+                tenant.Id,
+                TenantCode = tenant.Code,
+                TenantName = tenant.Name,
+                BranchId = branch?.Id,
+                BranchCode = branch?.Code,
+                BranchName = branch?.Name,
+                ProjectId = project?.Id,
+                ProjectCode = project?.Code,
+                ProjectName = project?.Name,
+                a.RoleCode,
+                a.RoleName
+            };
+        })
+        .Where(x => x is not null)
+        .Distinct()
+        .ToList();
+
+        return Ok(scopes);
+    }
+
     [HttpGet("context")]
     public async Task<IActionResult> GetContext(
         [FromQuery] long tenantId,
