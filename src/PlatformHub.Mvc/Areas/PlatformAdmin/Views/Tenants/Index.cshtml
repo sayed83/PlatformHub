@@ -9,7 +9,7 @@
     <div>
         <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small">&larr; Dashboard</a>
         <h1 class="h3 mt-2 mb-1">Tenant management</h1>
-        <p class="text-secondary mb-0">Create and review platform tenants.</p>
+        <p class="text-secondary mb-0">Create tenants and manage their branches.</p>
     </div>
 </div>
 
@@ -21,63 +21,51 @@
 
 <div class="row g-4">
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <h2 class="h5 mb-3">Create tenant</h2>
-                <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Create" method="post">
-                    @Html.AntiForgeryToken()
-                    <div class="mb-3">
-                        <label asp-for="Code" class="form-label">Tenant code</label>
-                        <input asp-for="Code" class="form-control" placeholder="ACME" maxlength="50" />
-                        <div class="form-text">Letters, numbers, hyphens and underscores. Saved in uppercase.</div>
-                        <span asp-validation-for="Code" class="text-danger"></span>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="Name" class="form-label">Tenant name</label>
-                        <input asp-for="Name" class="form-control" placeholder="Acme Corporation" maxlength="200" />
-                        <span asp-validation-for="Name" class="text-danger"></span>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Create tenant</button>
-                </form>
-            </div>
-        </div>
+        <div class="card border-0 shadow-sm"><div class="card-body p-4">
+            <h2 class="h5 mb-3">Create tenant</h2>
+            <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label asp-for="Code" class="form-label">Tenant code</label>
+                    <input asp-for="Code" class="form-control" placeholder="ACME" maxlength="50" />
+                    <div class="form-text">Letters, numbers, hyphens and underscores. Saved in uppercase.</div>
+                    <span asp-validation-for="Code" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label">Tenant name</label>
+                    <input asp-for="Name" class="form-control" placeholder="Acme Corporation" maxlength="200" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Create tenant</button>
+            </form>
+        </div></div>
     </div>
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h2 class="h5 mb-0">Tenants <span class="badge bg-secondary">@Model.Tenants.Count</span></h2>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light"><tr><th>Code</th><th>Name</th><th>Status</th></tr></thead>
-                    <tbody>
-                    @if (Model.Tenants.Count == 0)
+            <div class="card-header bg-white py-3"><h2 class="h5 mb-0">Tenants <span class="badge bg-secondary">@Model.Tenants.Count</span></h2></div>
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Code</th><th>Name</th><th>Status</th><th class="text-end">Management</th></tr></thead>
+                <tbody>
+                @if (Model.Tenants.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-center text-secondary py-4">No tenants found. Create the first tenant using the form.</td></tr>
+                }
+                else
+                {
+                    @foreach (var tenant in Model.Tenants)
                     {
-                        <tr><td colspan="3" class="text-center text-secondary py-4">No tenants found. Create the first tenant using the form.</td></tr>
+                        <tr>
+                            <td class="fw-semibold">@tenant.Code</td>
+                            <td>@tenant.Name</td>
+                            <td>@if (tenant.IsActive) { <span class="badge bg-success">Active</span> } else { <span class="badge bg-secondary">Inactive</span> }</td>
+                            <td class="text-end">
+                                <a asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Index" asp-route-tenantId="@tenant.Id" class="btn btn-sm btn-outline-primary">Manage branches</a>
+                            </td>
+                        </tr>
                     }
-                    else
-                    {
-                        @foreach (var tenant in Model.Tenants)
-                        {
-                            <tr>
-                                <td class="fw-semibold">@tenant.Code</td>
-                                <td>@tenant.Name</td>
-                                <td>
-                                    @if (tenant.IsActive)
-                                    {
-                                        <span class="badge bg-success">Active</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">Inactive</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    }
-                    </tbody>
-                </table>
-            </div>
+                }
+                </tbody>
+            </table></div>
         </div>
     </div>
 </div>
