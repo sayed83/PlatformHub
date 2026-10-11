@@ -50,8 +50,8 @@ public partial class AddPlatformRoleBasedAccessControl : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_RolePermissions", x => new { x.RoleId, x.PermissionId });
-                table.ForeignKey("FK_RolePermissions_Roles_RoleId", x => x.RoleId, "Roles", "Id", schema: "dbo", onDelete: ReferentialAction.Cascade);
-                table.ForeignKey("FK_RolePermissions_Permissions_PermissionId", x => x.PermissionId, "Permissions", "Id", schema: "dbo", onDelete: ReferentialAction.Cascade);
+                table.ForeignKey(name: "FK_RolePermissions_Roles_RoleId", column: x => x.RoleId, principalTable: "Roles", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Cascade);
+                table.ForeignKey(name: "FK_RolePermissions_Permissions_PermissionId", column: x => x.PermissionId, principalTable: "Permissions", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Cascade);
             });
 
         migrationBuilder.CreateTable(
@@ -69,11 +69,11 @@ public partial class AddPlatformRoleBasedAccessControl : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_UserRoleAssignments", x => x.Id);
-                table.ForeignKey("FK_UserRoleAssignments_AppUsers_UserId", x => x.UserId, "AppUsers", "Id", schema: "dbo", onDelete: ReferentialAction.Cascade);
-                table.ForeignKey("FK_UserRoleAssignments_Roles_RoleId", x => x.RoleId, "Roles", "Id", schema: "dbo", onDelete: ReferentialAction.Restrict);
-                table.ForeignKey("FK_UserRoleAssignments_Tenants_TenantId", x => x.TenantId, "Tenants", "Id", schema: "dbo", onDelete: ReferentialAction.Restrict);
-                table.ForeignKey("FK_UserRoleAssignments_Branches_BranchId", x => x.BranchId, "Branches", "Id", schema: "dbo", onDelete: ReferentialAction.Restrict);
-                table.ForeignKey("FK_UserRoleAssignments_Projects_ProjectId", x => x.ProjectId, "Projects", "Id", schema: "dbo", onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(name: "FK_UserRoleAssignments_AppUsers_UserId", column: x => x.UserId, principalTable: "AppUsers", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Cascade);
+                table.ForeignKey(name: "FK_UserRoleAssignments_Roles_RoleId", column: x => x.RoleId, principalTable: "Roles", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(name: "FK_UserRoleAssignments_Tenants_TenantId", column: x => x.TenantId, principalTable: "Tenants", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(name: "FK_UserRoleAssignments_Branches_BranchId", column: x => x.BranchId, principalTable: "Branches", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Restrict);
+                table.ForeignKey(name: "FK_UserRoleAssignments_Projects_ProjectId", column: x => x.ProjectId, principalTable: "Projects", principalColumn: "Id", principalSchema: "dbo", onDelete: ReferentialAction.Restrict);
             });
 
         migrationBuilder.CreateIndex(name: "IX_Permissions_Code", schema: "dbo", table: "Permissions", column: "Code", unique: true);
