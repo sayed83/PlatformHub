@@ -25,6 +25,9 @@ public sealed class UserAccessViewModel
     [StringLength(500)]
     public string? BaseRedirectUrl { get; set; }
 
+    // Only shown to Super Admin; API independently enforces this privilege.
+    public bool IsPlatformAdmin { get; set; }
+
     public long AssignUserId { get; set; }
     public long RoleId { get; set; }
     public long? TenantId { get; set; }
