@@ -112,7 +112,7 @@
                                                 <input type="hidden" name="id" value="@user.Id" />
                                                 <div class="mb-2"><label class="form-label small">Display name</label><input class="form-control form-control-sm" name="displayName" value="@user.DisplayName" maxlength="200" required /></div>
                                                 <div class="mb-2"><label class="form-label small">Redirect URL</label><input class="form-control form-control-sm" name="baseRedirectUrl" value="@user.BaseRedirectUrl" maxlength="500" /></div>
-                                                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="active-@user.Id" name="isActive" value="true" checked="@user.IsActive" /><label class="form-check-label small" for="active-@user.Id">Account active</label><input type="hidden" name="isActive" value="false" /></div>
+                                                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="active-@user.Id" name="isActive" value="true" @(user.IsActive ? "checked" : null) /><label class="form-check-label small" for="active-@user.Id">Account active</label><input type="hidden" name="isActive" value="false" /></div>
                                                 <button class="btn btn-sm btn-primary" type="submit" @(canUpdate || (canDeactivate && !user.IsActive) ? null : "disabled")>Save account</button>
                                             </form>
                                             @if (canUpdate)
