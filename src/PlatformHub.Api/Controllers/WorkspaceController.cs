@@ -26,27 +26,19 @@ public sealed class WorkspaceController(
                 NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
             return Unauthorized();
 
-        var userIsActive = await db.Users.AsNoTracking()
-            .AnyAsync(x => x.Id == userId && x.IsActive && !x.IsPlatformAdmin, cancellationToken);
-        if (!userIsActive) return Forbid();
+        var user = await db.Users.AsNoTracking()
+            .Where(x => x.Id == userId && x.IsActive)
+            .Select(x => new { x.Id, x.IsPlatformAdmin })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (user is null || user.IsPlatformAdmin) return Forbid();
 
         var assignments = await db.UserRoleAssignments.AsNoTracking()
             .Where(x => x.UserId == userId && x.Role.IsActive)
             .Select(x => new
             {
-                x.TenantId,
-                x.BranchId,
-                x.ProjectId,
-                RoleCode = x.Role.Code,
-                RoleName = x.Role.Name
+                x.TenantId, x.BranchId, x.ProjectId,
+                RoleCode = x.Role.Code, RoleName = x.Role.Name
             })
-            .ToListAsync(cancellationToken);
-
-        var tenantIds = assignments.Where(x => x.TenantId.HasValue)
-            .Select(x => x.TenantId!.Value).Distinct().ToArray();
-        var tenants = await db.Tenants.AsNoTracking()
-            .Where(x => tenantIds.Contains(x.Id) && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
         var branchIds = assignments.Where(x => x.BranchId.HasValue)
@@ -63,20 +55,37 @@ public sealed class WorkspaceController(
             .Select(x => new { x.Id, x.TenantId, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
+        var tenantIds = assignments.Where(x => x.TenantId.HasValue)
+            .Select(x => x.TenantId!.Value)
+            .Concat(branches.Select(x => x.TenantId))
+            .Concat(projects.Select(x => x.TenantId))
+            .Distinct().ToArray();
+        var tenants = await db.Tenants.AsNoTracking()
+            .Where(x => tenantIds.Contains(x.Id) && x.IsActive)
+            .Select(x => new { x.Id, x.Code, x.Name })
+            .ToListAsync(cancellationToken);
+
         var scopes = assignments.Select(a =>
         {
-            var tenant = a.TenantId.HasValue ? tenants.FirstOrDefault(t => t.Id == a.TenantId.Value) : null;
-            var branch = a.BranchId.HasValue ? branches.FirstOrDefault(x => x.Id == a.BranchId.Value) : null;
-            var project = a.ProjectId.HasValue ? projects.FirstOrDefault(x => x.Id == a.ProjectId.Value) : null;
+            var branch = a.BranchId.HasValue
+                ? branches.FirstOrDefault(x => x.Id == a.BranchId.Value) : null;
+            var project = a.ProjectId.HasValue
+                ? projects.FirstOrDefault(x => x.Id == a.ProjectId.Value) : null;
             var resolvedTenantId = a.TenantId ?? branch?.TenantId ?? project?.TenantId;
-            tenant ??= resolvedTenantId.HasValue ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
-            if (tenant is null || (branch is not null && branch.TenantId != tenant.Id)
-                || (project is not null && project.TenantId != tenant.Id))
+            var tenant = resolvedTenantId.HasValue
+                ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
+
+            // Discard invalid or cross-tenant assignments rather than exposing them in the UI.
+            if (tenant is null
+                || (branch is not null && branch.TenantId != tenant.Id)
+                || (project is not null && project.TenantId != tenant.Id)
+                || (a.BranchId.HasValue && branch is null)
+                || (a.ProjectId.HasValue && project is null))
                 return null;
 
             return new
             {
-                tenant.Id,
+                Id = tenant.Id,
                 TenantCode = tenant.Code,
                 TenantName = tenant.Name,
                 BranchId = branch?.Id,
