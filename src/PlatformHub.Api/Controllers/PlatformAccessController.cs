@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
@@ -10,8 +11,121 @@ namespace PlatformHub.Api.Controllers;
 [ApiController]
 [Route("api/v1/platform/access")]
 [Authorize(Policy = "PlatformAdmin")]
-public sealed class PlatformAccessController(PlatformDbContext db) : ControllerBase
+public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHasher<AppUser> passwordHasher) : ControllerBase
 {
+    [HttpGet("users")]
+    [Authorize(Policy = "User.View")]
+    public async Task<IActionResult> GetUsers([FromQuery] string? search, [FromQuery] bool? active, CancellationToken cancellationToken)
+    {
+        var query = db.Users.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x => x.UserName.Contains(term) || x.DisplayName.Contains(term));
+        }
+        if (active.HasValue) query = query.Where(x => x.IsActive == active.Value);
+
+        var users = await query.OrderBy(x => x.UserName)
+            .Select(x => new
+            {
+                x.Id, x.UserName, x.DisplayName, x.IsActive, x.IsPlatformAdmin,
+                x.BaseRedirectUrl, x.CreatedUtc,
+                Roles = db.UserRoleAssignments.Where(a => a.UserId == x.Id && a.Role.IsActive)
+                    .Select(a => a.Role.Name).Distinct().OrderBy(n => n).ToList(),
+                RoleAssignments = db.UserRoleAssignments.Where(a => a.UserId == x.Id)
+                    .Select(a => new
+                    {
+                        a.Id, a.RoleId, RoleCode = a.Role.Code, RoleName = a.Role.Name,
+                        a.TenantId, TenantName = a.Tenant == null ? null : a.Tenant.Name,
+                        a.BranchId, BranchName = a.Branch == null ? null : a.Branch.Name,
+                        a.ProjectId, ProjectName = a.Project == null ? null : a.Project.Name
+                    }).ToList()
+            }).ToListAsync(cancellationToken);
+        return Ok(users);
+    }
+
+    [HttpPost("users")]
+    [Authorize(Policy = "User.Create")]
+    public async Task<IActionResult> CreateUser([FromBody] CreatePlatformUserRequest request, CancellationToken cancellationToken)
+    {
+        var userName = request.UserName?.Trim();
+        var displayName = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(displayName)
+            || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Username, display name, and password are required." });
+        if (userName.Length > 100 || displayName.Length > 200 || request.Password.Length < 12)
+            return BadRequest(new { message = "Username/display name is too long or password is shorter than 12 characters." });
+        if (await db.Users.AnyAsync(x => x.UserName == userName, cancellationToken))
+            return Conflict(new { message = "Username already exists." });
+
+        var user = new AppUser
+        {
+            UserName = userName,
+            DisplayName = displayName,
+            IsActive = true,
+            IsPlatformAdmin = false,
+            BaseRedirectUrl = string.IsNullOrWhiteSpace(request.BaseRedirectUrl) ? null : request.BaseRedirectUrl.Trim(),
+            CreatedUtc = DateTime.UtcNow
+        };
+        if (user.BaseRedirectUrl?.Length > 500)
+            return BadRequest(new { message = "Redirect URL cannot exceed 500 characters." });
+        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        db.Users.Add(user);
+        await db.SaveChangesAsync(cancellationToken);
+        return CreatedAtAction(nameof(GetUsers), new { }, new
+        {
+            user.Id, user.UserName, user.DisplayName, user.IsActive, user.IsPlatformAdmin,
+            user.BaseRedirectUrl, user.CreatedUtc
+        });
+    }
+
+    [HttpPut("users/{userId:long}")]
+    [Authorize(Policy = "User.Update")]
+    public async Task<IActionResult> UpdateUser(long userId, [FromBody] UpdatePlatformUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null) return NotFound(new { message = "User not found." });
+        if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 200
+            || (request.BaseRedirectUrl?.Length ?? 0) > 500)
+            return BadRequest(new { message = "Display name is required (max 200 characters); redirect URL max is 500 characters." });
+
+        if (user.IsPlatformAdmin && !request.IsActive)
+        {
+            var superAdminRoleId = await db.Roles.Where(r => r.Code == PlatformRbacSeeder.SuperAdminCode)
+                .Select(r => (long?)r.Id).SingleOrDefaultAsync(cancellationToken);
+            var isSuperAdmin = superAdminRoleId.HasValue && await db.UserRoleAssignments.AnyAsync(a =>
+                a.UserId == user.Id && a.RoleId == superAdminRoleId.Value
+                && a.TenantId == null && a.BranchId == null && a.ProjectId == null, cancellationToken);
+            if (isSuperAdmin)
+            {
+                var activeSuperAdmins = await db.UserRoleAssignments
+                    .Where(a => a.RoleId == superAdminRoleId && a.TenantId == null && a.BranchId == null && a.ProjectId == null && a.User.IsActive && a.User.IsPlatformAdmin)
+                    .Select(a => a.UserId).Distinct().CountAsync(cancellationToken);
+                if (activeSuperAdmins <= 1)
+                    return Conflict(new { message = "You cannot deactivate the last active Platform Super Admin." });
+            }
+        }
+
+        user.DisplayName = request.DisplayName.Trim();
+        user.BaseRedirectUrl = string.IsNullOrWhiteSpace(request.BaseRedirectUrl) ? null : request.BaseRedirectUrl.Trim();
+        user.IsActive = request.IsActive;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "User updated.", user.Id, user.UserName, user.DisplayName, user.IsActive, user.BaseRedirectUrl });
+    }
+
+    [HttpPost("users/{userId:long}/reset-password")]
+    [Authorize(Policy = "User.Update")]
+    public async Task<IActionResult> ResetPassword(long userId, [FromBody] ResetPlatformUserPasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 12)
+            return BadRequest(new { message = "Password must contain at least 12 characters." });
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null) return NotFound(new { message = "User not found." });
+        user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Password reset successfully. The user should sign in again." });
+    }
+
     [HttpGet("roles")]
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetRoles(CancellationToken cancellationToken)
@@ -197,3 +311,7 @@ public sealed class PlatformAccessController(PlatformDbContext db) : ControllerB
 public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? BranchId, long? ProjectId);
 public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
 public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
+
+public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl);
+public sealed record UpdatePlatformUserRequest(string DisplayName, bool IsActive, string? BaseRedirectUrl);
+public sealed record ResetPlatformUserPasswordRequest(string NewPassword);
