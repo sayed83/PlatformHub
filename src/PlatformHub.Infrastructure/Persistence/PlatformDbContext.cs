@@ -9,6 +9,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<PlatformRole> Roles => Set<PlatformRole>();
+    public DbSet<PlatformPermission> Permissions => Set<PlatformPermission>();
+    public DbSet<PlatformRolePermission> RolePermissions => Set<PlatformRolePermission>();
+    public DbSet<UserRoleAssignment> UserRoleAssignments => Set<UserRoleAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,10 +42,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasKey(x => x.Id);
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.HasOne(x => x.Tenant)
-                .WithMany()
-                .HasForeignKey(x => x.TenantId)
-                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         });
         modelBuilder.Entity<Branch>(e =>
@@ -51,11 +52,46 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.Code).HasMaxLength(50).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
             e.Property(x => x.Address).HasMaxLength(500);
-            e.HasOne(x => x.Tenant)
-                .WithMany()
-                .HasForeignKey(x => x.TenantId)
-                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        });
+        modelBuilder.Entity<PlatformRole>(e =>
+        {
+            e.ToTable("Roles", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.BaseRedirectUrl).HasMaxLength(500);
+            e.HasIndex(x => x.Code).IsUnique();
+        });
+        modelBuilder.Entity<PlatformPermission>(e =>
+        {
+            e.ToTable("Permissions", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Module).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.HasIndex(x => x.Code).IsUnique();
+        });
+        modelBuilder.Entity<PlatformRolePermission>(e =>
+        {
+            e.ToTable("RolePermissions", "dbo");
+            e.HasKey(x => new { x.RoleId, x.PermissionId });
+            e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Permission).WithMany().HasForeignKey(x => x.PermissionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<UserRoleAssignment>(e =>
+        {
+            e.ToTable("UserRoleAssignments", "dbo");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.RoleId, x.TenantId, x.BranchId, x.ProjectId }).IsUnique();
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
