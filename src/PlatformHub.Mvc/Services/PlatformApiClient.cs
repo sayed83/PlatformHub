@@ -140,6 +140,33 @@ public sealed class PlatformApiClient(
         }
     }
 
+    public async Task<bool> DeleteAsync(string path, CancellationToken ct = default, string? token = null)
+    {
+        var client = factory.CreateClient("PlatformApi");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, path);
+        if (!string.IsNullOrWhiteSpace(token))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            using var response = await client.SendAsync(request, ct);
+            if (response.IsSuccessStatusCode) return true;
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
+                path, (int)response.StatusCode, Truncate(responseBody));
+            return false;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Could not connect to Platform API for DELETE {Path}", path);
+            return false;
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Platform API DELETE {Path} timed out", path);
+            return false;
+        }
+    }
+
     private static string Truncate(string value) =>
         value.Length <= 2000 ? value : value[..2000];
 }
