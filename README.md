@@ -61,3 +61,39 @@ The endpoint returns 404 outside Development, refuses initialization if any Plat
 - Use environment variables or a secret manager in deployments. Do not commit credentials.
 - If credentials were ever committed, rotate them; replacing the file alone does not remove them from Git history.
 - This is a starter scaffold, not production-certified. Add rate limiting, lockout, CSRF protection where applicable, refresh-token rotation, logging redaction and automated security tests before deployment.
+
+
+## Role-based access control (RBAC)
+
+The platform access model uses custom claim names (prefixed `ph_`) and explicit tenant/branch/project scope assignments.
+
+### Built-in protected roles
+- `PLATFORM_SUPER_ADMIN` — system role seeded with the complete permission catalog. Its role and permission set cannot be edited through the role-management API.
+- `PLATFORM_ADMIN`
+- `TENANT_ADMIN`
+- `BRANCH_ADMIN`
+- `PROJECT_USER`
+
+System roles are seeded idempotently at API startup **after the RBAC migration has been applied**. Existing active accounts with `AppUsers.IsPlatformAdmin = 1` are assigned to the protected Platform Super Admin role without creating duplicate accounts.
+
+### Apply the RBAC migration
+
+Review the migration and confirm the previous migrations are recorded in `dbo.__EFMigrationsHistory` before applying:
+
+```powershell
+dotnet ef database update --project src/PlatformHub.Infrastructure --startup-project src/PlatformHub.Api --context PlatformDbContext
+dotnet build
+```
+
+Do not drop or recreate `AppUsers`, `Tenants`, `Projects`, or `Branches`.
+
+### Access API
+- `GET /api/v1/platform/access/roles` — list roles and assigned permission codes
+- `POST /api/v1/platform/access/roles` — create a custom role
+- `GET /api/v1/platform/access/permissions` — list permission catalog
+- `PUT /api/v1/platform/access/roles/{roleId}/permissions` — replace permissions on a custom role
+- `GET /api/v1/platform/access/users/{userId}/roles` — list role assignments
+- `POST /api/v1/platform/access/users/{userId}/roles` — assign a role with optional tenant/branch/project scope
+- `DELETE /api/v1/platform/access/users/{userId}/roles/{assignmentId}` — remove a non-Super-Admin assignment
+
+These endpoints require Platform Admin authentication plus the corresponding permission claim. A new login is required after role or permission changes because permissions are placed in the short-lived JWT. Scope assignments are stored independently in the database; every tenant-facing API must enforce the relevant scope server-side before exposing tenant data.
