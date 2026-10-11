@@ -30,4 +30,5 @@ public sealed class WorkspaceViewModel
     public IReadOnlySet<string> Permissions { get; init; } = new HashSet<string>();
     public IReadOnlyList<WorkspaceScopeViewModel> Scopes { get; init; } = Array.Empty<WorkspaceScopeViewModel>();
     public WorkspaceScopeViewModel? SelectedScope { get; init; }
+    public IReadOnlyList<WorkspaceMenuItemViewModel> Menus { get; init; } = Array.Empty<WorkspaceMenuItemViewModel>();
 }
