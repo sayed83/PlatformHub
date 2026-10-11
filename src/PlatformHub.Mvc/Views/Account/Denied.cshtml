@@ -1,0 +1,19 @@
+@{ ViewData["Title"] = "Access denied"; Layout = "~/Views/Shared/_Layout.cshtml"; }
+<div class="row justify-content-center mt-5">
+    <div class="col-md-7 col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-md-5 text-center">
+                <div class="display-5 text-warning mb-3" aria-hidden="true">403</div>
+                <h1 class="h3 mb-2">Access denied</h1>
+                <p class="text-secondary">You are signed in, but your account does not have permission to open this page. Ask a platform administrator to review your role and permissions.</p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap mt-4">
+                    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Go to home</a>
+                    <form method="post" asp-controller="Account" asp-action="Logout">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-outline-secondary" type="submit">Sign out</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
