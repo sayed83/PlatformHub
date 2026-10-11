@@ -50,6 +50,10 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.PlatformAdmin, "true"));
     options.AddPolicy("PlatformSuperAdmin", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode));
+    options.AddPolicy("Role.Create", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Role.Create"));
+    options.AddPolicy("Role.Update", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Role.Update"));
     options.AddPolicy("Role.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Role.View"));
     options.AddPolicy("Permission.View", policy => policy.RequireAuthenticatedUser()
