@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -148,6 +148,93 @@ namespace PlatformHub.Infrastructure.Migrations
                 b.HasKey("Id");
                 b.HasIndex("TenantId", "Code").IsUnique();
                 b.ToTable("Branches", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.PlatformRole", b =>
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("BaseRedirectUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<string>("Code").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                b.Property<DateTime>("CreatedUtc").HasColumnType("datetime2");
+                b.Property<string>("Description").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<bool>("IsActive").HasColumnType("bit");
+                b.Property<bool>("IsSystemRole").HasColumnType("bit");
+                b.Property<string>("Name").IsRequired().HasMaxLength(150).HasColumnType("nvarchar(150)");
+                b.HasKey("Id");
+                b.HasIndex("Code").IsUnique();
+                b.ToTable("Roles", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.PlatformPermission", b =>
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<string>("Code").IsRequired().HasMaxLength(150).HasColumnType("nvarchar(150)");
+                b.Property<string>("Description").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                b.Property<bool>("IsSystemPermission").HasColumnType("bit");
+                b.Property<string>("Module").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                b.Property<string>("Name").IsRequired().HasMaxLength(150).HasColumnType("nvarchar(150)");
+                b.HasKey("Id");
+                b.HasIndex("Code").IsUnique();
+                b.ToTable("Permissions", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.PlatformRolePermission", b =>
+            {
+                b.Property<long>("RoleId").HasColumnType("bigint");
+                b.Property<long>("PermissionId").HasColumnType("bigint");
+                b.HasKey("RoleId", "PermissionId");
+                b.HasIndex("PermissionId");
+                b.ToTable("RolePermissions", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.UserRoleAssignment", b =>
+            {
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                b.Property<long?>("BranchId").HasColumnType("bigint");
+                b.Property<DateTime>("CreatedUtc").HasColumnType("datetime2");
+                b.Property<long?>("ProjectId").HasColumnType("bigint");
+                b.Property<long>("RoleId").HasColumnType("bigint");
+                b.Property<long?>("TenantId").HasColumnType("bigint");
+                b.Property<long>("UserId").HasColumnType("bigint");
+                b.HasKey("Id");
+                b.HasIndex("BranchId");
+                b.HasIndex("ProjectId");
+                b.HasIndex("RoleId");
+                b.HasIndex("TenantId");
+                b.HasIndex("UserId", "RoleId", "TenantId", "BranchId", "ProjectId");
+                b.ToTable("UserRoleAssignments", "dbo");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.PlatformRolePermission", b =>
+            {
+                b.HasOne("PlatformHub.Domain.Entities.PlatformPermission", "Permission")
+                    .WithMany().HasForeignKey("PermissionId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                b.HasOne("PlatformHub.Domain.Entities.PlatformRole", "Role")
+                    .WithMany().HasForeignKey("RoleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                b.Navigation("Permission");
+                b.Navigation("Role");
+            });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.UserRoleAssignment", b =>
+            {
+                b.HasOne("PlatformHub.Domain.Entities.Branch", "Branch")
+                    .WithMany().HasForeignKey("BranchId").OnDelete(DeleteBehavior.Restrict);
+                b.HasOne("PlatformHub.Domain.Entities.Project", "Project")
+                    .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Restrict);
+                b.HasOne("PlatformHub.Domain.Entities.PlatformRole", "Role")
+                    .WithMany().HasForeignKey("RoleId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
+                    .WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
+                b.HasOne("PlatformHub.Domain.Entities.AppUser", "User")
+                    .WithMany().HasForeignKey("UserId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                b.Navigation("Branch");
+                b.Navigation("Project");
+                b.Navigation("Role");
+                b.Navigation("Tenant");
+                b.Navigation("User");
             });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Project", b =>
