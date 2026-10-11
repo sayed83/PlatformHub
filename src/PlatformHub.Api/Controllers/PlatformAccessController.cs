@@ -17,7 +17,9 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "User.View")]
     public async Task<IActionResult> GetUsers([FromQuery] string? search, [FromQuery] bool? active, CancellationToken cancellationToken)
     {
-        var query = db.Users.AsNoTracking().AsQueryable();
+        var isSuperAdmin = IsSuperAdmin();
+        // Regular platform admins manage tenant users, never platform-admin accounts.
+        var query = db.Users.AsNoTracking().Where(x => isSuperAdmin || !x.IsPlatformAdmin).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -84,7 +86,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> UpdateUser(long userId, [FromBody] UpdatePlatformUserRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-        if (user is null) return NotFound(new { message = "User not found." });
+        if (user is null || (user.IsPlatformAdmin && !IsSuperAdmin())) return NotFound(new { message = "User not found." });
         if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 200
             || (request.BaseRedirectUrl?.Length ?? 0) > 500)
             return BadRequest(new { message = "Display name is required (max 200 characters); redirect URL max is 500 characters." });
@@ -120,7 +122,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 12)
             return BadRequest(new { message = "Password must contain at least 12 characters." });
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-        if (user is null) return NotFound(new { message = "User not found." });
+        if (user is null || (user.IsPlatformAdmin && !IsSuperAdmin())) return NotFound(new { message = "User not found." });
         user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { message = "Password reset successfully. The user should sign in again." });
@@ -130,7 +132,9 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetRoles(CancellationToken cancellationToken)
     {
+        var isSuperAdmin = IsSuperAdmin();
         var roles = await db.Roles.AsNoTracking()
+            .Where(x => isSuperAdmin || x.Code != PlatformRbacSeeder.SuperAdminCode)
             .OrderBy(x => x.IsSystemRole ? 0 : 1).ThenBy(x => x.Name)
             .Select(x => new
             {
@@ -202,6 +206,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         return Ok(new { message = "Role permissions updated.", roleId, permissionCount = permissionIds.Length });
     }
 
+    private bool IsSuperAdmin() => User.HasClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode);
+
     [HttpGet("permissions")]
     [Authorize(Policy = "Permission.View")]
     public async Task<IActionResult> GetPermissions(CancellationToken cancellationToken)
@@ -216,7 +222,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetUserRoles(long userId, CancellationToken cancellationToken)
     {
-        if (!await db.Users.AnyAsync(x => x.Id == userId, cancellationToken))
+        var targetUser = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (targetUser is null || (targetUser.IsPlatformAdmin && !IsSuperAdmin()))
             return NotFound(new { message = "User not found." });
 
         var assignments = await db.UserRoleAssignments.AsNoTracking()
@@ -237,7 +244,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> AssignRole(long userId, [FromBody] AssignRoleRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-        if (user is null) return NotFound(new { message = "User not found." });
+        if (user is null || (user.IsPlatformAdmin && !IsSuperAdmin())) return NotFound(new { message = "User not found." });
 
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == request.RoleId && x.IsActive, cancellationToken);
         if (role is null) return BadRequest(new { message = "Active role not found." });
@@ -295,6 +302,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Assign")]
     public async Task<IActionResult> RemoveRole(long userId, long assignmentId, CancellationToken cancellationToken)
     {
+        var targetUser = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (targetUser is null || (targetUser.IsPlatformAdmin && !IsSuperAdmin())) return NotFound();
         var assignment = await db.UserRoleAssignments
             .Include(x => x.Role)
             .SingleOrDefaultAsync(x => x.Id == assignmentId && x.UserId == userId, cancellationToken);
