@@ -13,31 +13,7 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
     public async Task<IReadOnlyList<EffectiveMenuDto>> GetForUserAsync(
         long userId, long projectId, CancellationToken ct = default)
     {
-        if (userId <= 0 || projectId <= 0)
-            return [];
-
-        var activeUser = await db.Users.AsNoTracking()
-            .AnyAsync(u => u.Id == userId && u.IsActive, ct);
-        if (!activeUser)
-            return [];
-
-        var project = await db.Projects.AsNoTracking()
-            .Where(p => p.Id == projectId && p.IsActive)
-            .Select(p => new { p.Id, p.TenantId })
-            .SingleOrDefaultAsync(ct);
-        if (project is null) return [];
-
-        // Only assignments applicable to this project and its tenant contribute permissions.
-        var roleIds = await db.UserRoleAssignments.AsNoTracking()
-            .Where(a => a.UserId == userId &&
-                (a.ProjectId == projectId ||
-                 (a.ProjectId == null && a.BranchId == null && a.TenantId == project.TenantId) ||
-                 (a.ProjectId == null && a.BranchId != null &&
-                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId))))
-            .Select(a => a.RoleId)
-            .Distinct()
-            .ToListAsync(ct);
-
+        var roleIds = await GetApplicableRoleIdsAsync(userId, projectId, ct);
         if (roleIds.Count == 0) return [];
 
         var menus = await db.MenuItems.AsNoTracking()
@@ -62,7 +38,8 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
                 : roleDecisions.Contains(m.Id))
             .Select(m => m.Id).ToHashSet();
 
-        // Keep ancestor nodes visible only when they contain an allowed menu.
+        // Ancestors are included for navigation display only. HasAccessAsync below
+        // deliberately checks the direct menu decision, not this expanded list.
         var byId = menus.ToDictionary(m => m.Id);
         foreach (var menuId in allowed.ToArray())
         {
@@ -80,8 +57,58 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
 
     public async Task<bool> HasAccessAsync(long userId, long projectId, string menuCode, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(menuCode)) return false;
-        var menus = await GetForUserAsync(userId, projectId, ct);
-        return menus.Any(m => string.Equals(m.Code, menuCode, StringComparison.OrdinalIgnoreCase));
+        if (userId <= 0 || projectId <= 0 || string.IsNullOrWhiteSpace(menuCode))
+            return false;
+
+        var roleIds = await GetApplicableRoleIdsAsync(userId, projectId, ct);
+        if (roleIds.Count == 0)
+            return false;
+
+        var menu = await db.MenuItems.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.IsActive && m.Code == menuCode)
+            .Select(m => new { m.Id })
+            .SingleOrDefaultAsync(ct);
+        if (menu is null)
+            return false;
+
+        var userOverride = await db.UserWiseMenuAccesses.AsNoTracking()
+            .Where(a => a.ProjectId == projectId && a.UserId == userId && a.MenuItemId == menu.Id)
+            .Select(a => (bool?)a.IsAllowed)
+            .SingleOrDefaultAsync(ct);
+        if (userOverride.HasValue)
+            return userOverride.Value;
+
+        return await db.RoleWiseMenuAccesses.AsNoTracking().AnyAsync(
+            a => a.ProjectId == projectId && roleIds.Contains(a.RoleId) &&
+                 a.MenuItemId == menu.Id && a.IsAllowed, ct);
+    }
+
+    private async Task<List<long>> GetApplicableRoleIdsAsync(
+        long userId, long projectId, CancellationToken ct)
+    {
+        if (userId <= 0 || projectId <= 0)
+            return [];
+
+        var activeUser = await db.Users.AsNoTracking()
+            .AnyAsync(u => u.Id == userId && u.IsActive, ct);
+        if (!activeUser)
+            return [];
+
+        var project = await db.Projects.AsNoTracking()
+            .Where(p => p.Id == projectId && p.IsActive)
+            .Select(p => new { p.Id, p.TenantId })
+            .SingleOrDefaultAsync(ct);
+        if (project is null)
+            return [];
+
+        return await db.UserRoleAssignments.AsNoTracking()
+            .Where(a => a.UserId == userId &&
+                (a.ProjectId == projectId ||
+                 (a.ProjectId == null && a.BranchId == null && a.TenantId == project.TenantId) ||
+                 (a.ProjectId == null && a.BranchId != null &&
+                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId)))
+            .Select(a => a.RoleId)
+            .Distinct()
+            .ToListAsync(ct);
     }
 }
