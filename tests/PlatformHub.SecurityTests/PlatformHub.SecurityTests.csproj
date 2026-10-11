@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\PlatformHub.Infrastructure\PlatformHub.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PlatformHub.Api\PlatformHub.Api.csproj" />
   </ItemGroup>
 </Project>
