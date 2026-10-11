@@ -88,6 +88,7 @@ dotnet build
 Do not drop or recreate `AppUsers`, `Tenants`, `Projects`, or `Branches`.
 
 ### Access API
+- Platform Admin navigation includes a Roles & Permissions page for listing roles, creating custom roles, and assigning permissions to custom roles.
 - `GET /api/v1/platform/access/roles` — list roles and assigned permission codes
 - `POST /api/v1/platform/access/roles` — create a custom role
 - `GET /api/v1/platform/access/permissions` — list permission catalog
