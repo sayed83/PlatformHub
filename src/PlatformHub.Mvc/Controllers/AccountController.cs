@@ -25,10 +25,10 @@ public sealed class AccountController(PlatformApiClient api) : Controller
         }
 
         await SignIn(result);
-        var redirect = !string.IsNullOrWhiteSpace(result.User.BaseRedirectUrl)
-            ? result.User.BaseRedirectUrl
-            : result.User.RoleRedirectUrl;
-        return LocalRedirect(Url.IsLocalUrl(redirect) ? redirect! : "/Home/Index");
+        // Normal users must never be redirected into the Platform Admin area by a role's
+        // configurable BaseRedirectUrl. Platform administration requires the separate
+        // platform-admin account flag and its own login panel.
+        return LocalRedirect("/Workspace");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
