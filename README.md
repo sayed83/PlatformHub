@@ -125,3 +125,19 @@ API routes:
 All routes require a valid Platform Admin JWT and the corresponding `User.View`, `User.Create`, `User.Update`, `User.Deactivate`, or `Role.Assign` permission. The MVC screen is only a UI layer; authorization is enforced by the API.
 
 After a role/permission change, users should sign in again to refresh claims. Before production, implement forced session/token invalidation and a first-login password-change flow; do not distribute temporary passwords over insecure channels.
+
+
+## Tenant / branch / project scope authorization
+
+The API now provides `IScopedAccessService` (`PlatformHub.Infrastructure.Platform`) for database-backed scope checks. It verifies the user is active, verifies that the tenant/branch/project are active and belong to the same tenant, and checks that the user's active role assignment grants the requested permission at a compatible scope. Platform Admin status is re-read from the database before bypassing tenant scopes; JWT scope claims alone are not trusted.
+
+A sample endpoint is available at:
+
+```http
+GET /api/v1/workspace/context?tenantId=1&branchId=2&projectId=3
+Authorization: Bearer <access-token>
+```
+
+`branchId` and `projectId` are optional. The endpoint requires the active assignment to grant `Tenant.View`; a scope mismatch returns `403 Forbidden`.
+
+**Required for each future tenant-facing endpoint:** call `IScopedAccessService.CanAccessAsync(userId, requiredPermissionCode, tenantId, branchId, projectId, cancellationToken)` before querying or returning tenant data. Use the tenant/branch/project IDs resolved from the requested resource on the server, not IDs supplied only by the UI. Platform management endpoints are global administration endpoints and remain protected by Platform Admin policies.
