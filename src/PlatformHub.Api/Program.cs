@@ -10,6 +10,7 @@ using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Auth;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
+using PlatformHub.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
@@ -22,6 +23,7 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
 builder.Services.AddScoped<IScopedAccessService, ScopedAccessService>();
+builder.Services.AddScoped<EffectiveMenuAccessService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var jwt = builder.Configuration.GetSection("Jwt");
