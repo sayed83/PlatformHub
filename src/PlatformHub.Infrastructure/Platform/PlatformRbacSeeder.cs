@@ -94,28 +94,27 @@ public static class PlatformRbacSeeder
             });
         }
 
-        // Preserve existing administrator accounts and migrate them into the built-in role.
+        // Bootstrap the first and only platform-admin account as Super Admin on a fresh install.
+        // Once a global Super Admin assignment exists, never auto-promote any other admin account.
+        var hasGlobalSuperAdmin = await db.UserRoleAssignments.AnyAsync(
+            x => x.RoleId == superAdmin.Id && x.TenantId == null && x.BranchId == null && x.ProjectId == null,
+            cancellationToken);
         var platformAdminIds = await db.Users
             .Where(x => x.IsPlatformAdmin && x.IsActive)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
-        foreach (var userId in platformAdminIds)
+
+        if (!hasGlobalSuperAdmin && platformAdminIds.Count == 1)
         {
-            var hasAssignment = await db.UserRoleAssignments.AnyAsync(
-                x => x.UserId == userId && x.RoleId == superAdmin.Id
-                     && x.TenantId == null && x.BranchId == null && x.ProjectId == null,
-                cancellationToken);
-            if (!hasAssignment)
+            db.UserRoleAssignments.Add(new UserRoleAssignment
             {
-                db.UserRoleAssignments.Add(new UserRoleAssignment
-                {
-                    UserId = userId,
-                    RoleId = superAdmin.Id,
-                    TenantId = null,
-                    BranchId = null,
-                    ProjectId = null
-                });
-            }
+                UserId = platformAdminIds[0],
+                RoleId = superAdmin.Id,
+                TenantId = null,
+                BranchId = null,
+                ProjectId = null
+            });
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         // Give built-in non-super-admin roles useful least-privilege permission sets.
