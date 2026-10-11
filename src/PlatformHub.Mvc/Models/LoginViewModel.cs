@@ -14,4 +14,5 @@ public sealed class LoginViewModel
 }
 
 public sealed record ApiLoginResponse(string AccessToken, int ExpiresIn, ApiUser User);
-public sealed record ApiUser(long UserId, string UserName, string DisplayName, bool IsPlatformAdmin, string? BaseRedirectUrl);
+public sealed record ApiUser(long UserId, string UserName, string DisplayName, bool IsPlatformAdmin, string? BaseRedirectUrl, string? RoleRedirectUrl, IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions, IReadOnlyList<ApiUserScope> Scopes);
+public sealed record ApiUserScope(long? TenantId, long? BranchId, long? ProjectId);
