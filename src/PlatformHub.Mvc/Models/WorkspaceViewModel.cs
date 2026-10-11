@@ -13,6 +13,7 @@ public sealed class WorkspaceScopeViewModel
     public string? ProjectName { get; set; }
     public string RoleCode { get; set; } = "";
     public string RoleName { get; set; } = "";
+    public string Key => $"{Id}:{BranchId?.ToString() ?? "-"}:{ProjectId?.ToString() ?? "-"}:{RoleCode}";
     public string ScopeLabel => string.Join(" · ", new[]
     {
         TenantName,
