@@ -141,3 +141,37 @@ Authorization: Bearer <access-token>
 `branchId` and `projectId` are optional. The endpoint requires the active assignment to grant `Tenant.View`; a scope mismatch returns `403 Forbidden`.
 
 **Required for each future tenant-facing endpoint:** call `IScopedAccessService.CanAccessAsync(userId, requiredPermissionCode, tenantId, branchId, projectId, cancellationToken)` before querying or returning tenant data. Use the tenant/branch/project IDs resolved from the requested resource on the server, not IDs supplied only by the UI. Platform management endpoints are global administration endpoints and remain protected by Platform Admin policies.
+
+
+## Optional default users for built-in roles
+
+The existing `platformadmin` account is seeded/assigned to the protected `PLATFORM_SUPER_ADMIN` role. To provision one additional default account for each other built-in role, configure each account through User Secrets (never hard-code passwords in source or appsettings). The API seeds these accounts idempotently at startup: existing users/passwords are not overwritten and role assignments are not duplicated.
+
+Use unique, strong passwords of at least 12 characters. Set `TenantId` for Tenant Admin, `BranchId` for Branch Admin, and `ProjectId` for Project User to existing active records. Branch and project IDs must belong to the selected tenant.
+
+Run from the solution root, replacing every placeholder with values from your own database and unique passwords:
+
+```powershell
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:UserName" "platformops" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:DisplayName" "Platform Operations Admin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:Password" "REPLACE_WITH_UNIQUE_STRONG_PASSWORD" --project src/PlatformHub.Api
+
+dotnet user-secrets set "PlatformRoleUserSeeds:TenantAdmin:UserName" "tenantadmin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:TenantAdmin:DisplayName" "Default Tenant Admin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:TenantAdmin:Password" "REPLACE_WITH_DIFFERENT_STRONG_PASSWORD" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:TenantAdmin:TenantId" "1" --project src/PlatformHub.Api
+
+dotnet user-secrets set "PlatformRoleUserSeeds:BranchAdmin:UserName" "branchadmin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:BranchAdmin:DisplayName" "Default Branch Admin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:BranchAdmin:Password" "REPLACE_WITH_ANOTHER_STRONG_PASSWORD" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:BranchAdmin:TenantId" "1" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:BranchAdmin:BranchId" "1" --project src/PlatformHub.Api
+
+dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:UserName" "projectuser" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:DisplayName" "Default Project User" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:Password" "REPLACE_WITH_A_FOURTH_STRONG_PASSWORD" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:TenantId" "1" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:ProjectUser:ProjectId" "1" --project src/PlatformHub.Api
+```
+
+If an account's settings are only partially configured, startup fails with a clear configuration error rather than creating an insecure default. Leave a role's section entirely unset to skip seeding that account. After configuring the desired accounts, restart the API. Remove or rotate these seed secrets after initial provisioning if they are no longer needed.
