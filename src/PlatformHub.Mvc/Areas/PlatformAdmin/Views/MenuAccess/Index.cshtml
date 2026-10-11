@@ -1,0 +1,50 @@
+@{
+    ViewData["Title"] = "Role & User Menu Access";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="mb-4"><div class="text-primary small fw-semibold text-uppercase">Security configuration</div><h1 class="h3 mb-1">Role &amp; User Menu Access</h1><p class="text-secondary mb-0">Grant menu access by role or apply a user-specific override.</p></div>
+<div id="notice" class="alert d-none" role="alert"></div>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body"><label class="form-label fw-semibold" for="projectSelect">Project</label><select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select></div></div>
+<ul class="nav nav-tabs mb-3" role="tablist">
+<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#rolePane" type="button">Role-wise access</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#userPane" type="button">User-wise overrides</button></li>
+</ul>
+<div class="tab-content">
+<section class="tab-pane fade show active" id="rolePane">
+<div class="card border-0 shadow-sm"><div class="card-body"><label class="form-label" for="roleSelect">Role</label><select id="roleSelect" class="form-select"><option value="">Select project first</option></select><p class="small text-secondary mt-2 mb-0">Checked menus are allowed for this role. Multiple roles are combined by granting access if any applicable role allows it.</p></div>
+<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Menu</th><th>Module</th><th class="text-center">Allowed</th></tr></thead><tbody id="roleRows"><tr><td colspan="3" class="text-center text-secondary py-4">Select a project and role.</td></tr></tbody></table></div>
+<div class="card-footer bg-white text-end"><button class="btn btn-primary" id="saveRole" disabled>Save role access</button></div></div>
+</section>
+<section class="tab-pane fade" id="userPane">
+<div class="card border-0 shadow-sm"><div class="card-body"><label class="form-label" for="userSelect">Project user</label><select id="userSelect" class="form-select"><option value="">Select project first</option></select><p class="small text-secondary mt-2 mb-0">Inherit uses role access. Allow or Deny overrides the combined role result for this user.</p></div>
+<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Menu</th><th>Module</th><th style="min-width:170px">User override</th></tr></thead><tbody id="userRows"><tr><td colspan="3" class="text-center text-secondary py-4">Select a project and user.</td></tr></tbody></table></div>
+<div class="card-footer bg-white text-end"><button class="btn btn-primary" id="saveUser" disabled>Save user overrides</button></div></div>
+</section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(() => {
+ const project=document.getElementById('projectSelect'), role=document.getElementById('roleSelect'), user=document.getElementById('userSelect');
+ const roleRows=document.getElementById('roleRows'), userRows=document.getElementById('userRows');
+ const token=document.querySelector('input[name="__RequestVerificationToken"]');
+ const url=(kind,p=0,s=0)=>'@Url.Action("Data","MenuAccess",new { area="PlatformAdmin" })'+'?kind='+encodeURIComponent(kind)+'&projectId='+p+'&selectionId='+s;
+ const notice=(msg,type='success')=>{const n=document.getElementById('notice');n.textContent=msg;n.className='alert alert-'+type;};
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let menus=[], roles=[], users=[];
+ async function get(path){const r=await fetch(path);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'Request failed.');return d;}
+ async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':token?.value||''},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'Save failed.');return d;}
+ function options(select,items,label,placeholder){select.innerHTML='<option value="">'+placeholder+'</option>'+items.map(x=>'<option value="'+x.id+'">'+esc(label(x))+'</option>').join('');}
+ function renderRole(values=[]){const access=new Map(values.map(x=>[x.menuItemId,x.isAllowed]));roleRows.innerHTML=menus.length?menus.map(m=>'<tr><td><span class="fw-semibold">'+esc(m.name)+'</span><div class="small text-secondary">'+esc(m.code)+'</div></td><td>'+esc(m.moduleName||'Standalone')+'</td><td class="text-center"><input class="form-check-input role-check" type="checkbox" data-menu="'+m.id+'" '+(access.get(m.id)?'checked':'')+' aria-label="Allow '+esc(m.name)+'"></td></tr>').join(''):'<tr><td colspan="3" class="text-center text-secondary py-4">No active menus exist for this project.</td></tr>';document.getElementById('saveRole').disabled=!role.value;}
+ function renderUser(values=[]){const access=new Map(values.map(x=>[x.menuItemId,x.decision]));userRows.innerHTML=menus.length?menus.map(m=>'<tr><td><span class="fw-semibold">'+esc(m.name)+'</span><div class="small text-secondary">'+esc(m.code)+'</div></td><td>'+esc(m.moduleName||'Standalone')+'</td><td><select class="form-select form-select-sm user-decision" data-menu="'+m.id+'" aria-label="Override for '+esc(m.name)+'"><option value="inherit" '+((access.get(m.id)||'inherit')==='inherit'?'selected':'')+'>Inherit role access</option><option value="allow" '+(access.get(m.id)==='allow'?'selected':'')+'>Allow</option><option value="deny" '+(access.get(m.id)==='deny'?'selected':'')+'>Deny</option></select></td></tr>').join(''):'<tr><td colspan="3" class="text-center text-secondary py-4">No active menus exist for this project.</td></tr>';document.getElementById('saveUser').disabled=!user.value;}
+ async function loadRole(){if(!project.value||!role.value){renderRole();return;}const d=await get(url('role',project.value,role.value));renderRole(d);}
+ async function loadUser(){if(!project.value||!user.value){renderUser();return;}const d=await get(url('user',project.value,user.value));renderUser(d);}
+ async function loadProject(){menus=[];roles=[];users=[];role.value='';user.value='';renderRole();renderUser();if(!project.value){options(role,[],'','Select project first');options(user,[],'','Select project first');return;}const d=await get(url('lookups',project.value));menus=d.menus;roles=d.roles;users=d.users;options(role,roles,x=>x.name+' ('+x.code+')','Choose a role…');options(user,users,x=>x.displayName+' ('+x.userName+')','Choose a user…');renderRole();renderUser();}
+ role.addEventListener('change',()=>loadRole().catch(e=>notice(e.message,'danger')));
+ user.addEventListener('change',()=>loadUser().catch(e=>notice(e.message,'danger')));
+ project.addEventListener('change',()=>loadProject().catch(e=>notice(e.message,'danger')));
+ document.getElementById('saveRole').addEventListener('click',async()=>{try{const items=[...roleRows.querySelectorAll('.role-check')].map(x=>({menuItemId:Number(x.dataset.menu),isAllowed:x.checked}));await post('@Url.Action("SaveRole","MenuAccess",new { area="PlatformAdmin" })',{projectId:Number(project.value),roleId:Number(role.value),items});notice('Role menu access saved.');}catch(e){notice(e.message,'danger');}});
+ document.getElementById('saveUser').addEventListener('click',async()=>{try{const items=[...userRows.querySelectorAll('.user-decision')].map(x=>({menuItemId:Number(x.dataset.menu),decision:x.value}));await post('@Url.Action("SaveUser","MenuAccess",new { area="PlatformAdmin" })',{projectId:Number(project.value),userId:Number(user.value),items});notice('User overrides saved. Inherit entries use role access.');}catch(e){notice(e.message,'danger');}});
+ const form=document.createElement('form');form.innerHTML='@Html.AntiForgeryToken()';document.body.appendChild(form);
+ get(url('projects')).then(items=>{options(project,items,x=>x.tenantName+' / '+x.name+' ('+x.code+')','Choose a project…');}).catch(e=>notice(e.message,'danger'));
+})();
+</script>
