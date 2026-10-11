@@ -122,7 +122,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.RouteUrl).HasMaxLength(1000);
             e.Property(x => x.Icon).HasMaxLength(100);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.Module).WithMany().HasForeignKey(x => x.ModuleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Module).WithMany().HasForeignKey(x => x.ModuleId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.HasOne(x => x.ParentMenu).WithMany().HasForeignKey(x => x.ParentMenuId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.ProjectId, x.Code }).IsUnique();
             e.HasIndex(x => new { x.ProjectId, x.ModuleId, x.ParentMenuId, x.SortOrder });

@@ -6,8 +6,8 @@ public sealed class MenuItem
     public long Id { get; set; }
     public long ProjectId { get; set; }
     public Project Project { get; set; } = null!;
-    public long ModuleId { get; set; }
-    public ProjectModule Module { get; set; } = null!;
+    public long? ModuleId { get; set; }
+    public ProjectModule? Module { get; set; } = null!;
     public long? ParentMenuId { get; set; }
     public MenuItem? ParentMenu { get; set; }
     public string Code { get; set; } = "";
