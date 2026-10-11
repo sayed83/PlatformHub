@@ -66,8 +66,11 @@ public sealed class PlatformAccessController(PlatformDbContext db) : ControllerB
     {
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
-        if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
-            return Conflict(new { message = "Built-in system roles and their critical permissions cannot be modified." });
+        var isSuperAdmin = User.HasClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode);
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "The Platform Super Admin role and its full permission set are protected." });
+        if (role.IsSystemRole && !isSuperAdmin)
+            return Forbid();
 
         var permissionIds = request.PermissionIds?.Distinct().ToArray() ?? [];
         if (permissionIds.Length > 0)
