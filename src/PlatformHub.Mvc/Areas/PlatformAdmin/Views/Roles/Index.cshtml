@@ -116,7 +116,7 @@
                                                     var selected = role.Permissions.Contains(permission.Code, StringComparer.OrdinalIgnoreCase);
                                                     <div class="col-md-6">
                                                         <label class="border rounded p-2 d-flex gap-2 align-items-start h-100 bg-white">
-                                                            <input class="form-check-input mt-1" type="checkbox" name="SelectedPermissionIds" value="@permission.Id" checked="@selected" />
+                                                            <input class="form-check-input mt-1" type="checkbox" name="SelectedPermissionIds" value="@permission.Id" @(selected ? "checked" : null) />
                                                             <span>
                                                                 <span class="d-block small fw-semibold">@permission.Name</span>
                                                                 <code class="small">@permission.Code</code>
