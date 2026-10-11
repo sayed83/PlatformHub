@@ -95,6 +95,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
     await PlatformRbacSeeder.SeedAsync(db);
+    await PlatformRoleUserSeeder.SeedAsync(db, app.Configuration, passwordHasher);
 }
 
 app.UseHttpsRedirection();
