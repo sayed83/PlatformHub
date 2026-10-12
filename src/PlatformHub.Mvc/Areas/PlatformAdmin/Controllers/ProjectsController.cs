@@ -76,7 +76,7 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
         TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
             ? (error ?? "Project update failed.")
             : "Project updated successfully.";
-        return RedirectToAction(nameof(Index), new { tenantId });
+        return RedirectToAction(nameof(Index), new { tenantId = tenantId > 0 ? tenantId : (long?)null });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
