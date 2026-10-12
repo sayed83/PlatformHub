@@ -22,6 +22,7 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
         sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo")));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
+builder.Services.AddScoped<IDapperStoredProcedureExecutor, DapperStoredProcedureExecutor>();
 builder.Services.AddScoped<IScopedAccessService, ScopedAccessService>();
 builder.Services.AddScoped<EffectiveMenuAccessService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
