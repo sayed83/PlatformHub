@@ -103,7 +103,23 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         entity.Code = code; entity.Name = name; entity.Area = request.Area?.Trim();
         entity.Controller = request.Controller?.Trim(); entity.Action = request.Action?.Trim();
         entity.RouteUrl = request.RouteUrl?.Trim(); entity.Icon = request.Icon?.Trim();
-        entity.SortOrder = request.SortOrder; entity.IsExternal = request.IsExternal; entity.IsActive = request.IsActive;
+
+        // For new entries, calculate order on the server so stale browser data cannot
+        // reset every module's first menu to 1. Existing entries retain their chosen order.
+        if (!request.Id.HasValue)
+        {
+            var lastSortOrder = await db.MenuItems
+                .Where(x => x.ProjectId == request.ProjectId && x.ModuleId == request.ModuleId)
+                .Select(x => (int?)x.SortOrder)
+                .MaxAsync(ct) ?? 0;
+            entity.SortOrder = lastSortOrder + 1;
+        }
+        else
+        {
+            entity.SortOrder = request.SortOrder;
+        }
+
+        entity.IsExternal = request.IsExternal; entity.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
