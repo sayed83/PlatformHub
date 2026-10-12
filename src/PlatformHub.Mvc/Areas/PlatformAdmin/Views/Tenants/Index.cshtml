@@ -80,13 +80,7 @@
                                             <button type="submit" class="btn btn-sm btn-outline-warning">Soft delete</button>
                                         </form>
                                     }
-                                    @if (Model.CanHardDeleteTenantIds.Contains(tenant.Id))
-                                    {
-                                        <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Delete" method="post" class="d-inline" data-confirm="Permanently delete this tenant? This cannot be undone.">
-                                            @Html.AntiForgeryToken()<input type="hidden" name="id" value="@tenant.Id" /><input type="hidden" name="hardDelete" value="true" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Hard delete</button>
-                                        </form>
-                                    }
+                                    <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Dependencies" asp-route-id="@tenant.Id" class="btn btn-sm btn-outline-danger">Delete details</a>
                                 </div>
                                 <div class="modal fade text-start" id="tenantDetails-@tenant.Id" tabindex="-1" aria-labelledby="tenantDetailsTitle-@tenant.Id" aria-hidden="true">
                                     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
