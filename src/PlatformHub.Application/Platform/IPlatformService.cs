@@ -15,5 +15,6 @@ public interface IPlatformService
     Task<BranchDto> CreateBranchAsync(CreateBranchRequest request, CancellationToken cancellationToken);
     Task<BranchDto> UpdateBranchAsync(long id, string code, string name, string? address, CancellationToken cancellationToken);
     Task DeleteBranchAsync(long id, bool hardDelete, CancellationToken cancellationToken);
+    Task ActivateBranchAsync(long id, CancellationToken cancellationToken);
     Task<bool> IsPlatformAdminAsync(long userId, CancellationToken cancellationToken);
 }
