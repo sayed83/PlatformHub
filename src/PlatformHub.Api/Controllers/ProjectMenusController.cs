@@ -17,6 +17,50 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.TenantId, TenantName = x.Tenant.Name, x.Code, x.Name })
             .ToListAsync(ct));
 
+
+    [HttpGet("next-sort-order")]
+    public async Task<IActionResult> NextSortOrder(
+        [FromQuery] long projectId,
+        [FromQuery] long? moduleId,
+        CancellationToken ct)
+    {
+        if (projectId <= 0)
+            return BadRequest(new { message = "Select a valid project." });
+
+        if (!await db.Projects.AnyAsync(x => x.Id == projectId, ct))
+            return NotFound(new { message = "Project was not found." });
+
+        if (moduleId.HasValue &&
+            !await db.ProjectModules.AnyAsync(x => x.Id == moduleId.Value && x.ProjectId == projectId, ct))
+            return BadRequest(new { message = "Selected module does not belong to this project." });
+
+        var lastSortOrder = await db.MenuItems.AsNoTracking()
+            .Where(x => x.ProjectId == projectId && x.ModuleId == moduleId)
+            .Select(x => (int?)x.SortOrder)
+            .MaxAsync(ct) ?? 0;
+
+        return Ok(new { projectId, moduleId, sortOrder = lastSortOrder + 1 });
+    }
+
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary([FromQuery] long projectId, CancellationToken ct)
+    {
+        if (projectId <= 0)
+            return BadRequest(new { message = "Select a valid project." });
+
+        var summary = await db.Projects.AsNoTracking()
+            .Where(x => x.Id == projectId)
+            .Select(x => new
+            {
+                ModuleCount = db.ProjectModules.Count(m => m.ProjectId == x.Id),
+                MenuCount = db.MenuItems.Count(m => m.ProjectId == x.Id),
+                ActiveCount = db.MenuItems.Count(m => m.ProjectId == x.Id && m.IsActive)
+            })
+            .SingleOrDefaultAsync(ct);
+
+        return summary is null ? NotFound(new { message = "Project was not found." }) : Ok(summary);
+    }
+
     [HttpGet("modules")]
     public async Task<IActionResult> Modules([FromQuery] long projectId, CancellationToken ct)
     {
