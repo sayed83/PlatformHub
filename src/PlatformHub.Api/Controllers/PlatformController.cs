@@ -122,6 +122,16 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
+    [HttpPost("branches/{id:long}/activate")]
+    [Authorize(Policy = "Branch.Update")]
+    public async Task<IActionResult> ActivateBranch(long id, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { await platform.ActivateBranchAsync(id, cancellationToken); return Ok(new { success = true }); }
+        catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
     public sealed record UpdateTenantRequest(string Code, string Name);
     public sealed record UpdateBranchRequest(string Code, string Name, string? Address);
     public sealed record DeleteRequest(bool HardDelete);
