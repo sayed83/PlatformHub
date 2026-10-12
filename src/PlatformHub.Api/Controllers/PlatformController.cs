@@ -56,6 +56,15 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
+    [HttpPost("tenants/{id:long}/activate")]
+    [Authorize(Policy = "Tenant.Update")]
+    public async Task<IActionResult> ActivateTenant(long id, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { await platform.ActivateTenantAsync(id, cancellationToken); return Ok(new { success = true }); }
+        catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
     [HttpGet("projects")]
     [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> GetProjects([FromQuery] long? tenantId, CancellationToken cancellationToken)
