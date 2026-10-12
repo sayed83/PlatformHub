@@ -26,7 +26,15 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
             tenants = new List<TenantViewModel>();
         }
 
-        return View(new TenantManagementViewModel { Tenants = tenants });
+        var projects = await api.GetAsync<List<ProjectRowViewModel>>("api/v1/platform/projects", token, ct) ?? new();
+        var eligible = new HashSet<long>();
+        foreach (var tenant in tenants)
+        {
+            var branches = await api.GetAsync<List<BranchRowViewModel>>($"api/v1/platform/branches?tenantId={tenant.Id}", token, ct);
+            if ((branches?.Count ?? 0) == 0 && !projects.Any(p => p.TenantId == tenant.Id))
+                eligible.Add(tenant.Id);
+        }
+        return View(new TenantManagementViewModel { Tenants = tenants, CanHardDeleteTenantIds = eligible });
     }
 
 
