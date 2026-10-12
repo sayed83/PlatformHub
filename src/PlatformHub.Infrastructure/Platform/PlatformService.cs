@@ -178,6 +178,17 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task ActivateBranchAsync(long id, CancellationToken cancellationToken)
+    {
+        var branch = await db.Branches.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new ArgumentException("Branch was not found.");
+        var tenantIsActive = await db.Tenants.AnyAsync(x => x.Id == branch.TenantId && x.IsActive, cancellationToken);
+        if (!tenantIsActive)
+            throw new InvalidOperationException("This branch cannot be activated because its tenant is inactive.");
+        branch.IsActive = true;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public Task<bool> IsPlatformAdminAsync(long userId, CancellationToken cancellationToken) =>
         db.Users.AnyAsync(x => x.Id == userId && x.IsActive && x.IsPlatformAdmin, cancellationToken);
 }
