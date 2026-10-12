@@ -10,7 +10,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class BranchesController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(long tenantId, CancellationToken ct)
+    public async Task<IActionResult> Index(long tenantId, long? highlightBranchId, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         if (tenantId <= 0) return BadRequest("A valid tenant is required.");
@@ -34,6 +34,7 @@ public sealed class BranchesController(PlatformApiClient api) : Controller
             if (branchAssignments is not null) assignments.AddRange(branchAssignments);
         }
 
+        ViewData["HighlightBranchId"] = highlightBranchId;
         return View(new BranchManagementViewModel
         {
             TenantId = tenant.Id,
