@@ -3,54 +3,524 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <style>
-    .pm-page{--pm-accent:#4169e1;--pm-ink:#18243b;--pm-muted:#748096;color:var(--pm-ink);min-width:0}
-    .pm-hero{position:relative;overflow:hidden;border-radius:1.1rem;padding:1.5rem;background:linear-gradient(120deg,#17263f,#253f70);color:#fff;box-shadow:0 10px 28px rgba(25,42,72,.12)}
-    .pm-hero:after{content:"";position:absolute;width:230px;height:230px;border:1px solid rgba(255,255,255,.13);border-radius:50%;right:-55px;top:-110px;box-shadow:0 0 0 28px rgba(255,255,255,.035),0 0 0 58px rgba(255,255,255,.025)}
-    .pm-hero-content{position:relative;z-index:1;max-width:700px}
-    .pm-kicker{font-size:.72rem;letter-spacing:.13em;font-weight:800;text-transform:uppercase;color:#b7ccff}
-    .pm-hero h1{font-weight:750;letter-spacing:-.035em}
-    .pm-hero p{color:#d3ddf0;max-width:610px}
-    .pm-project-panel{background:#fff;border:1px solid #e5eaf2;border-radius:1rem;padding:1rem;box-shadow:0 4px 18px rgba(27,45,76,.045)}
-    .pm-project-label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:var(--pm-muted)}
-    .pm-stat{height:100%;border:1px solid #e6ebf3;background:#fff;border-radius:.9rem;padding:1rem;display:flex;gap:.85rem;align-items:center}
-    .pm-stat-icon{width:2.65rem;height:2.65rem;border-radius:.8rem;display:grid;place-items:center;font-size:1.3rem;flex-shrink:0}
-    .pm-stat-icon.blue{background:#eaf0ff;color:#315fe0}.pm-stat-icon.purple{background:#f1eaff;color:#7846d8}.pm-stat-icon.green{background:#e4f7ee;color:#188452}
-    .pm-stat-value{font-size:1.45rem;line-height:1.2;font-weight:750}.pm-stat-label{font-size:.82rem;color:var(--pm-muted)}
-    .pm-workspace{border:1px solid #e4e9f2;border-radius:1rem;overflow:hidden;background:#fff;box-shadow:0 5px 22px rgba(27,45,76,.045)}
-    .pm-tabs{padding:.65rem .75rem 0;background:#f8faff;border-bottom:1px solid #e4e9f2;gap:.4rem}
-    .pm-tabs .nav-link{border:0;border-radius:.65rem .65rem 0 0;color:#65718a;font-weight:650;padding:.85rem 1.1rem}
-    .pm-tabs .nav-link.active{background:#fff;color:#315fe0;box-shadow:inset 0 -3px #4169e1}
-    .pm-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.15rem 1.25rem;border-bottom:1px solid #edf0f5}
-    .pm-toolbar h2{font-size:1.05rem;font-weight:750;margin:0 0 .2rem}.pm-toolbar p{font-size:.83rem;color:var(--pm-muted);margin:0}
-    .pm-search{position:relative;width:min(100%,320px)}.pm-search .form-control{padding-left:2.45rem;border-color:#e1e6ef;border-radius:.7rem}
-    .pm-search-icon{position:absolute;left:.85rem;top:.47rem;color:#8994a8;font-size:1.1rem}
-    .pm-table-wrap{overflow:auto;max-height:56vh;min-height:250px}
-    .pm-table{margin:0;white-space:nowrap}.pm-table thead th{position:sticky;top:0;z-index:2;background:#f7f9fd;color:#69758c;font-size:.73rem;letter-spacing:.055em;text-transform:uppercase;border-bottom:1px solid #e5eaf2;padding:.9rem 1rem}
-    .pm-table td{padding:.85rem 1rem;vertical-align:middle;border-color:#edf0f5}.pm-table tbody tr:hover td{background:#f8faff}
-    .pm-table .pm-primary{font-weight:700;color:#24324b}.pm-table .pm-secondary{font-size:.78rem;color:#8a94a7;margin-top:.18rem}
-    .pm-code{font-size:.76rem;font-weight:700;color:#4965a6;background:#eef3ff;border-radius:.35rem;padding:.25rem .45rem;display:inline-block}
-    .pm-route{display:inline-block;max-width:245px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;color:#63708a;font-size:.8rem}
-    .pm-status{font-size:.73rem;font-weight:750;border-radius:999px;padding:.32rem .6rem;display:inline-flex;align-items:center;gap:.35rem}
-    .pm-status:before{content:"";width:.4rem;height:.4rem;border-radius:50%;background:currentColor}.pm-status.active{color:#16834d;background:#e4f7ed}.pm-status.inactive{color:#798397;background:#edf0f5}
-    .pm-footer{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.9rem 1.25rem;background:#fbfcff;border-top:1px solid #edf0f5;color:#7d879a;font-size:.8rem}
-    .pm-empty{padding:3.5rem 1rem;text-align:center;color:#7d879a}.pm-empty-icon{width:3.5rem;height:3.5rem;margin:0 auto .9rem;border-radius:1rem;background:#eff3ff;color:#4169e1;display:grid;place-items:center;font-size:1.5rem}
-    .pm-modal{position:fixed;inset:0;z-index:1060;display:none;overflow-x:hidden;overflow-y:auto;padding:1rem;background:rgba(15,23,42,.58);backdrop-filter:blur(3px)}
-    .pm-modal.show{display:block}
-    .pm-modal .modal-dialog{position:relative;width:auto;max-width:960px;margin:0 auto;min-height:calc(100% - 2rem);display:flex;align-items:flex-start;pointer-events:none}
-    .pm-modal .modal-content{width:100%;height:calc(100vh - 2rem);max-height:calc(100vh - 2rem);display:flex;flex-direction:column;pointer-events:auto;border:0;border-radius:1rem;overflow:hidden;box-shadow:0 22px 70px rgba(15,29,52,.22)}\n    .pm-modal #editForm{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden}\n    .pm-modal #editForm .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto}\n    .pm-modal #editForm .modal-footer{flex:0 0 auto;position:relative;z-index:2}
-    .pm-modal .modal-header,.pm-modal .modal-footer{flex-shrink:0}
-    .pm-modal .modal-body{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;min-height:0;max-height:none}
-    .pm-modal-backdrop{position:fixed;inset:0;z-index:1055;background:rgba(15,23,42,.58);backdrop-filter:blur(3px)}
-    body.pm-modal-open{overflow:hidden}
-    @@media(max-width:767.98px){.pm-modal{padding:.5rem}.pm-modal .modal-dialog{min-height:calc(100% - 1rem)}.pm-modal .modal-content{height:calc(100vh - 1rem);max-height:calc(100vh - 1rem);border-radius:.8rem}.pm-modal .modal-body{padding:1rem}}
-    .pm-modal .modal-header{background:#f8faff;border-bottom:1px solid #e9edf5;padding:1.2rem 1.4rem}.pm-modal .modal-body{padding:1.4rem}.pm-modal .modal-footer{background:#fbfcff;border-top:1px solid #e9edf5;padding:1rem 1.4rem}
-    .pm-field-label{font-size:.82rem;font-weight:700;color:#4c5870;margin-bottom:.4rem}.pm-modal .form-control,.pm-modal .form-select{border-color:#dfe5ef;border-radius:.65rem;padding:.65rem .8rem}
-    .pm-modal .form-control:focus,.pm-modal .form-select:focus,.pm-project-panel .form-select:focus{border-color:#88a5ff;box-shadow:0 0 0 .2rem rgba(65,105,225,.12)}
-    .pm-section-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#4169e1;margin:.25rem 0 -.2rem}
-    .pm-check-card{height:100%;padding:.8rem;border:1px solid #e6eaf2;border-radius:.7rem;background:#fbfcff}
-    .pm-check-card .form-check{margin:0}
-    #notice{margin-bottom:1rem}
-    @@media(max-width:767.98px){.pm-hero{padding:1.2rem}.pm-hero h1{font-size:1.55rem}.pm-table-wrap{max-height:62vh}.pm-toolbar{padding:1rem}.pm-search{width:100%}.pm-tabs .nav-link{padding:.7rem .75rem;font-size:.85rem}}
+    .pm-page {
+        --pm-accent: #4169e1;
+        --pm-ink: #18243b;
+        --pm-muted: #748096;
+        color: var(--pm-ink);
+        min-width: 0
+    }
+
+    .pm-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        padding: 1.5rem;
+        background: linear-gradient(120deg,#17263f,#253f70);
+        color: #fff;
+        box-shadow: 0 10px 28px rgba(25,42,72,.12)
+    }
+
+        .pm-hero:after {
+            content: "";
+            position: absolute;
+            width: 230px;
+            height: 230px;
+            border: 1px solid rgba(255,255,255,.13);
+            border-radius: 50%;
+            right: -55px;
+            top: -110px;
+            box-shadow: 0 0 0 28px rgba(255,255,255,.035),0 0 0 58px rgba(255,255,255,.025)
+        }
+
+    .pm-hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 700px
+    }
+
+    .pm-kicker {
+        font-size: .72rem;
+        letter-spacing: .13em;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #b7ccff
+    }
+
+    .pm-hero h1 {
+        font-weight: 750;
+        letter-spacing: -.035em
+    }
+
+    .pm-hero p {
+        color: #d3ddf0;
+        max-width: 610px
+    }
+
+    .pm-project-panel {
+        background: #fff;
+        border: 1px solid #e5eaf2;
+        border-radius: 1rem;
+        padding: 1rem;
+        box-shadow: 0 4px 18px rgba(27,45,76,.045)
+    }
+
+    .pm-project-label {
+        font-size: .72rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--pm-muted)
+    }
+
+    .pm-stat {
+        height: 100%;
+        border: 1px solid #e6ebf3;
+        background: #fff;
+        border-radius: .9rem;
+        padding: 1rem;
+        display: flex;
+        gap: .85rem;
+        align-items: center
+    }
+
+    .pm-stat-icon {
+        width: 2.65rem;
+        height: 2.65rem;
+        border-radius: .8rem;
+        display: grid;
+        place-items: center;
+        font-size: 1.3rem;
+        flex-shrink: 0
+    }
+
+        .pm-stat-icon.blue {
+            background: #eaf0ff;
+            color: #315fe0
+        }
+
+        .pm-stat-icon.purple {
+            background: #f1eaff;
+            color: #7846d8
+        }
+
+        .pm-stat-icon.green {
+            background: #e4f7ee;
+            color: #188452
+        }
+
+    .pm-stat-value {
+        font-size: 1.45rem;
+        line-height: 1.2;
+        font-weight: 750
+    }
+
+    .pm-stat-label {
+        font-size: .82rem;
+        color: var(--pm-muted)
+    }
+
+    .pm-workspace {
+        border: 1px solid #e4e9f2;
+        border-radius: 1rem;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 5px 22px rgba(27,45,76,.045)
+    }
+
+    .pm-tabs {
+        padding: .65rem .75rem 0;
+        background: #f8faff;
+        border-bottom: 1px solid #e4e9f2;
+        gap: .4rem
+    }
+
+        .pm-tabs .nav-link {
+            border: 0;
+            border-radius: .65rem .65rem 0 0;
+            color: #65718a;
+            font-weight: 650;
+            padding: .85rem 1.1rem
+        }
+
+            .pm-tabs .nav-link.active {
+                background: #fff;
+                color: #315fe0;
+                box-shadow: inset 0 -3px #4169e1
+            }
+
+    .pm-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid #edf0f5
+    }
+
+        .pm-toolbar h2 {
+            font-size: 1.05rem;
+            font-weight: 750;
+            margin: 0 0 .2rem
+        }
+
+        .pm-toolbar p {
+            font-size: .83rem;
+            color: var(--pm-muted);
+            margin: 0
+        }
+
+        .pm-toolbar .pm-actions {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: nowrap
+        }
+
+            .pm-toolbar .pm-actions .btn {
+                white-space: nowrap
+            }
+
+    .pm-search {
+        position: relative;
+        flex: 1 1 220px;
+        max-width: 320px;
+        min-width: 200px
+    }
+
+        .pm-search .form-control {
+            padding-left: 2.45rem;
+            border-color: #e1e6ef;
+            border-radius: .7rem
+        }
+
+    .pm-search-icon {
+        position: absolute;
+        left: .85rem;
+        top: .47rem;
+        color: #8994a8;
+        font-size: 1.1rem
+    }
+
+    .pm-table-wrap {
+        overflow: auto;
+        max-height: 56vh;
+        min-height: 250px
+    }
+
+    .pm-table {
+        margin: 0;
+        white-space: nowrap
+    }
+
+        .pm-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f7f9fd;
+            color: #69758c;
+            font-size: .73rem;
+            letter-spacing: .055em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5eaf2;
+            padding: .9rem 1rem
+        }
+
+        .pm-table td {
+            padding: .85rem 1rem;
+            vertical-align: middle;
+            border-color: #edf0f5
+        }
+
+        .pm-table tbody tr:hover td {
+            background: #f8faff
+        }
+
+        .pm-table .pm-primary {
+            font-weight: 700;
+            color: #24324b;
+            line-height: 1.25
+        }
+
+        .pm-table .pm-secondary {
+            font-size: .78rem;
+            color: #8a94a7;
+            margin-top: .18rem
+        }
+
+    .pm-mod-icon {
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: .7rem;
+        background: #eaf0ff;
+        color: #315fe0;
+        display: grid;
+        place-items: center;
+        font-size: 1.15rem;
+        flex-shrink: 0;
+        overflow: hidden
+    }
+
+    .pm-code {
+        font-size: .76rem;
+        font-weight: 700;
+        color: #4965a6;
+        background: #eef3ff;
+        border-radius: .35rem;
+        padding: .25rem .45rem;
+        display: inline-block
+    }
+
+    .pm-route {
+        display: inline-block;
+        max-width: 245px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        color: #63708a;
+        font-size: .8rem
+    }
+
+    .pm-status {
+        font-size: .73rem;
+        font-weight: 750;
+        border-radius: 999px;
+        padding: .32rem .6rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem
+    }
+
+        .pm-status:before {
+            content: "";
+            width: .4rem;
+            height: .4rem;
+            border-radius: 50%;
+            background: currentColor
+        }
+
+        .pm-status.active {
+            color: #16834d;
+            background: #e4f7ed
+        }
+
+        .pm-status.inactive {
+            color: #798397;
+            background: #edf0f5
+        }
+
+    .pm-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: .75rem;
+        flex-wrap: wrap;
+        padding: .9rem 1.25rem;
+        background: #fbfcff;
+        border-top: 1px solid #edf0f5;
+        color: #7d879a;
+        font-size: .8rem
+    }
+
+    .pm-empty {
+        padding: 3.5rem 1rem;
+        text-align: center;
+        color: #7d879a
+    }
+
+    .pm-empty-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        margin: 0 auto .9rem;
+        border-radius: 1rem;
+        background: #eff3ff;
+        color: #4169e1;
+        display: grid;
+        place-items: center;
+        font-size: 1.5rem
+    }
+
+    /* ---------- Modal ---------- */
+    .pm-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1060;
+        display: none;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 1rem;
+        background: rgba(15,23,42,.58);
+        backdrop-filter: blur(3px)
+    }
+
+        .pm-modal.show {
+            display: block
+        }
+
+        .pm-modal .modal-dialog {
+            position: relative;
+            width: auto;
+            max-width: 960px;
+            margin: 0 auto;
+            min-height: calc(100% - 2rem);
+            display: flex;
+            align-items: center;
+            pointer-events: none
+        }
+
+        .pm-modal .modal-content {
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            border: 0;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 22px 70px rgba(15,29,52,.22)
+        }
+
+        .pm-modal #editForm {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden
+        }
+
+            .pm-modal #editForm .modal-body {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+                overscroll-behavior: contain
+            }
+
+            .pm-modal #editForm .modal-header, .pm-modal #editForm .modal-footer {
+                flex: 0 0 auto
+            }
+
+    .pm-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        background: rgba(15,23,42,.58);
+        backdrop-filter: blur(3px)
+    }
+
+    body.pm-modal-open {
+        overflow: hidden
+    }
+
+    .pm-modal .modal-header {
+        background: #f8faff;
+        border-bottom: 1px solid #e9edf5;
+        padding: 1.2rem 1.4rem
+    }
+
+    .pm-modal .modal-body {
+        padding: 1.4rem
+    }
+
+    .pm-modal .modal-footer {
+        background: #fbfcff;
+        border-top: 1px solid #e9edf5;
+        padding: 1rem 1.4rem
+    }
+
+    .pm-field-label {
+        font-size: .82rem;
+        font-weight: 700;
+        color: #4c5870;
+        margin-bottom: .4rem
+    }
+
+    .pm-modal .form-control, .pm-modal .form-select {
+        border-color: #dfe5ef;
+        border-radius: .65rem;
+        padding: .65rem .8rem
+    }
+
+        .pm-modal .form-control:focus, .pm-modal .form-select:focus, .pm-project-panel .form-select:focus {
+            border-color: #88a5ff;
+            box-shadow: 0 0 0 .2rem rgba(65,105,225,.12)
+        }
+
+    .pm-section-label {
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #4169e1;
+        margin: .25rem 0 -.2rem
+    }
+
+    .pm-check-card {
+        height: 100%;
+        padding: .8rem;
+        border: 1px solid #e6eaf2;
+        border-radius: .7rem;
+        background: #fbfcff
+    }
+
+        .pm-check-card .form-check {
+            margin: 0
+        }
+
+    #notice {
+        margin-bottom: 1rem
+    }
+
+    @@media(max-width:767.98px) {
+        .pm-hero {
+            padding: 1.2rem
+        }
+
+            .pm-hero h1 {
+                font-size: 1.55rem
+            }
+
+        .pm-table-wrap {
+            max-height: 62vh
+        }
+
+        .pm-toolbar {
+            padding: 1rem
+        }
+
+            .pm-toolbar .pm-actions {
+                flex-wrap: wrap;
+                width: 100%
+            }
+
+        .pm-search {
+            width: 100%;
+            max-width: none;
+            flex: 1 1 100%
+        }
+
+        .pm-tabs .nav-link {
+            padding: .7rem .75rem;
+            font-size: .85rem
+        }
+
+        .pm-modal {
+            padding: .5rem
+        }
+
+            .pm-modal .modal-dialog {
+                min-height: calc(100% - 1rem)
+            }
+
+            .pm-modal .modal-content {
+                max-height: calc(100vh - 1rem);
+                border-radius: .8rem
+            }
+
+            .pm-modal .modal-body {
+                padding: 1rem
+            }
+    }
 </style>
 
 <div class="pm-page">
@@ -92,7 +562,7 @@
             <section class="tab-pane fade show active" id="modulesPane" role="tabpanel" aria-labelledby="modules-tab">
                 <div class="pm-toolbar">
                     <div><h2>Module catalogue</h2><p>Group related navigation entries and define their display order.</p></div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="pm-actions">
                         <div class="pm-search"><span class="pm-search-icon" aria-hidden="true">⌕</span><input id="moduleSearch" class="form-control" type="search" placeholder="Search modules…" aria-label="Search modules"></div>
                         <button class="btn btn-primary" id="addModule" type="button">＋ New module</button>
                     </div>
@@ -103,7 +573,7 @@
             <section class="tab-pane fade" id="menusPane" role="tabpanel" aria-labelledby="menus-tab">
                 <div class="pm-toolbar">
                     <div><h2>Navigation entries</h2><p>Set the parent, module, route, icon, and visibility of each menu.</p></div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="pm-actions">
                         <div class="pm-search"><span class="pm-search-icon" aria-hidden="true">⌕</span><input id="menuSearch" class="form-control" type="search" placeholder="Search menus or routes…" aria-label="Search menu entries"></div>
                         <button class="btn btn-primary" id="addMenu" type="button">＋ New menu</button>
                     </div>
@@ -116,90 +586,98 @@
 </div>
 
 <div class="modal fade pm-modal" id="editModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered"><div class="modal-content">
-        <form id="editForm">
-            @Html.AntiForgeryToken()
-            <div class="modal-header"><div><div class="pm-kicker text-primary mb-1" id="modalKicker">PROJECT CONFIGURATION</div><h2 class="modal-title fs-5 fw-bold" id="modalTitle">Create entry</h2><div class="small text-secondary mt-1">Fields marked * are required.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-            <div class="modal-body">
-                <div id="formError" class="alert alert-danger d-none" role="alert"></div>
-                <input type="hidden" id="entryId"><input type="hidden" id="entryKind">
-                <div class="row g-3">
-                    <div class="col-12"><div class="pm-section-label">Basic information</div></div>
-                    <div class="col-md-5"><label class="form-label pm-field-label" for="entryCode">Unique code *</label><input id="entryCode" class="form-control" maxlength="50" placeholder="e.g. SALES_REPORT" required><div class="form-text">Unique within the selected project.</div></div>
-                    <div class="col-md-7"><label class="form-label pm-field-label" for="entryName">Display name *</label><input id="entryName" class="form-control" maxlength="200" placeholder="e.g. Sales report" required></div>
-                    <div class="col-12 module-only"><label class="form-label pm-field-label" for="entryDescription">Description</label><textarea id="entryDescription" class="form-control" rows="2" maxlength="500" placeholder="What belongs in this module?"></textarea></div>
-                    <div class="col-md-6 module-only"><label class="form-label pm-field-label" for="entryIcon">Module icon</label><input id="entryIcon" class="form-control" maxlength="100" placeholder="bi bi-box"></div>
-                    <div class="col-12 menu-only"><div class="pm-section-label">Hierarchy</div></div>
-                    <div class="col-md-6 menu-only"><label class="form-label pm-field-label" for="moduleId">Module</label><select id="moduleId" class="form-select"></select><div class="form-text">Leave unselected for a standalone menu.</div></div>
-                    <div class="col-md-6 menu-only"><label class="form-label pm-field-label" for="parentId">Parent menu</label><select id="parentId" class="form-select"></select><div class="form-text">Leave unselected for a top-level entry.</div></div>
-                    <div class="col-12 menu-only"><div class="pm-section-label">Destination</div></div>
-                    <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryArea">MVC Area</label><input id="entryArea" class="form-control" maxlength="100" placeholder="PlatformAdmin"></div>
-                    <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryController">Controller</label><input id="entryController" class="form-control" maxlength="100" placeholder="Sales"></div>
-                    <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryAction">Action</label><input id="entryAction" class="form-control" maxlength="100" placeholder="Index"></div>
-                    <div class="col-md-8 menu-only"><label class="form-label pm-field-label" for="entryRoute">Direct route URL</label><input id="entryRoute" class="form-control" maxlength="500" placeholder="/Sales/Index or https://example.com"><div class="form-text">Use either a direct route or the MVC destination above.</div></div>
-                    <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryMenuIcon">Menu icon</label><input id="entryMenuIcon" class="form-control" maxlength="100" placeholder="bi bi-list"></div>
-                    <div class="col-12"><div class="pm-section-label">Display settings</div></div>
-                    <div class="col-md-4"><label class="form-label pm-field-label" for="entrySort">Sort order</label><input id="entrySort" class="form-control" type="number" value="0" min="0" max="100000"><div class="form-text">Smaller numbers appear first.</div></div>
-                    <div class="col-md-4 menu-only"><div class="pm-check-card"><div class="form-check"><input id="entryExternal" class="form-check-input" type="checkbox"><label class="form-check-label fw-semibold" for="entryExternal">External link</label></div><div class="form-text">Opens an HTTP/HTTPS destination.</div></div></div>
-                    <div class="col-md-4"><div class="pm-check-card"><div class="form-check"><input id="entryActive" class="form-check-input" type="checkbox" checked><label class="form-check-label fw-semibold" for="entryActive">Active</label></div><div class="form-text">Inactive entries are hidden from navigation.</div></div></div>
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header"><div><div class="pm-kicker text-primary mb-1" id="modalKicker">PROJECT CONFIGURATION</div><h2 class="modal-title fs-5 fw-bold" id="modalTitle">Create entry</h2><div class="small text-secondary mt-1">Fields marked * are required.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <div id="formError" class="alert alert-danger d-none" role="alert"></div>
+                    <input type="hidden" id="entryId"><input type="hidden" id="entryKind">
+                    <div class="row g-3">
+                        <div class="col-12"><div class="pm-section-label">Basic information</div></div>
+                        <div class="col-md-5"><label class="form-label pm-field-label" for="entryCode">Unique code *</label><input id="entryCode" class="form-control" maxlength="50" placeholder="e.g. SALES_REPORT" required><div class="form-text">Unique within the selected project.</div></div>
+                        <div class="col-md-7"><label class="form-label pm-field-label" for="entryName">Display name *</label><input id="entryName" class="form-control" maxlength="200" placeholder="e.g. Sales report" required></div>
+                        <div class="col-12 module-only"><label class="form-label pm-field-label" for="entryDescription">Description</label><textarea id="entryDescription" class="form-control" rows="2" maxlength="500" placeholder="What belongs in this module?"></textarea></div>
+                        <div class="col-md-6 module-only"><label class="form-label pm-field-label" for="entryIcon">Module icon</label><input id="entryIcon" class="form-control" maxlength="100" placeholder="bi bi-box"></div>
+                        <div class="col-12 menu-only"><div class="pm-section-label">Hierarchy</div></div>
+                        <div class="col-md-6 menu-only"><label class="form-label pm-field-label" for="moduleId">Module</label><select id="moduleId" class="form-select"></select><div class="form-text">Leave unselected for a standalone menu.</div></div>
+                        <div class="col-md-6 menu-only"><label class="form-label pm-field-label" for="parentId">Parent menu</label><select id="parentId" class="form-select"></select><div class="form-text">Leave unselected for a top-level entry.</div></div>
+                        <div class="col-12 menu-only"><div class="pm-section-label">Destination</div></div>
+                        <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryArea">MVC Area</label><input id="entryArea" class="form-control" maxlength="100" placeholder="PlatformAdmin"></div>
+                        <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryController">Controller</label><input id="entryController" class="form-control" maxlength="100" placeholder="Sales"></div>
+                        <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryAction">Action</label><input id="entryAction" class="form-control" maxlength="100" placeholder="Index"></div>
+                        <div class="col-md-8 menu-only"><label class="form-label pm-field-label" for="entryRoute">Direct route URL</label><input id="entryRoute" class="form-control" maxlength="500" placeholder="/Sales/Index or https://example.com"><div class="form-text">Use either a direct route or the MVC destination above.</div></div>
+                        <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryMenuIcon">Menu icon</label><input id="entryMenuIcon" class="form-control" maxlength="100" placeholder="bi bi-list"></div>
+                        <div class="col-12"><div class="pm-section-label">Display settings</div></div>
+                        <div class="col-md-4"><label class="form-label pm-field-label" for="entrySort">Sort order</label><input id="entrySort" class="form-control" type="number" value="0" min="0" max="100000"><div class="form-text">Smaller numbers appear first.</div></div>
+                        <div class="col-md-4 menu-only"><div class="pm-check-card"><div class="form-check"><input id="entryExternal" class="form-check-input" type="checkbox"><label class="form-check-label fw-semibold" for="entryExternal">External link</label></div><div class="form-text">Opens an HTTP/HTTPS destination.</div></div></div>
+                        <div class="col-md-4"><div class="pm-check-card"><div class="form-check"><input id="entryActive" class="form-check-input" type="checkbox" checked><label class="form-check-label fw-semibold" for="entryActive">Active</label></div><div class="form-text">Inactive entries are hidden from navigation.</div></div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary px-4" id="saveBtn">Save changes</button></div>
-        </form>
-    </div></div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary px-4" id="saveBtn">Save changes</button></div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
-(() => {
- const projectSelect=document.getElementById('projectSelect'),moduleRows=document.getElementById('moduleRows'),menuRows=document.getElementById('menuRows');
- const modalElement=document.getElementById('editModal');
- const modal={
-  show(){modalElement.classList.add('show');modalElement.style.display='block';modalElement.removeAttribute('aria-hidden');document.body.classList.add('pm-modal-open');let backdrop=document.getElementById('pmModalBackdrop');if(!backdrop){backdrop=document.createElement('div');backdrop.id='pmModalBackdrop';backdrop.className='pm-modal-backdrop';document.body.appendChild(backdrop);backdrop.addEventListener('click',hideModal);}const first=modalElement.querySelector('input:not([type=hidden]),select,textarea,button');first?.focus();},
-  hide(){hideModal();}
- };
- function hideModal(){modalElement.classList.remove('show');modalElement.style.display='none';modalElement.setAttribute('aria-hidden','true');document.body.classList.remove('pm-modal-open');document.getElementById('pmModalBackdrop')?.remove();}
- document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(button=>button.addEventListener('click',hideModal));
- document.querySelectorAll('[data-bs-toggle="tab"]').forEach(button=>button.addEventListener('click',()=>{
-  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab=>tab.classList.toggle('active',tab===button));
-  document.querySelectorAll('.tab-pane').forEach(pane=>{const active='#'+pane.id===button.dataset.bsTarget;pane.classList.toggle('show',active);pane.classList.toggle('active',active);});
- }));
- let modules=[],menus=[],kind='modules';
- const url=(action)=>'@Url.Action("__ACTION__","MenuManagement",new { area="PlatformAdmin" })'.replace('__ACTION__',action);
- const notice=(message,type='success')=>{const n=document.getElementById('notice');n.textContent=message;n.className='alert alert-'+type;};
- const fail=message=>{const e=document.getElementById('formError');e.textContent=message;e.classList.remove('d-none');};
- const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const selectedProject=()=>Number(projectSelect.value||0);
- const send=async(path,body)=>{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':document.querySelector('#editForm input[name="__RequestVerificationToken"]')?.value||''},body:JSON.stringify(body)});const data=await r.json().catch(()=>({}));if(!r.ok)throw Error(data.message||'Request failed.');return data;};
- async function loadProjects(){const r=await fetch('@Url.Action("Projects","MenuManagement",new { area="PlatformAdmin" })');if(!r.ok)throw Error('Unable to load projects.');const ps=await r.json();projectSelect.innerHTML='<option value="">Choose a project…</option>'+ps.map(p=>'<option value="'+p.id+'">'+esc(p.tenantName)+' / '+esc(p.name)+' ('+esc(p.code)+')</option>').join('');}
- async function refresh(){const p=selectedProject();if(!p){modules=[];menus=[];render();return;}const [mr,ir]=await Promise.all([fetch(url('Data')+'?kind=modules&projectId='+p),fetch(url('Data')+'?kind=items&projectId='+p)]);if(!mr.ok||!ir.ok)throw Error('Unable to load project menu data.');modules=await mr.json();menus=await ir.json();render();}
- function status(v){return '<span class="pm-status '+(v?'active':'inactive')+'">'+(v?'Active':'Inactive')+'</span>';}
- function moduleMatches(x){const q=document.getElementById('moduleSearch').value.trim().toLowerCase();return !q||[x.code,x.name,x.description].some(v=>String(v||'').toLowerCase().includes(q));}
- function menuMatches(x){const q=document.getElementById('menuSearch').value.trim().toLowerCase();const moduleName=modules.find(m=>m.id===x.moduleId)?.name||'Standalone';const parentName=menus.find(m=>m.id===x.parentMenuId)?.name||'';return !q||[x.code,x.name,x.routeUrl,x.controller,x.action,x.area,moduleName,parentName].some(v=>String(v||'').toLowerCase().includes(q));}
- function render(){
-  const filteredModules=modules.filter(moduleMatches),filteredMenus=menus.filter(menuMatches);
-  moduleRows.innerHTML=filteredModules.length?filteredModules.map(x=>'<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-stat-icon blue">'+esc(x.icon||'▦')+'</span><div><div class="pm-primary">'+esc(x.name)+'</div><div class="mt-1"><span class="pm-code">'+esc(x.code)+'</span></div></div></div></td><td><span class="text-secondary">'+esc(x.description||'No description')+'</span></td><td>'+x.sortOrder+'</td><td>'+status(x.isActive)+'</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="'+x.id+'">Edit</button></td></tr>').join(''):'<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">'+(modules.length?'No matching modules':'No modules created yet')+'</div><div class="small mb-3">'+(modules.length?'Try another search term.':'Create a module to group related navigation entries.')+'</div>'+(modules.length?'':'<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>')+'</div></td></tr>';
-  menuRows.innerHTML=filteredMenus.length?filteredMenus.map(x=>'<tr><td><div class="pm-primary">'+(x.parentMenuId?'<span class="text-secondary me-1">↳</span>':'')+esc(x.name)+'</div><div class="mt-1"><span class="pm-code">'+esc(x.code)+'</span></div></td><td>'+esc(modules.find(m=>m.id===x.moduleId)?.name||'Standalone')+'</td><td>'+esc(menus.find(m=>m.id===x.parentMenuId)?.name||'—')+'</td><td><span class="pm-route" title="'+esc(x.routeUrl||[x.area,x.controller,x.action].filter(Boolean).join('/')||'No route configured')+'">'+esc(x.routeUrl||[x.area,x.controller,x.action].filter(Boolean).join(' / ')||'No route configured')+'</span></td><td>'+x.sortOrder+'</td><td>'+status(x.isActive)+'</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="'+x.id+'">Edit</button></td></tr>').join(''):'<tr><td colspan="7"><div class="pm-empty"><div class="pm-empty-icon">☷</div><div class="fw-semibold text-dark mb-1">'+(menus.length?'No matching menu entries':'No menu entries created yet')+'</div><div class="small mb-3">'+(menus.length?'Try another search term.':'Add your first menu entry to connect the project to a page or route.')+'</div>'+(menus.length?'':'<button class="btn btn-primary btn-sm" data-empty-add-menu>＋ Create first menu</button>')+'</div></td></tr>';
-  document.getElementById('moduleCount').textContent=modules.length;document.getElementById('menuCount').textContent=menus.length;document.getElementById('activeCount').textContent=modules.filter(x=>x.isActive).length+menus.filter(x=>x.isActive).length;
-  document.getElementById('moduleSummary').textContent=filteredModules.length+' of '+modules.length+' modules';document.getElementById('menuSummary').textContent=filteredMenus.length+' of '+menus.length+' menu entries';
- }
- function openEditor(type,item={}){kind=type;document.getElementById('editForm').reset();document.getElementById('formError').classList.add('d-none');document.getElementById('entryId').value=item.id||'';document.getElementById('entryKind').value=type;document.getElementById('modalTitle').textContent=(item.id?'Edit ':'Create ')+(type==='modules'?'module':'menu entry');document.getElementById('modalKicker').textContent=item.id?'UPDATE PROJECT CONFIGURATION':'NEW PROJECT CONFIGURATION';
-  document.querySelectorAll('.module-only').forEach(e=>e.classList.toggle('d-none',type!=='modules'));document.querySelectorAll('.menu-only').forEach(e=>e.classList.toggle('d-none',type!=='items'));
-  for(const [id,key] of [['entryCode','code'],['entryName','name'],['entryDescription','description'],['entryIcon','icon'],['entryArea','area'],['entryController','controller'],['entryAction','action'],['entryRoute','routeUrl'],['entryMenuIcon','icon'],['entrySort','sortOrder'],['entrySortModule','sortOrder']]){const el=document.getElementById(id);if(el)el.value=item[key]??(id==='entrySort'?0:'');}
-  document.getElementById('entryActive').checked=item.isActive??true;document.getElementById('entryExternal').checked=item.isExternal??false;
-  document.getElementById('moduleId').innerHTML='<option value="">No module (standalone)</option>'+modules.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
-  document.getElementById('parentId').innerHTML='<option value="">No parent (top-level)</option>'+menus.filter(x=>x.id!==item.id).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join('');
-  document.getElementById('moduleId').value=item.moduleId||'';document.getElementById('parentId').value=item.parentMenuId||'';modal.show();
- }
- document.getElementById('addModule').addEventListener('click',()=>openEditor('modules'));document.getElementById('addMenu').addEventListener('click',()=>openEditor('items'));document.getElementById('quickAddMenu').addEventListener('click',()=>{if(!selectedProject()){notice('Choose a project before adding a menu.','warning');return;}document.querySelector('#menus-tab').click();openEditor('items');});
- moduleRows.addEventListener('click',e=>{if(e.target.closest('[data-empty-add-module]'))return openEditor('modules');const b=e.target.closest('[data-edit-module]');if(b)openEditor('modules',modules.find(x=>x.id===Number(b.dataset.editModule)));});
- menuRows.addEventListener('click',e=>{if(e.target.closest('[data-empty-add-menu]'))return openEditor('items');const b=e.target.closest('[data-edit-menu]');if(b)openEditor('items',menus.find(x=>x.id===Number(b.dataset.editMenu)));});
- document.getElementById('moduleSearch').addEventListener('input',render);document.getElementById('menuSearch').addEventListener('input',render);
- projectSelect.addEventListener('change',()=>refresh().catch(e=>notice(e.message,'danger')));document.getElementById('refreshBtn').addEventListener('click',()=>refresh().then(()=>notice('Project navigation refreshed.')).catch(e=>notice(e.message,'danger')));
- document.getElementById('editForm').addEventListener('submit',async e=>{e.preventDefault();if(!selectedProject()){fail('Choose a project first.');return;}const common={id:Number(document.getElementById('entryId').value)||null,projectId:selectedProject(),code:document.getElementById('entryCode').value,name:document.getElementById('entryName').value,sortOrder:Number((kind==='modules'?document.getElementById('entrySortModule'):document.getElementById('entrySort')).value)||0,isActive:document.getElementById('entryActive').checked};let body,action;
-  if(kind==='modules'){body={...common,description:document.getElementById('entryDescription').value,icon:document.getElementById('entryIcon').value};action='SaveModule';}
-  else{body={...common,moduleId:Number(document.getElementById('moduleId').value)||null,parentMenuId:Number(document.getElementById('parentId').value)||null,area:document.getElementById('entryArea').value,controller:document.getElementById('entryController').value,action:document.getElementById('entryAction').value,routeUrl:document.getElementById('entryRoute').value,icon:document.getElementById('entryMenuIcon').value,isExternal:document.getElementById('entryExternal').checked};action='SaveMenu';}
-  const btn=document.getElementById('saveBtn');btn.disabled=true;btn.textContent='Saving…';try{await send(url(action),body);modal.hide();await refresh();notice('Saved successfully.');}catch(err){fail(err.message);}finally{btn.disabled=false;btn.textContent='Save changes';}
- });
- loadProjects().catch(e=>notice(e.message,'danger'));
-})();
+    (() => {
+        const projectSelect = document.getElementById('projectSelect'), moduleRows = document.getElementById('moduleRows'), menuRows = document.getElementById('menuRows');
+        const modalElement = document.getElementById('editModal');
+        const modal = {
+            show() { modalElement.classList.add('show'); modalElement.style.display = 'block'; modalElement.removeAttribute('aria-hidden'); document.body.classList.add('pm-modal-open'); let backdrop = document.getElementById('pmModalBackdrop'); if (!backdrop) { backdrop = document.createElement('div'); backdrop.id = 'pmModalBackdrop'; backdrop.className = 'pm-modal-backdrop'; document.body.appendChild(backdrop); backdrop.addEventListener('click', hideModal); } const first = modalElement.querySelector('input:not([type=hidden]),select,textarea,button'); first?.focus(); },
+            hide() { hideModal(); }
+        };
+        function hideModal() { modalElement.classList.remove('show'); modalElement.style.display = 'none'; modalElement.setAttribute('aria-hidden', 'true'); document.body.classList.remove('pm-modal-open'); document.getElementById('pmModalBackdrop')?.remove(); }
+        document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(button => button.addEventListener('click', hideModal));
+        document.querySelectorAll('[data-bs-toggle="tab"]').forEach(button => button.addEventListener('click', () => {
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => tab.classList.toggle('active', tab === button));
+            document.querySelectorAll('.tab-pane').forEach(pane => { const active = '#' + pane.id === button.dataset.bsTarget; pane.classList.toggle('show', active); pane.classList.toggle('active', active); });
+        }));
+        let modules = [], menus = [], kind = 'modules';
+        const url = (action) => '@Url.Action("__ACTION__", "MenuManagement", new { area = "PlatformAdmin" })'.replace('__ACTION__', action);
+        const notice = (message, type = 'success') => { const n = document.getElementById('notice'); n.textContent = message; n.className = 'alert alert-' + type; };
+        const fail = message => { const e = document.getElementById('formError'); e.textContent = message; e.classList.remove('d-none'); };
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const iconHtml = (v, fallback) => { v = (v || '').trim(); if (!v) return fallback; if (/^bi-/.test(v)) v = 'bi ' + v; return /(^|\s)(bi|fa|fas|far|fab)[\s-]/.test(v) ? '<i class="' + esc(v) + '"></i>' : esc(v); };
+        const selectedProject = () => Number(projectSelect.value || 0);
+        const send = async (path, body) => { const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('#editForm input[name="__RequestVerificationToken"]')?.value || '' }, body: JSON.stringify(body) }); const data = await r.json().catch(() => ({})); if (!r.ok) throw Error(data.message || 'Request failed.'); return data; };
+        async function loadProjects() { const r = await fetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })'); if (!r.ok) throw Error('Unable to load projects.'); const ps = await r.json(); projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName) + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join(''); }
+        async function refresh() { const p = selectedProject(); if (!p) { modules = []; menus = []; render(); return; } const [mr, ir] = await Promise.all([fetch(url('Data') + '?kind=modules&projectId=' + p), fetch(url('Data') + '?kind=items&projectId=' + p)]); if (!mr.ok || !ir.ok) throw Error('Unable to load project menu data.'); modules = await mr.json(); menus = await ir.json(); render(); }
+        function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
+        function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
+        function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
+        function render() {
+            const filteredModules = modules.filter(moduleMatches), filteredMenus = menus.filter(menuMatches);
+            moduleRows.innerHTML = filteredModules.length ? filteredModules.map(x => '<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-mod-icon">' + iconHtml(x.icon, '▦') + '</span><div><div class="pm-primary">' + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></div></div></td><td><span class="text-secondary">' + esc(x.description || 'No description') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">' + (modules.length ? 'No matching modules' : 'No modules created yet') + '</div><div class="small mb-3">' + (modules.length ? 'Try another search term.' : 'Create a module to group related navigation entries.') + '</div>' + (modules.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>') + '</div></td></tr>';
+            menuRows.innerHTML = filteredMenus.length ? filteredMenus.map(x => '<tr><td><div class="pm-primary">' + (x.parentMenuId ? '<span class="text-secondary me-1">↳</span>' : '') + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></td><td>' + esc(modules.find(m => m.id === x.moduleId)?.name || 'Standalone') + '</td><td>' + esc(menus.find(m => m.id === x.parentMenuId)?.name || '—') + '</td><td><span class="pm-route" title="' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join('/') || 'No route configured') + '">' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join(' / ') || 'No route configured') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="7"><div class="pm-empty"><div class="pm-empty-icon">☷</div><div class="fw-semibold text-dark mb-1">' + (menus.length ? 'No matching menu entries' : 'No menu entries created yet') + '</div><div class="small mb-3">' + (menus.length ? 'Try another search term.' : 'Add your first menu entry to connect the project to a page or route.') + '</div>' + (menus.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-menu>＋ Create first menu</button>') + '</div></td></tr>';
+            document.getElementById('moduleCount').textContent = modules.length; document.getElementById('menuCount').textContent = menus.length; document.getElementById('activeCount').textContent = modules.filter(x => x.isActive).length + menus.filter(x => x.isActive).length;
+            document.getElementById('moduleSummary').textContent = filteredModules.length + ' of ' + modules.length + ' modules'; document.getElementById('menuSummary').textContent = filteredMenus.length + ' of ' + menus.length + ' menu entries';
+        }
+        function openEditor(type, item = {}) {
+            kind = type; document.getElementById('editForm').reset(); document.getElementById('formError').classList.add('d-none'); document.getElementById('entryId').value = item.id || ''; document.getElementById('entryKind').value = type; document.getElementById('modalTitle').textContent = (item.id ? 'Edit ' : 'Create ') + (type === 'modules' ? 'module' : 'menu entry'); document.getElementById('modalKicker').textContent = item.id ? 'UPDATE PROJECT CONFIGURATION' : 'NEW PROJECT CONFIGURATION';
+            document.querySelectorAll('.module-only').forEach(e => e.classList.toggle('d-none', type !== 'modules')); document.querySelectorAll('.menu-only').forEach(e => e.classList.toggle('d-none', type !== 'items'));
+            for (const [id, key] of [['entryCode', 'code'], ['entryName', 'name'], ['entryDescription', 'description'], ['entryIcon', 'icon'], ['entryArea', 'area'], ['entryController', 'controller'], ['entryAction', 'action'], ['entryRoute', 'routeUrl'], ['entryMenuIcon', 'icon'], ['entrySort', 'sortOrder']]) { const el = document.getElementById(id); if (el) el.value = item[key] ?? (id === 'entrySort' ? 0 : ''); }
+            document.getElementById('entryActive').checked = item.isActive ?? true; document.getElementById('entryExternal').checked = item.isExternal ?? false;
+            document.getElementById('moduleId').innerHTML = '<option value="">No module (standalone)</option>' + modules.map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
+            document.getElementById('parentId').innerHTML = '<option value="">No parent (top-level)</option>' + menus.filter(x => x.id !== item.id).map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
+            document.getElementById('moduleId').value = item.moduleId || ''; document.getElementById('parentId').value = item.parentMenuId || '';
+            modalElement.querySelector('.modal-body').scrollTop = 0;
+            modal.show();
+        }
+        document.getElementById('addModule').addEventListener('click', () => openEditor('modules')); document.getElementById('addMenu').addEventListener('click', () => openEditor('items')); document.getElementById('quickAddMenu').addEventListener('click', () => { if (!selectedProject()) { notice('Choose a project before adding a menu.', 'warning'); return; } document.querySelector('#menus-tab').click(); openEditor('items'); });
+        moduleRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-module]')) return openEditor('modules'); const b = e.target.closest('[data-edit-module]'); if (b) openEditor('modules', modules.find(x => x.id === Number(b.dataset.editModule))); });
+        menuRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-menu]')) return openEditor('items'); const b = e.target.closest('[data-edit-menu]'); if (b) openEditor('items', menus.find(x => x.id === Number(b.dataset.editMenu))); });
+        document.getElementById('moduleSearch').addEventListener('input', render); document.getElementById('menuSearch').addEventListener('input', render);
+        projectSelect.addEventListener('change', () => refresh().catch(e => notice(e.message, 'danger'))); document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
+        document.getElementById('editForm').addEventListener('submit', async e => {
+            e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
+            const common = { id: Number(document.getElementById('entryId').value) || null, projectId: selectedProject(), code: document.getElementById('entryCode').value, name: document.getElementById('entryName').value, sortOrder: Number(document.getElementById('entrySort').value) || 0, isActive: document.getElementById('entryActive').checked }; let body, action;
+            if (kind === 'modules') { body = { ...common, description: document.getElementById('entryDescription').value, icon: document.getElementById('entryIcon').value }; action = 'SaveModule'; }
+            else { body = { ...common, moduleId: Number(document.getElementById('moduleId').value) || null, parentMenuId: Number(document.getElementById('parentId').value) || null, area: document.getElementById('entryArea').value, controller: document.getElementById('entryController').value, action: document.getElementById('entryAction').value, routeUrl: document.getElementById('entryRoute').value, icon: document.getElementById('entryMenuIcon').value, isExternal: document.getElementById('entryExternal').checked }; action = 'SaveMenu'; }
+            const btn = document.getElementById('saveBtn'); btn.disabled = true; btn.textContent = 'Saving…'; try { await send(url(action), body); modal.hide(); await refresh(); notice('Saved successfully.'); } catch (err) { fail(err.message); } finally { btn.disabled = false; btn.textContent = 'Save changes'; }
+        });
+        loadProjects().catch(e => notice(e.message, 'danger'));
+    })();
 </script>
