@@ -35,6 +35,27 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
+
+    [HttpPost("tenants/{id:long}/update")]
+    [Authorize(Policy = "Tenant.Update")]
+    public async Task<IActionResult> UpdateTenant(long id, [FromBody] UpdateTenantRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { return Ok(await platform.UpdateTenantAsync(id, request.Code, request.Name, cancellationToken)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    [HttpPost("tenants/{id:long}/delete")]
+    [Authorize(Policy = "Tenant.Deactivate")]
+    public async Task<IActionResult> DeleteTenant(long id, [FromBody] DeleteRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return NoContent(); }
+        catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
     [HttpGet("projects")]
     [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> GetProjects([FromQuery] long? tenantId, CancellationToken cancellationToken)
@@ -79,6 +100,31 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
+
+
+    [HttpPost("branches/{id:long}/update")]
+    [Authorize(Policy = "Branch.Update")]
+    public async Task<IActionResult> UpdateBranch(long id, [FromBody] UpdateBranchRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { return Ok(await platform.UpdateBranchAsync(id, request.Code, request.Name, request.Address, cancellationToken)); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    [HttpPost("branches/{id:long}/delete")]
+    [Authorize(Policy = "Branch.Deactivate")]
+    public async Task<IActionResult> DeleteBranch(long id, [FromBody] DeleteRequest request, CancellationToken cancellationToken)
+    {
+        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        try { await platform.DeleteBranchAsync(id, request.HardDelete, cancellationToken); return NoContent(); }
+        catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
+    public sealed record UpdateTenantRequest(string Code, string Name);
+    public sealed record UpdateBranchRequest(string Code, string Name, string? Address);
+    public sealed record DeleteRequest(bool HardDelete);
 
     private async Task<long?> GetVerifiedPlatformAdminIdAsync(CancellationToken cancellationToken)
     {
