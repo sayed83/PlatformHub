@@ -7,8 +7,8 @@ using PlatformHub.Infrastructure.Persistence;
 
 namespace PlatformHub.Infrastructure.Migrations;
 
-[DbContext(typeof(PlatformDbContext))]
-[Migration("20261012190000_MakeProjectTenantOptional")]
+//[DbContext(typeof(PlatformDbContext))]
+//[Migration("20261012190000_MakeProjectTenantOptional")]
 partial class MakeProjectTenantOptional
 {
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
