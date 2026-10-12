@@ -10,7 +10,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class UsersController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(string? search, bool? active, CancellationToken ct)
+    public async Task<IActionResult> Index(string? search, bool? active, long? highlightAssignmentId, CancellationToken ct)
     {
         if (!IsPlatformAdmin()) return Forbid();
         var token = AccessToken();
@@ -19,6 +19,7 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         if (model is null)
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 "Unable to load users, roles, or tenants from the Platform API.");
+        ViewData["HighlightAssignmentId"] = highlightAssignmentId;
         return View(model);
     }
 
