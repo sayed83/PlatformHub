@@ -66,6 +66,45 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
         return View("Index", current);
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(long id, long tenantId, string code, string name, string? baseUrl, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/projects/{id}/update", new { code, name, baseUrl }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? "Project update failed.")
+            : "Project updated successfully.";
+        return RedirectToAction(nameof(Index), new { tenantId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(long id, long tenantId, bool hardDelete, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/projects/{id}/delete", new { hardDelete }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? (hardDelete ? "Project hard delete failed." : "Project deactivation failed."))
+            : (hardDelete ? "Project permanently deleted." : "Project deactivated successfully.");
+        return RedirectToAction(nameof(Index), new { tenantId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Activate(long id, long tenantId, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/projects/{id}/activate", new { }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? "Project activation failed.")
+            : "Project activated successfully.";
+        return RedirectToAction(nameof(Index), new { tenantId });
+    }
+
     private async Task<ProjectManagementViewModel?> LoadModelAsync(
         string token, long? tenantId, CancellationToken ct)
     {
