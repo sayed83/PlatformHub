@@ -8,231 +8,235 @@
     var canDeactivate = User.HasClaim("ph_permission", "User.Deactivate");
     var canAssign = User.HasClaim("ph_permission", "Role.Assign");
     var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
+    var activeCount = Model.Users.Count(x => x.IsActive);
+    var inactiveCount = Model.Users.Count - activeCount;
+    var assignmentCount = Model.Users.Sum(x => x.RoleAssignments.Count);
 }
+<style>
+    .ua-page { --ua-border: var(--bs-border-color); }
+    .ua-hero { border: 1px solid var(--ua-border); border-radius: 1rem; padding: 1.5rem; background: linear-gradient(120deg, rgba(13,110,253,.09), rgba(13,110,253,.015)); }
+    .ua-stat { border: 1px solid var(--ua-border); border-radius: .9rem; background: var(--bs-body-bg); padding: 1rem; height: 100%; }
+    .ua-stat-label { color: var(--bs-secondary-color); font-size: .8rem; font-weight: 600; letter-spacing: .035em; text-transform: uppercase; }
+    .ua-stat-value { font-size: 1.65rem; line-height: 1.2; font-weight: 700; margin-top: .4rem; }
+    .ua-avatar { display: inline-flex; align-items: center; justify-content: center; width: 2.65rem; height: 2.65rem; flex: 0 0 2.65rem; border-radius: .8rem; background: rgba(13,110,253,.12); color: var(--bs-primary); font-weight: 700; }
+    .ua-table th { white-space: nowrap; color: var(--bs-secondary-color); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+    .ua-table td { padding-top: 1rem; padding-bottom: 1rem; }
+    .ua-code { font-size: .78rem; }
+    .ua-detail { background: var(--bs-tertiary-bg); }
+    .ua-assignment { border: 1px solid var(--ua-border); background: var(--bs-body-bg); border-radius: .75rem; padding: .75rem; }
+    .ua-section-title { font-size: .9rem; font-weight: 700; }
+    .ua-sticky-tools { background: var(--bs-body-bg); }
+    .ua-details summary { cursor: pointer; list-style-position: inside; }
+    .ua-details[open] summary { margin-bottom: .9rem; }
+    @@media (max-width: 767.98px) { .ua-hero { padding: 1rem; } .ua-stat-value { font-size: 1.35rem; } }
+</style>
 
-<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
-    <div>
-        <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small">&larr; Dashboard</a>
-        <h1 class="h3 mt-2 mb-1">Users &amp; access</h1>
-        <p class="text-secondary mb-0">Manage accounts, assign roles, and restrict access by tenant, branch, and project.</p>
-    </div>
-    <div class="d-flex gap-2">
-        <span class="badge text-bg-secondary align-self-center">@Model.Users.Count users</span>
-    </div>
-</div>
-
-@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success" role="status">@success</div> }
-@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-<div asp-validation-summary="All" class="alert alert-danger"></div>
-
-<div class="row g-4">
-    @if (canCreate)
-    {
-        <div class="col-xl-4">
-            <section class="card border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Create user</h2>
-                    <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="Create" method="post">
-                        @Html.AntiForgeryToken()
-                        <div class="mb-3">
-                            <label asp-for="UserName" class="form-label">Username</label>
-                            <input asp-for="UserName" class="form-control" autocomplete="off" />
-                            <span asp-validation-for="UserName" class="text-danger small"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label asp-for="DisplayName" class="form-label">Display name</label>
-                            <input asp-for="DisplayName" class="form-control" />
-                            <span asp-validation-for="DisplayName" class="text-danger small"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label asp-for="Password" class="form-label">Temporary password</label>
-                            <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" />
-                            <div class="form-text">Minimum 12 characters. Share securely and require a password-change workflow before production.</div>
-                            <span asp-validation-for="Password" class="text-danger small"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label asp-for="BaseRedirectUrl" class="form-label">User redirect URL (optional)</label>
-                            <input asp-for="BaseRedirectUrl" class="form-control" placeholder="/Workspace" />
-                            <span asp-validation-for="BaseRedirectUrl" class="text-danger small"></span>
-                        </div>
-                        @if (isSuperAdmin)
-                        {
-                            <div class="form-check border rounded p-3 ps-5 mb-3">
-                                <input asp-for="IsPlatformAdmin" class="form-check-input" />
-                                <label asp-for="IsPlatformAdmin" class="form-check-label fw-semibold">Create as Platform Admin (not Super Admin)</label>
-                                <div class="form-text">This account can manage the platform but cannot view, edit, deactivate, or reset passwords for platform-admin accounts. It will not receive the Super Admin role.</div>
-                            </div>
-                        }
-                        <button class="btn btn-primary w-100" type="submit">Create user</button>
-                    </form>
-                </div>
-            </section>
-        </div>
-    }
-
-    <div class="@(canCreate ? "col-xl-8" : "col-12")">
-        <section class="card border-0 shadow-sm">
-            <div class="card-header bg-white p-3">
-                <form method="get" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" class="row g-2 align-items-end">
-                    <div class="col-sm">
-                        <label class="form-label small" for="search">Search users</label>
-                        <input class="form-control" id="search" name="search" value="@Model.Search" placeholder="Username or display name" />
-                    </div>
-                    <div class="col-sm-4">
-                        <label class="form-label small" for="active">Account status</label>
-                        <select class="form-select" id="active" name="active">
-                            <option value="">All accounts</option>
-                            <option value="true" selected="@(Model.ActiveFilter == true ? "selected" : null)">Active</option>
-                            <option value="false" selected="@(Model.ActiveFilter == false ? "selected" : null)">Inactive</option>
-                        </select>
-                    </div>
-                    <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Filter</button></div>
-                </form>
+<div class="ua-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Dashboard</a>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <h1 class="h3 fw-bold mb-0">Users &amp; Access</h1>
+                <span class="badge rounded-pill text-bg-light border text-dark">Administration</span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light"><tr><th>User</th><th>Roles</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
-                    <tbody>
-                    @foreach (var user in Model.Users)
-                    {
-                        <tr>
-                            <td>
-                                <div class="fw-semibold">@user.DisplayName</div>
-                                <code class="small">@user.UserName</code>
-                                <div class="small text-secondary">Created @user.CreatedUtc.ToLocalTime().ToString("dd MMM yyyy")</div>
-                                @if (user.IsPlatformAdmin) { <span class="badge text-bg-dark mt-1">Platform Admin account</span> }
-                            </td>
-                            <td>
-                                @if (user.Roles.Count == 0) { <span class="text-secondary small">No roles assigned</span> }
-                                @foreach (var role in user.Roles) { <span class="badge text-bg-light border text-dark me-1 mb-1">@role</span> }
-                            </td>
-                            <td>
-                                @if (user.IsActive) { <span class="badge text-bg-success">Active</span> }
-                                else { <span class="badge text-bg-secondary">Inactive</span> }
-                            </td>
-                            <td class="text-end">
-                                @if (canUpdate || canDeactivate)
-                                {
-                                    <details class="text-start">
-                                        <summary class="btn btn-sm btn-outline-secondary d-inline-block">Manage</summary>
-                                        <div class="border rounded bg-white p-3 mt-2" style="min-width:min(300px,80vw)">
-                                            <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="Update" method="post" class="mb-3">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@user.Id" />
-                                                <div class="mb-2"><label class="form-label small">Display name</label><input class="form-control form-control-sm" name="displayName" value="@user.DisplayName" maxlength="200" required /></div>
-                                                <div class="mb-2"><label class="form-label small">Redirect URL</label><input class="form-control form-control-sm" name="baseRedirectUrl" value="@user.BaseRedirectUrl" maxlength="500" /></div>
-                                                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="active-@user.Id" name="isActive" value="true" @(user.IsActive ? "checked" : null) /><label class="form-check-label small" for="active-@user.Id">Account active</label><input type="hidden" name="isActive" value="false" /></div>
-                                                <button class="btn btn-sm btn-primary" type="submit" @(canUpdate || (canDeactivate && !user.IsActive) ? null : "disabled")>Save account</button>
-                                            </form>
-                                            @if (canUpdate)
-                                            {
-                                                <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="ResetPassword" method="post" class="border-top pt-3">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    <label class="form-label small">Set new password</label>
-                                                    <input type="password" class="form-control form-control-sm mb-2" name="newPassword" minlength="12" required autocomplete="new-password" />
-                                                    <button class="btn btn-sm btn-outline-danger" type="submit">Reset password</button>
-                                                </form>
-                                            }
-                                        </div>
-                                    </details>
-                                }
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" class="bg-body-tertiary">
-                                <div class="small fw-semibold mb-2">Role assignments</div>
-                                @if (user.RoleAssignments.Count == 0) { <div class="small text-secondary mb-2">No assignments. Assign a role with the narrowest required scope.</div> }
-                                <div class="d-flex flex-wrap gap-2 mb-3">
-                                    @foreach (var assignment in user.RoleAssignments)
+            <p class="text-secondary mb-0 mt-1">Manage accounts, role assignments, and tenant, branch, and project access.</p>
+        </div>
+        @if (canCreate)
+        {
+            <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="bi bi-person-plus me-1"></i> Create user
+            </button>
+        }
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success alert-dismissible fade show" role="status">@success<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
+    @if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger alert-dismissible fade show" role="alert">@error<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
+    <div asp-validation-summary="All" class="alert alert-danger"></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3"><div class="ua-stat"><div class="d-flex justify-content-between align-items-start"><span class="ua-stat-label">Users shown</span><i class="bi bi-people text-primary fs-5"></i></div><div class="ua-stat-value">@Model.Users.Count</div><div class="small text-secondary mt-1">Current filtered results</div></div></div>
+        <div class="col-6 col-xl-3"><div class="ua-stat"><div class="d-flex justify-content-between align-items-start"><span class="ua-stat-label">Active</span><i class="bi bi-person-check text-success fs-5"></i></div><div class="ua-stat-value">@activeCount</div><div class="small text-secondary mt-1">Accounts enabled</div></div></div>
+        <div class="col-6 col-xl-3"><div class="ua-stat"><div class="d-flex justify-content-between align-items-start"><span class="ua-stat-label">Inactive</span><i class="bi bi-person-x text-secondary fs-5"></i></div><div class="ua-stat-value">@inactiveCount</div><div class="small text-secondary mt-1">Accounts disabled</div></div></div>
+        <div class="col-6 col-xl-3"><div class="ua-stat"><div class="d-flex justify-content-between align-items-start"><span class="ua-stat-label">Role assignments</span><i class="bi bi-shield-lock text-primary fs-5"></i></div><div class="ua-stat-value">@assignmentCount</div><div class="small text-secondary mt-1">Across users shown</div></div></div>
+    </div>
+
+    <section class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header ua-sticky-tools border-bottom p-3 p-lg-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div><h2 class="h5 fw-bold mb-1">User directory</h2><div class="small text-secondary">Search accounts and manage access from each user row.</div></div>
+                <span class="small text-secondary"><i class="bi bi-funnel me-1"></i> Filters apply when you submit</span>
+            </div>
+            <form method="get" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" class="row g-2 align-items-end">
+                <div class="col-12 col-lg">
+                    <label class="form-label small fw-semibold" for="search">Search</label>
+                    <div class="input-group"><span class="input-group-text bg-body"><i class="bi bi-search"></i></span><input class="form-control" id="search" name="search" value="@Model.Search" placeholder="Username or display name..." /></div>
+                </div>
+                <div class="col-8 col-lg-3">
+                    <label class="form-label small fw-semibold" for="active">Account status</label>
+                    <select class="form-select" id="active" name="active">
+                        <option value="">All statuses</option>
+                        <option value="true" selected="@(Model.ActiveFilter == true ? "selected" : null)">Active</option>
+                        <option value="false" selected="@(Model.ActiveFilter == false ? "selected" : null)">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-4 col-lg-auto d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1" type="submit">Search</button>
+                    <a class="btn btn-outline-secondary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" title="Clear filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table ua-table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th class="ps-3 ps-lg-4">User</th><th>Roles</th><th>Account status</th><th>Assignments</th><th class="text-end pe-3 pe-lg-4">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var user in Model.Users)
+                {
+                    <tr>
+                        <td class="ps-3 ps-lg-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="ua-avatar">@((string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName).Trim().Substring(0, 1).ToUpperInvariant())</span>
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-truncate">@user.DisplayName</div>
+                                    <div class="text-secondary small text-break">@user.UserName</div>
+                                    <div class="text-secondary small">Created @user.CreatedUtc.ToLocalTime().ToString("dd MMM yyyy")</div>
+                                    @if (user.IsPlatformAdmin) { <span class="badge text-bg-dark mt-1">Platform Admin account</span> }
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            @if (user.Roles.Count == 0) { <span class="small text-secondary">No roles</span> }
+                            @foreach (var role in user.Roles) { <span class="badge rounded-pill text-bg-light border text-dark me-1 mb-1">@role</span> }
+                        </td>
+                        <td>@if (user.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis"><i class="bi bi-check-circle me-1"></i>Active</span> } else { <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-pause-circle me-1"></i>Inactive</span> }</td>
+                        <td><span class="badge rounded-pill text-bg-light border text-dark">@user.RoleAssignments.Count assignment(s)</span></td>
+                        <td class="text-end pe-3 pe-lg-4">
+                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#access-@user.Id" aria-expanded="false" aria-controls="access-@user.Id"><i class="bi bi-shield-check me-1"></i>Access</button>
+                                @if (canUpdate || canDeactivate) { <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageUser-@user.Id"><i class="bi bi-pencil-square me-1"></i>Manage</button> }
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="ua-detail">
+                        <td colspan="5" class="px-3 px-lg-4 py-0 border-0">
+                            <div class="collapse" id="access-@user.Id">
+                                <div class="py-3">
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                                        <div><div class="ua-section-title">Access &amp; role assignments</div><div class="small text-secondary">Use the narrowest scope required for this user.</div></div>
+                                        @if (canAssign) { <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id"><i class="bi bi-plus-lg me-1"></i>Assign role</button> }
+                                    </div>
+                                    @if (user.RoleAssignments.Count == 0) { <div class="alert alert-light border small mb-3"><i class="bi bi-info-circle me-1"></i>No role assignments. This user may not be able to access tenant features.</div> }
+                                    <div class="row g-2 mb-3">
+                                        @foreach (var assignment in user.RoleAssignments)
+                                        {
+                                            <div class="col-12 col-md-6 col-xxl-4">
+                                                <div class="ua-assignment h-100">
+                                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                                        <div class="min-w-0"><div class="fw-semibold">@assignment.RoleName</div><code class="ua-code">@assignment.RoleCode</code></div>
+                                                        @if (canAssign && assignment.RoleCode != "PLATFORM_SUPER_ADMIN")
+                                                        {
+                                                            <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="RemoveRole" method="post" class="m-0" onsubmit="return confirm('Remove this role assignment?');">
+                                                                @Html.AntiForgeryToken()<input type="hidden" name="userId" value="@user.Id" /><input type="hidden" name="assignmentId" value="@assignment.Id" />
+                                                                <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Remove @assignment.RoleName assignment" title="Remove assignment"><i class="bi bi-trash"></i></button>
+                                                            </form>
+                                                        }
+                                                    </div>
+                                                    <div class="small text-secondary mt-2"><i class="bi bi-diagram-3 me-1"></i>@(assignment.ProjectName is not null ? $"Project: {assignment.ProjectName}" : assignment.BranchName is not null ? $"Branch: {assignment.BranchName}" : assignment.TenantName is not null ? $"Tenant: {assignment.TenantName}" : "Global scope")</div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    @if (canAssign)
                                     {
-                                        <div class="border bg-white rounded p-2 d-flex flex-wrap align-items-center gap-2">
-                                            <span class="small fw-semibold">@assignment.RoleName</span>
-                                            <span class="small text-secondary">
-                                                @(assignment.ProjectName is not null ? $"Project: {assignment.ProjectName}" : assignment.BranchName is not null ? $"Branch: {assignment.BranchName}" : assignment.TenantName is not null ? $"Tenant: {assignment.TenantName}" : "Global")
-                                            </span>
-                                            @if (canAssign && assignment.RoleCode != "PLATFORM_SUPER_ADMIN")
-                                            {
-                                                <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="RemoveRole" method="post" class="m-0">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="userId" value="@user.Id" />
-                                                    <input type="hidden" name="assignmentId" value="@assignment.Id" />
-                                                    <button class="btn btn-sm btn-outline-danger py-0" type="submit">Remove</button>
+                                        <div class="collapse" id="assign-@user.Id">
+                                            <div class="border rounded-3 bg-body p-3 p-lg-4">
+                                                <div class="fw-semibold mb-1">Assign a role</div><div class="small text-secondary mb-3">Select a role and specify its access scope. The API validates the assignment.</div>
+                                                <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="AssignRole" method="post" class="row g-3 align-items-end">
+                                                    @Html.AntiForgeryToken()<input type="hidden" name="AssignUserId" value="@user.Id" />
+                                                    <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Role</label><select class="form-select" name="RoleId" required><option value="">Select role</option>@foreach (var role in Model.Roles.Where(x => x.Code != "PLATFORM_SUPER_ADMIN" || isSuperAdmin)){<option value="@role.Id">@role.Name</option>}</select></div>
+                                                    <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Tenant</label><select class="form-select js-tenant-scope" name="TenantId"><option value="">Infer from branch/project</option>@foreach (var tenant in Model.Tenants.Where(x => x.IsActive)){<option value="@tenant.Id">@tenant.Code — @tenant.Name</option>}</select></div>
+                                                    <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Branch (optional)</label><select class="form-select js-branch-scope" name="BranchId"><option value="">No branch</option>@foreach (var branch in Model.Branches.Where(x => x.IsActive)){<option value="@branch.Id" data-tenant-id="@branch.TenantId">@branch.Code — @branch.Name</option>}</select></div>
+                                                    <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Project (optional)</label><select class="form-select js-project-scope" name="ProjectId"><option value="">No project</option>@foreach (var project in Model.Projects.Where(x => x.IsActive)){<option value="@project.Id" data-tenant-id="@project.TenantId">@project.Code — @project.Name</option>}</select></div>
+                                                    <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-2"><div class="form-text"><i class="bi bi-shield-lock me-1"></i>Choose the least-privileged scope. Branch and project must belong to the selected tenant.</div><div class="d-flex gap-2"><button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id">Cancel</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Assign role</button></div></div>
                                                 </form>
-                                            }
+                                            </div>
                                         </div>
                                     }
                                 </div>
-                                @if (canAssign)
-                                {
-                                    <details>
-                                        <summary class="small fw-semibold">Assign role to @user.UserName</summary>
-                                        <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="AssignRole" method="post" class="row g-2 mt-1 align-items-end">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="AssignUserId" value="@user.Id" />
-                                            <div class="col-md-4">
-                                                <label class="form-label small">Role</label>
-                                                <select class="form-select form-select-sm" name="RoleId" required>
-                                                    <option value="">Select role</option>
-                                                    @foreach (var role in Model.Roles)
-                                                    {
-                                                        <option value="@role.Id">@role.Name (@role.Code)</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label small">Tenant scope</label>
-                                                <select class="form-select form-select-sm" name="TenantId">
-                                                    <option value="">Global / infer from branch or project</option>
-                                                    @foreach (var tenant in Model.Tenants)
-                                                    {
-                                                        <option value="@tenant.Id">@tenant.Code — @tenant.Name</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label small">Branch (optional)</label>
-                                                <select class="form-select form-select-sm js-branch-scope" name="BranchId">
-                                                    <option value="">No branch</option>
-                                                    @foreach (var branch in Model.Branches.Where(x => x.IsActive))
-                                                    {
-                                                        <option value="@branch.Id" data-tenant-id="@branch.TenantId">@branch.Code — @branch.Name</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label small">Project (optional)</label>
-                                                <select class="form-select form-select-sm js-project-scope" name="ProjectId">
-                                                    <option value="">No project</option>
-                                                    @foreach (var project in Model.Projects.Where(x => x.IsActive))
-                                                    {
-                                                        <option value="@project.Id" data-tenant-id="@project.TenantId">@project.Code — @project.Name</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            <div class="col-12"><div class="form-text">Branch and project options are filtered by the selected tenant. You can leave both empty. The API still validates the scope.</div><button class="btn btn-sm btn-primary mt-2" type="submit">Assign role</button></div>
-                                        </form>
-                                    </details>
-                                }
-                            </td>
-                        </tr>
-                    }
-                    @if (Model.Users.Count == 0)
+                            </div>
+                        </td>
+                    </tr>
+                    @if (canUpdate || canDeactivate)
                     {
-                        <tr><td colspan="4" class="text-center text-secondary py-5">No users match these filters.</td></tr>
+                        <div></div>
                     }
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
+                }
+                @if (Model.Users.Count == 0) { <tr><td colspan="5" class="text-center py-5"><div class="mb-2"><i class="bi bi-people fs-1 text-secondary"></i></div><div class="fw-semibold">No users found</div><div class="small text-secondary mb-3">Try changing the search or status filter.</div><a class="btn btn-sm btn-outline-primary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index">Clear filters</a></td></tr> }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 small text-secondary"><span>Showing @Model.Users.Count user(s)</span><span><i class="bi bi-lock me-1"></i>Role and scope changes are validated by the API.</span></div>
+    </section>
 </div>
+
+@if (canCreate)
+{
+    <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow rounded-4">
+            <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="createUserTitle">Create user account</h2><p class="small text-secondary mb-0">Create the account first, then assign the required role and scope.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body px-4">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label asp-for="UserName" class="form-label fw-semibold">Username</label><input asp-for="UserName" class="form-control" autocomplete="off" placeholder="e.g. j.smith" /><span asp-validation-for="UserName" class="text-danger small"></span></div>
+                        <div class="col-md-6"><label asp-for="DisplayName" class="form-label fw-semibold">Display name</label><input asp-for="DisplayName" class="form-control" placeholder="Full name" /><span asp-validation-for="DisplayName" class="text-danger small"></span></div>
+                        <div class="col-12"><label asp-for="Password" class="form-label fw-semibold">Temporary password</label><input asp-for="Password" type="password" class="form-control" autocomplete="new-password" placeholder="At least 12 characters" /><div class="form-text">Share credentials securely. A password-change workflow should be required before production use.</div><span asp-validation-for="Password" class="text-danger small"></span></div>
+                        <div class="col-12"><label asp-for="BaseRedirectUrl" class="form-label fw-semibold">Redirect URL <span class="text-secondary fw-normal">(optional)</span></label><input asp-for="BaseRedirectUrl" class="form-control" placeholder="/Workspace" /><span asp-validation-for="BaseRedirectUrl" class="text-danger small"></span></div>
+                        @if (isSuperAdmin) { <div class="col-12"><div class="form-check border rounded-3 p-3 ps-5"><input asp-for="IsPlatformAdmin" class="form-check-input" /><label asp-for="IsPlatformAdmin" class="form-check-label fw-semibold">Create as Platform Admin (not Super Admin)</label><div class="form-text">Platform Admin accounts cannot manage protected Super Admin accounts. The API enforces this restriction.</div></div></div> }
+                    </div>
+                </div>
+                <div class="modal-footer px-4 pb-4"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary px-4" type="submit"><i class="bi bi-person-plus me-1"></i>Create user</button></div>
+            </form>
+        </div></div>
+    </div>
+}
+
+@foreach (var user in Model.Users.Where(_ => canUpdate || canDeactivate))
+{
+    <div class="modal fade" id="manageUser-@user.Id" tabindex="-1" aria-labelledby="manageUserTitle-@user.Id" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="manageUserTitle-@user.Id">Manage account</h2><p class="small text-secondary mb-0">@user.UserName</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body px-4">
+                @if (canUpdate || canDeactivate)
+                {
+                    <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="Update" method="post" class="mb-4">
+                        @Html.AntiForgeryToken()<input type="hidden" name="id" value="@user.Id" />
+                        <h3 class="ua-section-title mb-3">Account details</h3>
+                        <div class="mb-3"><label class="form-label fw-semibold">Display name</label><input class="form-control" name="displayName" value="@user.DisplayName" maxlength="200" required /></div>
+                        <div class="mb-3"><label class="form-label fw-semibold">Redirect URL</label><input class="form-control" name="baseRedirectUrl" value="@user.BaseRedirectUrl" maxlength="500" /></div>
+                        <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="manage-active-@user.Id" name="isActive" value="true" @(user.IsActive ? "checked" : null) /><label class="form-check-label" for="manage-active-@user.Id">Account active</label><input type="hidden" name="isActive" value="false" /></div>
+                        <button class="btn btn-primary" type="submit" @(canUpdate || (canDeactivate && !user.IsActive) ? null : "disabled")>Save account</button>
+                    </form>
+                }
+                @if (canUpdate)
+                {
+                    <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="ResetPassword" method="post" class="border-top pt-4">
+                        @Html.AntiForgeryToken()<input type="hidden" name="id" value="@user.Id" />
+                        <h3 class="ua-section-title mb-1">Reset password</h3><p class="small text-secondary">Set a new temporary password with at least 12 characters.</p>
+                        <div class="input-group"><input type="password" class="form-control" name="newPassword" minlength="12" maxlength="200" required autocomplete="new-password" placeholder="New password" /><button class="btn btn-outline-danger" type="submit">Reset password</button></div>
+                    </form>
+                }
+            </div>
+            <div class="modal-footer px-4 pb-4"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div></div>
+    </div>
+}
 
 @section Scripts {
 <script>
 (() => {
     function filterScopeOptions(form) {
-        const tenant = form.querySelector('select[name="TenantId"]');
+        const tenant = form.querySelector('.js-tenant-scope');
         const branch = form.querySelector('.js-branch-scope');
         const project = form.querySelector('.js-project-scope');
         if (!tenant || !branch || !project) return;
@@ -242,12 +246,13 @@
                 if (!option.value) { option.hidden = false; return; }
                 const matches = !tenant.value || option.dataset.tenantId === tenant.value;
                 option.hidden = !matches;
+                option.disabled = !matches;
                 if (!matches && option.value === selected) select.value = '';
             });
         });
     }
     document.querySelectorAll('form[action*="AssignRole"]').forEach(form => {
-        const tenant = form.querySelector('select[name="TenantId"]');
+        const tenant = form.querySelector('.js-tenant-scope');
         if (!tenant) return;
         tenant.addEventListener('change', () => filterScopeOptions(form));
         filterScopeOptions(form);
