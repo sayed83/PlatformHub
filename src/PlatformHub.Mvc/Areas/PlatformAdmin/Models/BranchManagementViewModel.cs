@@ -27,5 +27,5 @@ public sealed record BranchRowViewModel(
 
 public sealed record BranchRoleAssignmentViewModel(
     long Id, long UserId, string UserName, string DisplayName, bool IsUserActive,
-    long RoleId, string RoleCode, string RoleName, bool IsRoleActive,
+    long BranchId, long RoleId, string RoleCode, string RoleName, bool IsRoleActive,
     long? TenantId, string? TenantName, long? ProjectId, string? ProjectName);
