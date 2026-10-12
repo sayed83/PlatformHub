@@ -3,56 +3,72 @@
 @{
     ViewData["Title"] = "Platform Admin Dashboard";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var canViewUsers = User.HasClaim("ph_permission", "User.View");
+    var canViewRoles = User.HasClaim("ph_permission", "Role.View");
 }
+<style>
+    .pa-welcome { border:1px solid var(--bs-border-color); border-radius:1rem; padding:1.5rem; background:linear-gradient(120deg,rgba(13,110,253,.10),rgba(13,110,253,.015)); }
+    .pa-stat { border:1px solid var(--bs-border-color); border-radius:.9rem; background:var(--bs-body-bg); padding:1.15rem; height:100%; }
+    .pa-stat-label { color:var(--bs-secondary-color); font-size:.78rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+    .pa-stat-value { font-size:1.9rem; line-height:1.2; font-weight:750; margin-top:.5rem; }
+    .pa-stat-icon { display:inline-flex; align-items:center; justify-content:center; width:2.5rem; height:2.5rem; border-radius:.8rem; background:rgba(13,110,253,.11); color:var(--bs-primary); font-size:1.25rem; }
+    .pa-action { display:flex; gap:1rem; align-items:flex-start; padding:1rem; height:100%; border:1px solid var(--bs-border-color); border-radius:.9rem; color:inherit; text-decoration:none; background:var(--bs-body-bg); transition:border-color .15s ease, transform .15s ease; }
+    .pa-action:hover { border-color:var(--bs-primary); color:inherit; transform:translateY(-1px); }
+    .pa-action-icon { display:inline-flex; flex:0 0 2.6rem; width:2.6rem; height:2.6rem; align-items:center; justify-content:center; border-radius:.8rem; background:rgba(13,110,253,.11); color:var(--bs-primary); font-size:1.2rem; }
+    .pa-table th { color:var(--bs-secondary-color); font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+    .pa-table td { padding-top:.95rem; padding-bottom:.95rem; }
+</style>
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div class="min-w-0">
-        <div class="text-primary small fw-semibold text-uppercase">PlatformHub control center</div>
-        <h1 class="h3 mb-1">Platform Administration</h1>
-        <p class="text-secondary mb-0">Welcome back, @Model.DisplayName</p>
+<div>
+    <section class="pa-welcome mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <span class="pa-stat-icon" aria-hidden="true">▦</span>
+                <div><div class="text-primary small fw-bold text-uppercase mb-1">PlatformHub control center</div><h1 class="h3 fw-bold mb-1">Platform Administration</h1><p class="text-secondary mb-0">Welcome back, @Model.DisplayName. Manage your platform organizations, projects, and access from one place.</p></div>
+            </div>
+            <form asp-area="PlatformAdmin" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">Sign out</button>
+            </form>
+        </div>
+    </section>
+
+    @if (!ViewData.ModelState.IsValid) { <div asp-validation-summary="All" class="alert alert-warning" role="alert"></div> }
+
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3"><div><h2 class="h5 fw-bold mb-1">Platform overview</h2><p class="small text-secondary mb-0">Current totals returned by the Platform API.</p></div><span class="small text-secondary">Live API data</span></div>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-4"><div class="pa-stat"><div class="d-flex justify-content-between align-items-start"><span class="pa-stat-label">Tenants</span><span class="pa-stat-icon" aria-hidden="true">▣</span></div><div class="pa-stat-value">@Model.Summary.TotalTenants</div><div class="small mt-2"><span class="text-success fw-semibold">@Model.Summary.ActiveTenants active</span><span class="text-secondary"> · @(Math.Max(0, Model.Summary.TotalTenants - Model.Summary.ActiveTenants)) inactive</span></div></div></div>
+        <div class="col-6 col-xl-4"><div class="pa-stat"><div class="d-flex justify-content-between align-items-start"><span class="pa-stat-label">Platform users</span><span class="pa-stat-icon" aria-hidden="true">♙</span></div><div class="pa-stat-value">@Model.Summary.TotalUsers</div><div class="small mt-2"><span class="text-success fw-semibold">@Model.Summary.ActiveUsers active</span><span class="text-secondary"> · @(Math.Max(0, Model.Summary.TotalUsers - Model.Summary.ActiveUsers)) inactive</span></div></div></div>
+        <div class="col-6 col-xl-4"><div class="pa-stat"><div class="d-flex justify-content-between align-items-start"><span class="pa-stat-label">Projects</span><span class="pa-stat-icon" aria-hidden="true">◈</span></div><div class="pa-stat-value">@Model.Summary.TotalProjects</div><div class="small mt-2"><span class="text-success fw-semibold">@Model.Summary.ActiveProjects active</span><span class="text-secondary"> · @(Math.Max(0, Model.Summary.TotalProjects - Model.Summary.ActiveProjects)) inactive</span></div></div></div>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-        <a asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index" class="btn btn-primary">Manage projects</a>
-        <form asp-area="PlatformAdmin" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-secondary">Sign out</button>
-        </form>
+
+    <div class="d-flex align-items-end justify-content-between gap-2 mb-3"><div><h2 class="h5 fw-bold mb-1">Quick actions</h2><p class="small text-secondary mb-0">Jump directly to common administration tasks.</p></div></div>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-4"><a class="pa-action" asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index"><span class="pa-action-icon" aria-hidden="true">▣</span><span class="flex-grow-1"><span class="d-block fw-semibold">Tenants &amp; branches</span><span class="d-block small text-secondary mt-1">Manage organizations and their locations.</span><span class="d-inline-block small text-primary mt-2">Open tenant management →</span></span></a></div>
+        <div class="col-12 col-md-6 col-xl-4"><a class="pa-action" asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index"><span class="pa-action-icon" aria-hidden="true">◈</span><span class="flex-grow-1"><span class="d-block fw-semibold">Projects</span><span class="d-block small text-secondary mt-1">Review projects associated with tenants.</span><span class="d-inline-block small text-primary mt-2">Open projects →</span></span></a></div>
+        @if (canViewUsers) { <div class="col-12 col-md-6 col-xl-4"><a class="pa-action" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index"><span class="pa-action-icon" aria-hidden="true">♙</span><span class="flex-grow-1"><span class="d-block fw-semibold">Users &amp; access</span><span class="d-block small text-secondary mt-1">Manage accounts and scoped role assignments.</span><span class="d-inline-block small text-primary mt-2">Manage users →</span></span></a></div> }
+        @if (canViewRoles) { <div class="col-12 col-md-6 col-xl-4"><a class="pa-action" asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index"><span class="pa-action-icon" aria-hidden="true">⚿</span><span class="flex-grow-1"><span class="d-block fw-semibold">Roles &amp; permissions</span><span class="d-block small text-secondary mt-1">Review role permissions and access policies.</span><span class="d-inline-block small text-primary mt-2">Manage roles →</span></span></a></div> }
+        <div class="col-12 col-md-6 col-xl-4"><a class="pa-action" asp-area="PlatformAdmin" asp-controller="MenuAccess" asp-action="Index"><span class="pa-action-icon" aria-hidden="true">☷</span><span class="flex-grow-1"><span class="d-block fw-semibold">Menu access</span><span class="d-block small text-secondary mt-1">Review navigation access configuration.</span><span class="d-inline-block small text-primary mt-2">Open menu access →</span></span></a></div>
     </div>
-</div>
 
-@if (!ViewData.ModelState.IsValid)
-{
-    <div asp-validation-summary="All" class="alert alert-warning" role="alert"></div>
-}
-
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-        <div class="text-secondary small">Total tenants</div><div class="display-6 fw-semibold">@Model.Summary.TotalTenants</div><div class="small text-success">@Model.Summary.ActiveTenants active</div>
-    </div></div></div>
-    <div class="col-sm-6 col-xl-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-        <div class="text-secondary small">Platform users</div><div class="display-6 fw-semibold">@Model.Summary.TotalUsers</div><div class="small text-success">@Model.Summary.ActiveUsers active</div>
-    </div></div></div>
-    <div class="col-sm-6 col-xl-4"><div class="card border-0 shadow-sm h-100"><div class="card-body">
-        <div class="text-secondary small">Projects</div><div class="display-6 fw-semibold">@Model.Summary.TotalProjects</div><div class="small text-success">@Model.Summary.ActiveProjects active</div>
-    </div></div></div>
-</div>
-
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
-        <div><h2 class="h5 mb-1">Recent tenants</h2><p class="text-secondary small mb-0">Latest five tenants returned by the platform API</p></div>
-        <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-primary btn-sm">Manage tenants</a>
-    </div>
-    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>Code</th><th>Tenant name</th><th>Status</th></tr></thead>
-        <tbody>
-        @if (Model.Tenants.Count == 0) { <tr><td colspan="3" class="text-center text-secondary py-4">No tenants have been created yet.</td></tr> }
-        else
-        {
-            @foreach (var tenant in Model.Tenants)
+    <section class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-body border-bottom p-3 p-lg-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div><h2 class="h5 fw-bold mb-1">Recent tenants</h2><p class="small text-secondary mb-0">Latest five tenants returned by the platform API.</p></div>
+            <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-primary btn-sm">View all tenants →</a>
+        </div>
+        <div class="table-responsive"><table class="table pa-table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th class="ps-3 ps-lg-4">Tenant code</th><th>Tenant name</th><th>Status</th><th class="text-end pe-3 pe-lg-4">Action</th></tr></thead>
+            <tbody>
+            @if (Model.Tenants.Count == 0) { <tr><td colspan="4" class="text-center text-secondary py-5"><div class="fs-1 mb-2" aria-hidden="true">▣</div><div class="fw-semibold">No tenants created yet</div><div class="small mb-3">Create your first tenant to begin organizing projects and branches.</div><a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-sm btn-primary">Create tenant</a></td></tr> }
+            else
             {
-                <tr><td class="fw-semibold">@tenant.Code</td><td>@tenant.Name</td><td>@if (tenant.IsActive) { <span class="badge bg-success-subtle text-success">Active</span> } else { <span class="badge bg-secondary-subtle text-secondary">Inactive</span> }</td></tr>
+                @foreach (var tenant in Model.Tenants)
+                {
+                    <tr><td class="ps-3 ps-lg-4"><code class="fw-semibold">@tenant.Code</code></td><td><div class="fw-semibold">@tenant.Name</div><div class="small text-secondary">Tenant ID: @tenant.Id</div></td><td>@if (tenant.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis">✓ Active</span> } else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }</td><td class="text-end pe-3 pe-lg-4"><a asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Index" asp-route-tenantId="@tenant.Id" class="btn btn-sm btn-outline-secondary">Branches</a></td></tr>
+                }
             }
-        }
-        </tbody>
-    </table></div>
+            </tbody>
+        </table></div>
+    </section>
+    <p class="small text-secondary mt-3 mb-0"><span aria-hidden="true">▣</span> Access to tenant data must always be enforced by the API, not by dashboard visibility alone.</p>
 </div>
