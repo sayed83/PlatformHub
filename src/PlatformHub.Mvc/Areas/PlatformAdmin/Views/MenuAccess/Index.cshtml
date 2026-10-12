@@ -4,6 +4,15 @@
 }
 <style>
     .policy-shell { min-width:0; }
+    .policy-hero { border:1px solid var(--bs-border-color); border-radius:1rem; padding:1.25rem 1.4rem; background:linear-gradient(120deg,rgba(13,110,253,.09),rgba(13,110,253,.015)); }
+    .policy-project-card { min-width:min(100%,320px); padding:.85rem 1rem; border:1px solid var(--bs-border-color); border-radius:.85rem; background:var(--bs-body-bg); }
+    .policy-help { border:1px solid var(--bs-border-color); border-radius:.8rem; background:var(--bs-tertiary-bg); padding:.85rem 1rem; }
+    .policy-card-head { border-bottom:1px solid var(--bs-border-color); }
+    .policy-savebar { position:sticky; bottom:0; z-index:5; background:var(--bs-body-bg); border-top:1px solid var(--bs-border-color); }
+    .policy-table tbody tr:nth-child(even) td:not(:first-child) { background:rgba(127,127,127,.025); }
+    .policy-table td:first-child { box-shadow:2px 0 5px rgba(20,20,40,.035); }
+    .policy-check:focus-visible, .policy-decision:focus-visible { outline:3px solid rgba(13,110,253,.35); outline-offset:2px; }
+    .policy-table-wrap:has(tbody tr:nth-child(2)) { scroll-behavior:smooth; }
     .policy-tabs { border-bottom:1px solid #ded9e8; gap:.35rem; flex-wrap:wrap; }
     .policy-tabs .nav-link { color:#746783; border:0; border-bottom:3px solid transparent; border-radius:0; padding:.8rem 1rem; font-weight:600; }
     .policy-tabs .nav-link.active { color:#793ee0; background:transparent; border-bottom-color:#793ee0; }
@@ -40,17 +49,24 @@
 </style>
 
 <div class="policy-shell">
-    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-        <div>
-            <div class="text-primary small fw-semibold text-uppercase">Access control</div>
-            <h1 class="h3 mb-1">Menu Policy Editor</h1>
-            <p class="text-secondary mb-0">Configure project menu permissions in a role matrix, then apply user-specific overrides.</p>
+    <section class="policy-hero d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div class="flex-grow-1">
+            <div class="text-primary small fw-bold text-uppercase mb-1">Access control · Configuration</div>
+            <h1 class="h3 fw-bold mb-1">Menu Policy Editor</h1>
+            <p class="text-secondary mb-0">Control which roles and individual users can see project menu entries.</p>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <span class="badge rounded-pill text-bg-light border text-dark">Role-based access</span>
+                <span class="badge rounded-pill text-bg-light border text-dark">User overrides</span>
+                <span class="badge rounded-pill text-bg-light border text-dark">Project-specific</span>
+            </div>
         </div>
-        <div style="min-width:min(100%,300px)">
-            <label class="form-label fw-semibold mb-1" for="projectSelect">Project</label>
+        <div class="policy-project-card">
+            <label class="form-label fw-semibold mb-1" for="projectSelect">Active project</label>
             <select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select>
+            <div class="small text-secondary mt-2">Choose a project to load its menus, roles, and users.</div>
         </div>
-    </div>
+    </section>
+    <div class="policy-help small text-secondary mb-3"><strong class="text-body">How it works:</strong> Set role defaults in the first tab. Use the user override tab only for exceptions: <strong>Inherit</strong> uses role access, while <strong>Allow</strong> or <strong>Deny</strong> overrides it for that user.</div>
 
     <div id="notice" class="alert d-none policy-status py-2" role="status" aria-live="polite"></div>
 
@@ -62,9 +78,9 @@
     <div class="tab-content">
         <section class="tab-pane fade show active" id="rolePane" role="tabpanel" aria-labelledby="role-tab">
             <div class="card border-0 shadow-sm">
-                <div class="card-body pb-3">
+                <div class="card-body pb-3 policy-card-head">
                     <div class="policy-toolbar">
-                        <div><h2 class="h5 mb-1">Role permission matrix</h2><p class="text-secondary small mb-0">Each column represents a role; each row represents a project menu.</p></div>
+                        <div><h2 class="h5 fw-bold mb-1">Role permission matrix</h2><p class="text-secondary small mb-0">Each column is a role; each row is a menu entry. Checked means allowed.</p></div>
                         <div class="policy-search"><span aria-hidden="true">⌕</span><input id="roleSearch" class="form-control" type="search" placeholder="Search menu or module…" aria-label="Search role menu matrix"></div>
                     </div>
                 </div>
@@ -74,18 +90,18 @@
                         <tbody id="roleRows"><tr><td colspan="2" class="text-center text-secondary py-5">Choose a project to load the role matrix.</td></tr></tbody>
                     </table>
                 </div>
-                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div class="policy-legend"><span><i class="policy-dot" style="background:#198754"></i> Allowed</span><span><i class="policy-dot" style="background:#c7c2ce"></i> Denied</span></div>
-                    <button class="btn btn-primary" id="saveRole" disabled>Save role permissions</button>
+                <div class="card-body policy-savebar d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div><div class="policy-legend"><span><i class="policy-dot" style="background:#198754"></i> Allowed</span><span><i class="policy-dot" style="background:#c7c2ce"></i> Denied</span></div><div class="small text-secondary mt-1">Save is enabled after you change a permission.</div></div>
+                    <button class="btn btn-primary px-3" id="saveRole" disabled><span aria-hidden="true">✓</span> Save role permissions</button>
                 </div>
             </div>
         </section>
 
         <section class="tab-pane fade" id="userPane" role="tabpanel" aria-labelledby="user-tab">
             <div class="card border-0 shadow-sm">
-                <div class="card-body pb-3">
+                <div class="card-body pb-3 policy-card-head">
                     <div class="policy-toolbar">
-                        <div><h2 class="h5 mb-1">User override matrix</h2><p class="text-secondary small mb-0">User decisions override the combined role result. Inherit keeps role permissions.</p></div>
+                        <div><h2 class="h5 fw-bold mb-1">User override matrix</h2><p class="text-secondary small mb-0">Use this only when a user needs an exception to their role defaults.</p></div>
                         <div class="policy-search"><span aria-hidden="true">⌕</span><input id="userSearch" class="form-control" type="search" placeholder="Search menu or module…" aria-label="Search user menu matrix"></div>
                     </div>
                     <div class="policy-legend mt-3"><span><i class="policy-dot" style="background:#198754"></i> Allow</span><span><i class="policy-dot" style="background:#dc3545"></i> Deny</span><span><i class="policy-dot" style="background:#9a8da9"></i> Inherit from roles</span></div>
@@ -96,9 +112,9 @@
                         <tbody id="userRows"><tr><td colspan="2" class="text-center text-secondary py-5">Choose a project to load the user matrix.</td></tr></tbody>
                     </table>
                 </div>
-                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="card-body policy-savebar d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div class="small text-secondary">Only Allow/Deny entries are stored; Inherit removes a user override.</div>
-                    <button class="btn btn-primary" id="saveUser" disabled>Save user overrides</button>
+                    <button class="btn btn-primary px-3" id="saveUser" disabled><span aria-hidden="true">✓</span> Save user overrides</button>
                 </div>
             </div>
         </section>
