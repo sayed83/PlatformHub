@@ -144,7 +144,18 @@
 <script>
 (() => {
  const projectSelect=document.getElementById('projectSelect'),moduleRows=document.getElementById('moduleRows'),menuRows=document.getElementById('menuRows');
- const modal=new bootstrap.Modal(document.getElementById('editModal'));let modules=[],menus=[],kind='modules';
+ const modalElement=document.getElementById('editModal');
+ const modal={
+  show(){modalElement.classList.add('show');modalElement.style.display='block';modalElement.removeAttribute('aria-hidden');document.body.classList.add('modal-open');document.body.style.overflow='hidden';let backdrop=document.getElementById('pmModalBackdrop');if(!backdrop){backdrop=document.createElement('div');backdrop.id='pmModalBackdrop';backdrop.className='modal-backdrop fade show';document.body.appendChild(backdrop);backdrop.addEventListener('click',hideModal);}const first=modalElement.querySelector('input:not([type=hidden]),select,textarea,button');first?.focus();},
+  hide(){hideModal();}
+ };
+ function hideModal(){modalElement.classList.remove('show');modalElement.style.display='none';modalElement.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open');document.body.style.overflow='';document.getElementById('pmModalBackdrop')?.remove();}
+ document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(button=>button.addEventListener('click',hideModal));
+ document.querySelectorAll('[data-bs-toggle="tab"]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab=>tab.classList.toggle('active',tab===button));
+  document.querySelectorAll('.tab-pane').forEach(pane=>{const active='#'+pane.id===button.dataset.bsTarget;pane.classList.toggle('show',active);pane.classList.toggle('active',active);});
+ }));
+ let modules=[],menus=[],kind='modules';
  const url=(action)=>'@Url.Action("__ACTION__","MenuManagement",new { area="PlatformAdmin" })'.replace('__ACTION__',action);
  const notice=(message,type='success')=>{const n=document.getElementById('notice');n.textContent=message;n.className='alert alert-'+type;};
  const fail=message=>{const e=document.getElementById('formError');e.textContent=message;e.classList.remove('d-none');};
