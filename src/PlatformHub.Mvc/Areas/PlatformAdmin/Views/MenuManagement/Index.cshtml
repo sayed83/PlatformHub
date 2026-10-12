@@ -682,21 +682,32 @@
             render();
         }
         function makeMenuCode(displayName, currentId = 0) {
-            // "Test Sort Order" -> "TEST_SORT_ORDER"
+            // Preserve every character in each word: "Follow up Serial" -> "FOLLOW_UP_SERIAL".
             const base = String(displayName || '')
-                .normalize('NFKD')
-                .replace(/[\\u0300-\\u036f]/g, '')
                 .trim()
-                .replace(/[^a-zA-Z0-9]+/g, '_')
+                .replace(/[^A-Za-z0-9]+/g, '_')
                 .replace(/^_+|_+$/g, '')
                 .toUpperCase()
                 .slice(0, 50);
+
             if (!base) return '';
-            const used = new Set(menus.filter(x => Number(x.id) !== Number(currentId)).map(x => String(x.code || '').toUpperCase()));
+
+            const used = new Set(
+                menus
+                    .filter(x => Number(x.id) !== Number(currentId))
+                    .map(x => String(x.code || '').toUpperCase())
+            );
+
             if (!used.has(base)) return base;
+
             let suffix = 2;
-            while (used.has((base.slice(0, 50 - String(suffix).length - 1) + '_' + suffix).toUpperCase())) suffix++;
-            return (base.slice(0, 50 - String(suffix).length - 1) + '_' + suffix).toUpperCase();
+            let candidate = base;
+            do {
+                const ending = '_' + suffix++;
+                candidate = base.slice(0, 50 - ending.length) + ending;
+            } while (used.has(candidate));
+
+            return candidate;
         }
         function nextModuleSortOrder(moduleId, currentId = 0) {
             const selectedModuleId = Number(moduleId || 0);
