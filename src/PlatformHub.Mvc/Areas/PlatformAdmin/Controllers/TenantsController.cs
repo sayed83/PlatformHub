@@ -63,6 +63,19 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Activate(long id, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/activate", new { }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? "Tenant activation failed.")
+            : "Tenant activated successfully.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TenantManagementViewModel model, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true")
