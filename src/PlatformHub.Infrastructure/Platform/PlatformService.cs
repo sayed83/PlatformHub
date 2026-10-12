@@ -115,6 +115,53 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
         return new ProjectDto(project.Id, tenant.Id, tenant.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
     }
 
+    public async Task<ProjectDto> UpdateProjectAsync(long id, string code, string name, string? baseUrl, CancellationToken cancellationToken)
+    {
+        code = code?.Trim().ToUpperInvariant() ?? "";
+        name = name?.Trim() ?? "";
+        baseUrl = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
+        if (id <= 0 || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("A valid project ID, code, and name are required.");
+        if (code.Length > 50 || name.Length > 200 || (baseUrl?.Length ?? 0) > 500)
+            throw new ArgumentException("Project code must be at most 50 characters, name 200, and URL 500.");
+        var project = await db.Projects.Include(x => x.Tenant).SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new ArgumentException("Project was not found.");
+        if (await db.Projects.AnyAsync(x => x.Id != id && x.TenantId == project.TenantId && x.Code == code, cancellationToken))
+            throw new InvalidOperationException("This project code already exists for the selected tenant.");
+        project.Code = code;
+        project.Name = name;
+        project.BaseUrl = baseUrl;
+        await db.SaveChangesAsync(cancellationToken);
+        return new ProjectDto(project.Id, project.TenantId, project.Tenant.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
+    }
+
+    public async Task DeleteProjectAsync(long id, bool hardDelete, CancellationToken cancellationToken)
+    {
+        var project = await db.Projects.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new ArgumentException("Project was not found.");
+        if (!hardDelete)
+        {
+            project.IsActive = false;
+            await db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+        var hasAssignments = await db.UserRoleAssignments.AnyAsync(x => x.ProjectId == id, cancellationToken);
+        if (hasAssignments)
+            throw new InvalidOperationException("Hard delete is unavailable because this project has role assignments. Deactivate it instead.");
+        db.Projects.Remove(project);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ActivateProjectAsync(long id, CancellationToken cancellationToken)
+    {
+        var project = await db.Projects.Include(x => x.Tenant).SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new ArgumentException("Project was not found.");
+        if (!project.Tenant.IsActive)
+            throw new InvalidOperationException("This project cannot be activated because its tenant is inactive.");
+        project.IsActive = true;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<BranchDto>> GetBranchesAsync(long tenantId, CancellationToken cancellationToken)
     {
         if (tenantId <= 0) throw new ArgumentException("A valid tenant ID is required.");
