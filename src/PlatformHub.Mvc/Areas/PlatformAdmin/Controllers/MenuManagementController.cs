@@ -17,8 +17,10 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
-        var data = await api.GetAsync<object>("api/v1/project-menus/projects", token, ct);
-        return data is null ? StatusCode(502, new { message = "Could not load projects from Platform API." }) : Json(data);
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement>("api/v1/project-menus/projects", token, ct);
+        if (result.StatusCode == 401) return Unauthorized(new { message = "Platform API session expired. Please sign in again." });
+        if (result.Value is null) return StatusCode(result.StatusCode ?? 502, new { message = result.Error ?? "Could not load projects from Platform API." });
+        return new JsonResult(result.Value);
     }
 
     [HttpGet]
@@ -29,8 +31,10 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
         var path = kind == "modules" ? $"api/v1/project-menus/modules?projectId={projectId}"
             : $"api/v1/project-menus/items?projectId={projectId}";
-        var data = await api.GetAsync<object>(path, token, ct);
-        return data is null ? StatusCode(502, new { message = "Could not load data from Platform API." }) : Json(data);
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement>(path, token, ct);
+        if (result.StatusCode == 401) return Unauthorized(new { message = "Platform API session expired. Please sign in again." });
+        if (result.Value is null) return StatusCode(result.StatusCode ?? 502, new { message = result.Error ?? "Could not load data from Platform API." });
+        return new JsonResult(result.Value);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
