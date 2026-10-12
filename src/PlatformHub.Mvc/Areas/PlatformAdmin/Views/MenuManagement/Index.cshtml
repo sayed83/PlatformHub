@@ -706,7 +706,7 @@
             const controller = document.getElementById('entryController').value.trim().replace(/^\\/+|\\/+$/g, '');
             const action = document.getElementById('entryAction').value.trim().replace(/^\\/+|\\/+$/g, '');
             document.getElementById('entryRoute').value = controller && action
-                ? '/' + controller + '/' + action
+                ? '/' + controller.toLowerCase() + '/' + action.toLowerCase()
                 : '';
         }
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
