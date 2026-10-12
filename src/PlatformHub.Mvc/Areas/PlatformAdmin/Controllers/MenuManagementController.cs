@@ -37,6 +37,31 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         return new JsonResult(result.Value);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> NextSortOrder(long projectId, long? moduleId, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var path = $"api/v1/project-menus/next-sort-order?projectId={projectId}&moduleId={moduleId?.ToString() ?? ""}";
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>(path, token, ct);
+        if (result.StatusCode == 401) return Unauthorized(new { message = "Platform API session expired. Please sign in again." });
+        if (result.Value is null) return StatusCode(result.StatusCode ?? 502, new { message = result.Error ?? "Could not calculate menu sort order." });
+        return new JsonResult(result.Value);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Summary(long projectId, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>($"api/v1/project-menus/summary?projectId={projectId}", token, ct);
+        if (result.StatusCode == 401) return Unauthorized(new { message = "Platform API session expired. Please sign in again." });
+        if (result.Value is null) return StatusCode(result.StatusCode ?? 502, new { message = result.Error ?? "Could not load project summary." });
+        return new JsonResult(result.Value);
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveModule([FromBody] SaveModuleRequest model, CancellationToken ct)
     {
