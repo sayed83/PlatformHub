@@ -596,7 +596,7 @@
                     <input type="hidden" id="entryId"><input type="hidden" id="entryKind">
                     <div class="row g-3">
                         <div class="col-12"><div class="pm-section-label">Basic information</div></div>
-                        <div class="col-md-5"><label class="form-label pm-field-label" for="entryCode">Unique code *</label><input id="entryCode" class="form-control" maxlength="50" placeholder="e.g. SALES_REPORT" required><div class="form-text">Unique within the selected project.</div></div>
+                        <div class="col-md-5"><label class="form-label pm-field-label" for="entryCode">Unique code *</label><input id="entryCode" class="form-control" maxlength="50" placeholder="e.g. SALES_REPORT" required><div class="form-text">Auto-generated from the display name (e.g. Serial List → SL). You can edit it manually.</div></div>
                         <div class="col-md-7"><label class="form-label pm-field-label" for="entryName">Display name *</label><input id="entryName" class="form-control" maxlength="200" placeholder="e.g. Sales report" required></div>
                         <div class="col-12 module-only"><label class="form-label pm-field-label" for="entryDescription">Description</label><textarea id="entryDescription" class="form-control" rows="2" maxlength="500" placeholder="What belongs in this module?"></textarea></div>
                         <div class="col-md-6 module-only"><label class="form-label pm-field-label" for="entryIcon">Module icon</label><input id="entryIcon" class="form-control" maxlength="100" placeholder="bi bi-box"></div>
@@ -607,10 +607,10 @@
                         <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryArea">MVC Area</label><input id="entryArea" class="form-control" maxlength="100" placeholder="PlatformAdmin"></div>
                         <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryController">Controller</label><input id="entryController" class="form-control" maxlength="100" placeholder="Sales"></div>
                         <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryAction">Action</label><input id="entryAction" class="form-control" maxlength="100" placeholder="Index"></div>
-                        <div class="col-md-8 menu-only"><label class="form-label pm-field-label" for="entryRoute">Direct route URL</label><input id="entryRoute" class="form-control" maxlength="500" placeholder="/Sales/Index or https://example.com"><div class="form-text">Use either a direct route or the MVC destination above.</div></div>
+                        <div class="col-md-8 menu-only"><label class="form-label pm-field-label" for="entryRoute">Direct route URL</label><input id="entryRoute" class="form-control" maxlength="500" placeholder="/Sales/Index or https://example.com"><div class="form-text">Auto-generated as /controller/action. You can edit the route manually.</div></div>
                         <div class="col-md-4 menu-only"><label class="form-label pm-field-label" for="entryMenuIcon">Menu icon</label><input id="entryMenuIcon" class="form-control" maxlength="100" placeholder="bi bi-list"></div>
                         <div class="col-12"><div class="pm-section-label">Display settings</div></div>
-                        <div class="col-md-4"><label class="form-label pm-field-label" for="entrySort">Sort order</label><input id="entrySort" class="form-control" type="number" value="0" min="0" max="100000"><div class="form-text">Smaller numbers appear first.</div></div>
+                        <div class="col-md-4"><label class="form-label pm-field-label" for="entrySort">Sort order</label><input id="entrySort" class="form-control" type="number" value="0" min="0" max="100000"><div class="form-text">New entries default to the last order in the selected module + 1.</div></div>
                         <div class="col-md-4 menu-only"><div class="pm-check-card"><div class="form-check"><input id="entryExternal" class="form-check-input" type="checkbox"><label class="form-check-label fw-semibold" for="entryExternal">External link</label></div><div class="form-text">Opens an HTTP/HTTPS destination.</div></div></div>
                         <div class="col-md-4"><div class="pm-check-card"><div class="form-check"><input id="entryActive" class="form-check-input" type="checkbox" checked><label class="form-check-label fw-semibold" for="entryActive">Active</label></div><div class="form-text">Inactive entries are hidden from navigation.</div></div></div>
                     </div>
@@ -635,7 +635,7 @@
             document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => tab.classList.toggle('active', tab === button));
             document.querySelectorAll('.tab-pane').forEach(pane => { const active = '#' + pane.id === button.dataset.bsTarget; pane.classList.toggle('show', active); pane.classList.toggle('active', active); });
         }));
-        let modules = [], menus = [], kind = 'modules';
+        let modules = [], menus = [], kind = 'modules', codeAuto = false, routeAuto = false;
         const url = (action) => '@Url.Action("__ACTION__", "MenuManagement", new { area = "PlatformAdmin" })'.replace('__ACTION__', action);
         const notice = (message, type = 'success') => { const n = document.getElementById('notice'); n.textContent = message; n.className = 'alert alert-' + type; };
         const fail = message => { const e = document.getElementById('formError'); e.textContent = message; e.classList.remove('d-none'); };
@@ -681,6 +681,34 @@
             menus = await ir.json();
             render();
         }
+        function makeMenuCode(displayName, currentId = 0) {
+            const words = String(displayName || '').trim().split(/[^\\p{L}\\p{N}]+/u).filter(Boolean);
+            if (!words.length) return '';
+            const base = (words.length > 1
+                ? words.map(word => Array.from(word)[0]).join('')
+                : Array.from(words[0]).slice(0, 2).join('')).toUpperCase().slice(0, 50);
+            if (!base) return '';
+            const used = new Set(menus.filter(x => Number(x.id) !== Number(currentId)).map(x => String(x.code || '').toUpperCase()));
+            if (!used.has(base)) return base;
+            let suffix = 2;
+            while (used.has((base.slice(0, 46) + suffix).toUpperCase())) suffix++;
+            return (base.slice(0, 46) + suffix).toUpperCase();
+        }
+        function nextModuleSortOrder(moduleId, currentId = 0) {
+            const selectedModuleId = Number(moduleId || 0);
+            const siblings = menus.filter(x =>
+                Number(x.id) !== Number(currentId) &&
+                Number(x.moduleId || 0) === selectedModuleId);
+            return siblings.reduce((max, item) => Math.max(max, Number(item.sortOrder) || 0), 0) + 1;
+        }
+        function syncGeneratedRoute() {
+            if (!routeAuto) return;
+            const controller = document.getElementById('entryController').value.trim().replace(/^\\/+|\\/+$/g, '');
+            const action = document.getElementById('entryAction').value.trim().replace(/^\\/+|\\/+$/g, '');
+            document.getElementById('entryRoute').value = controller && action
+                ? '/' + controller + '/' + action
+                : '';
+        }
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
         function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
@@ -692,19 +720,39 @@
             document.getElementById('moduleSummary').textContent = filteredModules.length + ' of ' + modules.length + ' modules'; document.getElementById('menuSummary').textContent = filteredMenus.length + ' of ' + menus.length + ' menu entries';
         }
         function openEditor(type, item = {}) {
-            kind = type; document.getElementById('editForm').reset(); document.getElementById('formError').classList.add('d-none'); document.getElementById('entryId').value = item.id || ''; document.getElementById('entryKind').value = type; document.getElementById('modalTitle').textContent = (item.id ? 'Edit ' : 'Create ') + (type === 'modules' ? 'module' : 'menu entry'); document.getElementById('modalKicker').textContent = item.id ? 'UPDATE PROJECT CONFIGURATION' : 'NEW PROJECT CONFIGURATION';
+            kind = type;
+            codeAuto = type === 'items' && !item.id;
+            routeAuto = type === 'items' && !item.id;
+            document.getElementById('editForm').reset(); document.getElementById('formError').classList.add('d-none'); document.getElementById('entryId').value = item.id || ''; document.getElementById('entryKind').value = type; document.getElementById('modalTitle').textContent = (item.id ? 'Edit ' : 'Create ') + (type === 'modules' ? 'module' : 'menu entry'); document.getElementById('modalKicker').textContent = item.id ? 'UPDATE PROJECT CONFIGURATION' : 'NEW PROJECT CONFIGURATION';
             document.querySelectorAll('.module-only').forEach(e => e.classList.toggle('d-none', type !== 'modules')); document.querySelectorAll('.menu-only').forEach(e => e.classList.toggle('d-none', type !== 'items'));
             for (const [id, key] of [['entryCode', 'code'], ['entryName', 'name'], ['entryDescription', 'description'], ['entryIcon', 'icon'], ['entryArea', 'area'], ['entryController', 'controller'], ['entryAction', 'action'], ['entryRoute', 'routeUrl'], ['entryMenuIcon', 'icon'], ['entrySort', 'sortOrder']]) { const el = document.getElementById(id); if (el) el.value = item[key] ?? (id === 'entrySort' ? 0 : ''); }
             document.getElementById('entryActive').checked = item.isActive ?? true; document.getElementById('entryExternal').checked = item.isExternal ?? false;
             document.getElementById('moduleId').innerHTML = '<option value="">No module (standalone)</option>' + modules.map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
             document.getElementById('parentId').innerHTML = '<option value="">No parent (top-level)</option>' + menus.filter(x => x.id !== item.id).map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
-            document.getElementById('moduleId').value = item.moduleId || ''; document.getElementById('parentId').value = item.parentMenuId || '';
+            document.getElementById('moduleId').value = item.moduleId || '';
+            document.getElementById('parentId').value = item.parentMenuId || '';
+            if (type === 'items' && !item.id) {
+                document.getElementById('entryCode').value = makeMenuCode(document.getElementById('entryName').value);
+                document.getElementById('entrySort').value = nextModuleSortOrder(document.getElementById('moduleId').value);
+            }
             modalElement.querySelector('.modal-body').scrollTop = 0;
             modal.show();
         }
         document.getElementById('addModule').addEventListener('click', () => openEditor('modules')); document.getElementById('addMenu').addEventListener('click', () => openEditor('items')); document.getElementById('quickAddMenu').addEventListener('click', () => { if (!selectedProject()) { notice('Choose a project before adding a menu.', 'warning'); return; } document.querySelector('#menus-tab').click(); openEditor('items'); });
         moduleRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-module]')) return openEditor('modules'); const b = e.target.closest('[data-edit-module]'); if (b) openEditor('modules', modules.find(x => x.id === Number(b.dataset.editModule))); });
         menuRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-menu]')) return openEditor('items'); const b = e.target.closest('[data-edit-menu]'); if (b) openEditor('items', menus.find(x => x.id === Number(b.dataset.editMenu))); });
+        document.getElementById('entryName').addEventListener('input', () => {
+            if (kind === 'items' && codeAuto)
+                document.getElementById('entryCode').value = makeMenuCode(document.getElementById('entryName').value, Number(document.getElementById('entryId').value) || 0);
+        });
+        document.getElementById('entryCode').addEventListener('input', () => { codeAuto = false; });
+        document.getElementById('entryController').addEventListener('input', syncGeneratedRoute);
+        document.getElementById('entryAction').addEventListener('input', syncGeneratedRoute);
+        document.getElementById('entryRoute').addEventListener('input', () => { routeAuto = false; });
+        document.getElementById('moduleId').addEventListener('change', () => {
+            if (kind === 'items' && !document.getElementById('entryId').value)
+                document.getElementById('entrySort').value = nextModuleSortOrder(document.getElementById('moduleId').value);
+        });
         document.getElementById('moduleSearch').addEventListener('input', render); document.getElementById('menuSearch').addEventListener('input', render);
         projectSelect.addEventListener('change', () => refresh().catch(e => notice(e.message, 'danger'))); document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
         document.getElementById('editForm').addEventListener('submit', async e => {
