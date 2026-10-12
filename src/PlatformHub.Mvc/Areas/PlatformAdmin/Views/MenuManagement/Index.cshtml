@@ -670,16 +670,41 @@
         }
         async function refresh() {
             const p = selectedProject();
-            if (!p) { modules = []; menus = []; render(); return; }
-            const [mr, ir] = await Promise.all([
+            if (!p) {
+                modules = []; menus = [];
+                render();
+                document.getElementById('moduleCount').textContent = '0';
+                document.getElementById('menuCount').textContent = '0';
+                document.getElementById('activeCount').textContent = '0';
+                return;
+            }
+
+            const [mr, ir, sr] = await Promise.all([
                 apiFetch(url('Data') + '?kind=modules&projectId=' + p),
-                apiFetch(url('Data') + '?kind=items&projectId=' + p)
+                apiFetch(url('Data') + '?kind=items&projectId=' + p),
+                apiFetch(url('Summary') + '?projectId=' + p)
             ]);
             if (!mr.ok) throw Error(await readError(mr, 'Unable to load modules.'));
             if (!ir.ok) throw Error(await readError(ir, 'Unable to load menu entries.'));
-            modules = await mr.json();
-            menus = await ir.json();
+            if (!sr.ok) throw Error(await readError(sr, 'Unable to load project summary.'));
+
+            [modules, menus] = await Promise.all([mr.json(), ir.json()]);
+            const summary = await sr.json();
             render();
+            document.getElementById('moduleCount').textContent = summary.moduleCount;
+            document.getElementById('menuCount').textContent = summary.menuCount;
+            document.getElementById('activeCount').textContent = summary.activeCount;
+        }
+
+        async function loadNextSortOrder(moduleId) {
+            const p = selectedProject();
+            if (!p) return 1;
+            const query = new URLSearchParams({ projectId: String(p) });
+            if (moduleId) query.set('moduleId', String(moduleId));
+            const response = await apiFetch(url('NextSortOrder') + '?' + query.toString());
+            if (!response.ok) throw Error(await readError(response, 'Unable to calculate sort order.'));
+            const result = await response.json();
+            return Number(result.sortOrder) || 1;
         }
         function makeMenuCode(displayName, currentId = 0) {
             // Preserve every character in each word: "Follow up Serial" -> "FOLLOW_UP_SERIAL".
@@ -749,7 +774,13 @@
             document.getElementById('parentId').value = item.parentMenuId || '';
             if (type === 'items' && !item.id) {
                 document.getElementById('entryCode').value = makeMenuCode(document.getElementById('entryName').value);
-                document.getElementById('entrySort').value = nextModuleSortOrder(document.getElementById('moduleId').value);
+                document.getElementById('entrySort').value = '';
+                loadNextSortOrder(document.getElementById('moduleId').value)
+                    .then(value => {
+                        if (kind === 'items' && !document.getElementById('entryId').value)
+                            document.getElementById('entrySort').value = value;
+                    })
+                    .catch(error => notice(error.message, 'danger'));
             }
             modalElement.querySelector('.modal-body').scrollTop = 0;
             modal.show();
@@ -765,12 +796,23 @@
         document.getElementById('entryController').addEventListener('input', syncGeneratedRoute);
         document.getElementById('entryAction').addEventListener('input', syncGeneratedRoute);
         document.getElementById('entryRoute').addEventListener('input', () => { routeAuto = false; });
-        document.getElementById('moduleId').addEventListener('change', () => {
-            if (kind === 'items' && !document.getElementById('entryId').value)
-                document.getElementById('entrySort').value = nextModuleSortOrder(document.getElementById('moduleId').value);
+        document.getElementById('moduleId').addEventListener('change', async () => {
+            if (kind !== 'items' || document.getElementById('entryId').value) return;
+            const sortInput = document.getElementById('entrySort');
+            sortInput.value = '';
+            try {
+                sortInput.value = await loadNextSortOrder(document.getElementById('moduleId').value);
+            } catch (error) {
+                notice(error.message, 'danger');
+            }
         });
         document.getElementById('moduleSearch').addEventListener('input', render); document.getElementById('menuSearch').addEventListener('input', render);
-        projectSelect.addEventListener('change', () => refresh().catch(e => notice(e.message, 'danger'))); document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
+        projectSelect.addEventListener('change', async () => {
+            notice('Loading project navigation…', 'info');
+            try { await refresh(); document.getElementById('notice').classList.add('d-none'); }
+            catch (e) { notice(e.message, 'danger'); }
+        });
+        document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
         document.getElementById('editForm').addEventListener('submit', async e => {
             e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
             const common = { id: Number(document.getElementById('entryId').value) || null, projectId: selectedProject(), code: document.getElementById('entryCode').value, name: document.getElementById('entryName').value, sortOrder: Number(document.getElementById('entrySort').value) || 0, isActive: document.getElementById('entryActive').checked }; let body, action;
@@ -778,6 +820,16 @@
             else { body = { ...common, moduleId: Number(document.getElementById('moduleId').value) || null, parentMenuId: Number(document.getElementById('parentId').value) || null, area: document.getElementById('entryArea').value, controller: document.getElementById('entryController').value, action: document.getElementById('entryAction').value, routeUrl: document.getElementById('entryRoute').value, icon: document.getElementById('entryMenuIcon').value, isExternal: document.getElementById('entryExternal').checked }; action = 'SaveMenu'; }
             const btn = document.getElementById('saveBtn'); btn.disabled = true; btn.textContent = 'Saving…'; try { await send(url(action), body); modal.hide(); await refresh(); notice('Saved successfully.'); } catch (err) { fail(err.message); } finally { btn.disabled = false; btn.textContent = 'Save changes'; }
         });
-        loadProjects().catch(e => notice(e.message, 'danger'));
+        loadProjects()
+            .then(async () => {
+                // Automatically select the first available project and load its data/cards.
+                if (projectSelect.options.length > 1) {
+                    projectSelect.selectedIndex = 1;
+                    await refresh();
+                } else {
+                    await refresh();
+                }
+            })
+            .catch(e => notice(e.message, 'danger'));
     })();
 </script>
