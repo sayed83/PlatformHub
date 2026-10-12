@@ -7,6 +7,7 @@ public sealed class BranchManagementViewModel
     public long TenantId { get; set; }
     public string TenantName { get; set; } = string.Empty;
     public IReadOnlyList<BranchRowViewModel> Branches { get; init; } = Array.Empty<BranchRowViewModel>();
+    public IReadOnlyList<BranchRoleAssignmentViewModel> RoleAssignments { get; init; } = Array.Empty<BranchRoleAssignmentViewModel>();
 
     [Required(ErrorMessage = "Branch code is required.")]
     [StringLength(50)]
@@ -23,3 +24,8 @@ public sealed class BranchManagementViewModel
 
 public sealed record BranchRowViewModel(
     long Id, long TenantId, string TenantCode, string TenantName, string Code, string Name, string? Address, bool IsActive);
+
+public sealed record BranchRoleAssignmentViewModel(
+    long Id, long UserId, string UserName, string DisplayName, bool IsUserActive,
+    long RoleId, string RoleCode, string RoleName, bool IsRoleActive,
+    long? TenantId, string? TenantName, long? ProjectId, string? ProjectName);
