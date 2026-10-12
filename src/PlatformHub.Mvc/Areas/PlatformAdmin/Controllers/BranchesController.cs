@@ -34,6 +34,31 @@ public sealed class BranchesController(PlatformApiClient api) : Controller
         });
     }
 
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(long id, long tenantId, string code, string name, string? address, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/branches/{id}/update", new { code, name, address }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null ? (error ?? "Branch update failed.") : "Branch updated successfully.";
+        return RedirectToAction(nameof(Index), new { tenantId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(long id, long tenantId, bool hardDelete, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/branches/{id}/delete", new { hardDelete }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? (hardDelete ? "Branch hard delete failed." : "Branch deactivation failed."))
+            : (hardDelete ? "Branch permanently deleted." : "Branch deactivated successfully.");
+        return RedirectToAction(nameof(Index), new { tenantId });
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(BranchManagementViewModel model, CancellationToken ct)
     {
