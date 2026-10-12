@@ -253,6 +253,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             {
                 x.Id,
                 x.UserId,
+                x.BranchId,
                 UserName = x.User.UserName,
                 DisplayName = x.User.DisplayName,
                 IsUserActive = x.User.IsActive,
