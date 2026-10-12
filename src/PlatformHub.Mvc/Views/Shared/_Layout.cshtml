@@ -177,7 +177,21 @@ else
   });
   const success=document.querySelector('.alert-success[role="status"]'), error=document.querySelector('.alert-danger[role="alert"]');
   if(success&&success.textContent.trim())Swal.fire({icon:'success',title:'Success',text:success.textContent.trim(),timer:3000,showConfirmButton:false});
-  else if(error&&error.textContent.trim())Swal.fire({icon:'error',title:'Action failed',text:error.textContent.trim()});
+  else if(error&&error.textContent.trim()) {
+   const errorText=error.textContent.trim();
+   const needsRoleLink=/role assignments|role assignment/i.test(errorText);
+   Swal.fire({
+    icon:'error',
+    title:'Action failed',
+    text:errorText,
+    showDenyButton:needsRoleLink,
+    denyButtonText:'Manage roles & permissions',
+    confirmButtonText:'OK',
+    reverseButtons:true
+   }).then(result=>{
+    if(result.isDenied) window.location.href='/PlatformAdmin/Roles';
+   });
+  }
  });
 })();
 </script>
