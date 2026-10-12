@@ -269,6 +269,31 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         return Ok(assignments);
     }
 
+    [HttpGet("tenants/{tenantId:long}/dependencies")]
+    [Authorize(Policy = "Tenant.View")]
+    public async Task<IActionResult> GetTenantDependencies(long tenantId, CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.AsNoTracking().Where(x => x.Id == tenantId)
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).SingleOrDefaultAsync(cancellationToken);
+        if (tenant is null) return NotFound(new { message = "Tenant not found." });
+
+        var branches = await db.Branches.AsNoTracking().Where(x => x.TenantId == tenantId)
+            .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).ToListAsync(cancellationToken);
+        var projects = await db.Projects.AsNoTracking().Where(x => x.TenantId == tenantId)
+            .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).ToListAsync(cancellationToken);
+        var assignments = await db.UserRoleAssignments.AsNoTracking()
+            .Where(x => x.TenantId == tenantId || (x.BranchId != null && db.Branches.Any(b => b.Id == x.BranchId && b.TenantId == tenantId))
+                || (x.ProjectId != null && db.Projects.Any(p => p.Id == x.ProjectId && p.TenantId == tenantId)))
+            .OrderBy(x => x.Role.Name).ThenBy(x => x.User.DisplayName)
+            .Select(x => new {
+                x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, IsUserActive = x.User.IsActive,
+                x.RoleId, RoleName = x.Role.Name, RoleCode = x.Role.Code, IsRoleActive = x.Role.IsActive,
+                x.TenantId, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name,
+                x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name
+            }).ToListAsync(cancellationToken);
+        return Ok(new { Tenant = tenant, Branches = branches, Projects = projects, RoleAssignments = assignments });
+    }
+
     [HttpGet("users/{userId:long}/roles")]
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetUserRoles(long userId, CancellationToken cancellationToken)
