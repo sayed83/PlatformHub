@@ -84,7 +84,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
             </form>
         }
-        else if (User.Identity?.IsAuthenticated == true)
+        else if (User.Identity?.IsAuthenticated == true && !isPlatformAdmin)
         {
             <nav class="d-flex align-items-center gap-2 gap-lg-3 me-2" aria-label="Main navigation">
                 <a class="nav-link text-white px-2 py-1" asp-area="" asp-controller="Workspace" asp-action="Index">Workspace</a>
@@ -98,7 +98,7 @@
     </div>
 </header>
 
-@if (isPlatformAdmin)
+@if (showAdminShell)
 {
     <div class="ph-admin-shell">
         <aside class="ph-sidebar">
