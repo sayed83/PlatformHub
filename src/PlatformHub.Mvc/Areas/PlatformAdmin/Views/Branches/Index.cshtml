@@ -64,6 +64,13 @@
                             <td>@if (branch.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis">✓ Active</span> } else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }</td>
                             <td class="text-end pe-3">
                                 <div class="d-flex flex-wrap justify-content-end gap-1">
+                                    @if (!branch.IsActive)
+                                    {
+                                        <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Activate" method="post" class="d-inline" data-confirm="Reactivate this branch? It will become available again.">
+                                            @Html.AntiForgeryToken()<input type="hidden" name="id" value="@branch.Id" /><input type="hidden" name="tenantId" value="@Model.TenantId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-success">Activate</button>
+                                        </form>
+                                    }
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editBranch-@branch.Id">Edit</button>
                                     <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Delete" method="post" class="d-inline" data-confirm="Deactivate this branch? Its data will be retained.">
                                         @Html.AntiForgeryToken()<input type="hidden" name="id" value="@branch.Id" /><input type="hidden" name="tenantId" value="@Model.TenantId" /><input type="hidden" name="hardDelete" value="false" />
