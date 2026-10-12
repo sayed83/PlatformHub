@@ -51,7 +51,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     public async Task<IActionResult> DeleteTenant(long id, [FromBody] DeleteRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
-        try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return NoContent(); }
+        try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return Ok(new { success = true }); }
         catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
@@ -117,7 +117,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     public async Task<IActionResult> DeleteBranch(long id, [FromBody] DeleteRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
-        try { await platform.DeleteBranchAsync(id, request.HardDelete, cancellationToken); return NoContent(); }
+        try { await platform.DeleteBranchAsync(id, request.HardDelete, cancellationToken); return Ok(new { success = true }); }
         catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
