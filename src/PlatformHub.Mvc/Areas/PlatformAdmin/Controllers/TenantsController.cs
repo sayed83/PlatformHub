@@ -71,8 +71,13 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/delete", new { hardDelete }, ct, token);
+        if (result is null && hardDelete)
+        {
+            TempData["ErrorMessage"] = error ?? "Tenant hard delete failed. Review its dependencies.";
+            return RedirectToAction(nameof(Dependencies), new { id });
+        }
         TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
-            ? (error ?? (hardDelete ? "Tenant hard delete failed." : "Tenant deactivation failed."))
+            ? (error ?? "Tenant deactivation failed.")
             : (hardDelete ? "Tenant permanently deleted." : "Tenant deactivated successfully.");
         return RedirectToAction(nameof(Index));
     }
