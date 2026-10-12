@@ -52,7 +52,10 @@
 {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">@error<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
 }
-<div asp-validation-summary="All" class="alert alert-danger"></div>
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="All" class="alert alert-danger"></div>
+}
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Total roles</div><div class="rp-stat-value">@Model.Roles.Count</div><div class="small text-secondary mt-1">Available role profiles</div></div></div>
