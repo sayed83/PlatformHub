@@ -29,6 +29,31 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         return View(new TenantManagementViewModel { Tenants = tenants });
     }
 
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(long id, string code, string name, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/update", new { code, name }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null ? (error ?? "Tenant update failed.") : "Tenant updated successfully.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(long id, bool hardDelete, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/delete", new { hardDelete }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? (hardDelete ? "Tenant hard delete failed." : "Tenant deactivation failed."))
+            : (hardDelete ? "Tenant permanently deleted." : "Tenant deactivated successfully.");
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TenantManagementViewModel model, CancellationToken ct)
     {
