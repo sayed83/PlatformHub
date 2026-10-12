@@ -137,7 +137,7 @@
                                         @foreach (var assignment in user.RoleAssignments)
                                         {
                                             <div class="col-12 col-md-6 col-xxl-4">
-                                                <div class="ua-assignment h-100">
+                                                <div id="assignment-@assignment.Id" class="ua-assignment h-100 @((highlightAssignmentId == assignment.Id) ? "border border-3 border-warning bg-warning-subtle" : "")">
                                                     <div class="d-flex justify-content-between align-items-start gap-2">
                                                         <div class="min-w-0"><div class="fw-semibold">@assignment.RoleName</div><code class="ua-code">@assignment.RoleCode</code></div>
                                                         @if (canAssign && assignment.RoleCode != "PLATFORM_SUPER_ADMIN")
