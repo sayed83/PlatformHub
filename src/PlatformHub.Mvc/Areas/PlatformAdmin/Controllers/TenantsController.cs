@@ -34,7 +34,7 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
             if ((branches?.Count ?? 0) == 0 && !projects.Any(p => p.TenantId == tenant.Id))
                 eligible.Add(tenant.Id);
         }
-        return View(new TenantManagementViewModel { Tenants = tenants, CanHardDeleteTenantIds = eligible });
+        return View(new TenantManagementViewModel { Tenants = tenants, Projects = projects, CanHardDeleteTenantIds = eligible });
     }
 
 
