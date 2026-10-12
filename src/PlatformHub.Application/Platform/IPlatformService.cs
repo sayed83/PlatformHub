@@ -9,6 +9,7 @@ public interface IPlatformService
     Task<TenantDto> CreateTenantAsync(CreateTenantRequest request, CancellationToken cancellationToken);
     Task<TenantDto> UpdateTenantAsync(long id, string code, string name, CancellationToken cancellationToken);
     Task DeleteTenantAsync(long id, bool hardDelete, CancellationToken cancellationToken);
+    Task ActivateTenantAsync(long id, CancellationToken cancellationToken);
     Task<IReadOnlyList<ProjectDto>> GetProjectsAsync(long? tenantId, CancellationToken cancellationToken);
     Task<ProjectDto> CreateProjectAsync(CreateProjectRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<BranchDto>> GetBranchesAsync(long tenantId, CancellationToken cancellationToken);
