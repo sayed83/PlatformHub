@@ -27,7 +27,10 @@
 
     @if (TempData["SuccessMessage"] is string successMessage) { <div class="alert alert-success alert-dismissible fade show" role="status">@successMessage<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
     @if (TempData["ErrorMessage"] is string errorMessage) { <div class="alert alert-danger alert-dismissible fade show" role="alert">@errorMessage<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
+    @if (!ViewData.ModelState.IsValid)
+{
     <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+}
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-4"><div class="bm-stat"><div class="d-flex justify-content-between"><span class="bm-stat-label">Branches shown</span><span class="text-primary fs-5" aria-hidden="true">⌂</span></div><div class="bm-stat-value">@Model.Branches.Count</div><div class="small text-secondary mt-1">Locations under this tenant</div></div></div>
