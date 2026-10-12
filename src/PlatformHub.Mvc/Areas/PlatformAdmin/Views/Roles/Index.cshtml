@@ -6,144 +6,349 @@
     var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
 }
 
-<div class="mb-4">
-    <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small">&larr; Dashboard</a>
-    <h1 class="h3 mt-2 mb-1">Roles &amp; permissions</h1>
-    <p class="text-secondary mb-0">Create custom roles and control which platform operations each role can perform.</p>
+<style>
+    .rp-hero{background:linear-gradient(125deg,#17283e,#243f63);color:#fff;border-radius:1rem;padding:1.6rem 1.75rem;position:relative;overflow:hidden}
+    .rp-hero:after{content:"";position:absolute;width:230px;height:230px;border:35px solid rgba(255,255,255,.06);border-radius:50%;right:-55px;top:-100px}
+    .rp-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8fb8ff}
+    .rp-stat{border:1px solid #e4eaf3;border-radius:.9rem;background:#fff;padding:1rem;height:100%}
+    .rp-stat-label{font-size:.8rem;color:#65758b}.rp-stat-value{font-size:1.65rem;font-weight:750;line-height:1.25;color:#17283e}
+    .rp-panel{border:1px solid #e3eaf3;border-radius:1rem;background:#fff;overflow:hidden}
+    .rp-panel-head{padding:1rem 1.2rem;border-bottom:1px solid #e8edf5;background:#fbfcfe}
+    .rp-role-card{border:1px solid #e1e8f1;border-radius:.85rem;overflow:hidden;background:#fff}
+    .rp-role-head{padding:1rem 1.1rem;display:flex;align-items:center;gap:1rem}
+    .rp-role-mark{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:.8rem;background:#edf3ff;color:#2563eb;font-size:1.2rem;flex:0 0 44px}
+    .rp-role-details{border-top:1px solid #e8edf5;background:#f8faff;padding:1rem 1.1rem}
+    .rp-permission{height:100%;display:flex;gap:.65rem;align-items:flex-start;padding:.7rem .75rem;border:1px solid #e1e8f1;border-radius:.7rem;background:#fff;transition:border-color .15s,background .15s}
+    .rp-permission:has(input:checked){border-color:#a9c7ff;background:#f4f8ff}
+    .rp-permission .form-check-input{flex:0 0 auto;margin-top:.22rem}
+    .rp-permission code{font-size:.72rem;overflow-wrap:anywhere;color:#64748b}
+    .rp-section-label{font-size:.72rem;letter-spacing:.08em;font-weight:800;text-transform:uppercase;color:#60718a}
+    .rp-sticky-tools{position:sticky;top:0;z-index:2;background:#fff;padding:.75rem 0}
+    .rp-empty{border:1px dashed #cbd5e1;border-radius:.8rem;padding:2rem;text-align:center;color:#64748b}
+    @@media(max-width:767.98px){.rp-hero{padding:1.25rem}.rp-role-head{align-items:flex-start;flex-wrap:wrap}.rp-role-actions{width:100%}.rp-role-actions .btn{width:100%}}
+</style>
+
+<div class="d-flex align-items-center justify-content-between gap-3 mb-3 flex-wrap">
+    <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small text-secondary">← Dashboard</a>
+    <span class="small text-secondary"><span class="me-1">🔐</span> Permission changes are enforced by the API</span>
 </div>
+
+<section class="rp-hero mb-4">
+    <div class="rp-eyebrow mb-2">Platform access control</div>
+    <div class="d-flex align-items-end justify-content-between gap-3 flex-wrap position-relative" style="z-index:1">
+        <div>
+            <h1 class="h2 fw-bold mb-2">Roles &amp; permissions</h1>
+            <p class="mb-0 text-white-50">Define role responsibilities and control which platform operations each role can perform.</p>
+        </div>
+        <a href="#createRole" class="btn btn-light fw-semibold">＋ Create custom role</a>
+    </div>
+</section>
 
 @if (TempData["SuccessMessage"] is string success)
 {
-    <div class="alert alert-success" role="status">@success</div>
+    <div class="alert alert-success alert-dismissible fade show" role="status">@success<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
 }
 @if (TempData["ErrorMessage"] is string error)
 {
-    <div class="alert alert-danger" role="alert">@error</div>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">@error<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
 }
 <div asp-validation-summary="All" class="alert alert-danger"></div>
 
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Total roles</div><div class="rp-stat-value">@Model.Roles.Count</div><div class="small text-secondary mt-1">Available role profiles</div></div></div>
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Built-in roles</div><div class="rp-stat-value">@Model.Roles.Count(x => x.IsSystemRole)</div><div class="small text-secondary mt-1">System-managed</div></div></div>
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Custom roles</div><div class="rp-stat-value">@Model.Roles.Count(x => !x.IsSystemRole)</div><div class="small text-secondary mt-1">Created for your needs</div></div></div>
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Permission catalog</div><div class="rp-stat-value">@Model.Permissions.Count</div><div class="small text-secondary mt-1">Available permissions</div></div></div>
+</div>
+
 <div class="row g-4">
     <div class="col-xl-4">
-        <section class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <h2 class="h5 mb-3">Create custom role</h2>
+        <section class="rp-panel" id="createRole">
+            <div class="rp-panel-head">
+                <div class="rp-eyebrow text-primary mb-1">Role builder</div>
+                <h2 class="h5 fw-bold mb-1">Create custom role</h2>
+                <p class="small text-secondary mb-0">Start with a clear name and purpose. Assign permissions after creation.</p>
+            </div>
+            <div class="p-3 p-lg-4">
                 <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Create" method="post">
                     @Html.AntiForgeryToken()
                     <div class="mb-3">
-                        <label asp-for="Code" class="form-label">Role code</label>
-                        <input asp-for="Code" class="form-control" placeholder="SUPPORT_MANAGER" />
+                        <label asp-for="Code" class="form-label fw-semibold">Role code <span class="text-danger">*</span></label>
+                        <input asp-for="Code" class="form-control" placeholder="SUPPORT_MANAGER" autocomplete="off" />
                         <span asp-validation-for="Code" class="text-danger small"></span>
+                        <div class="form-text">Unique identifier; use uppercase letters and underscores.</div>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Name" class="form-label">Role name</label>
+                        <label asp-for="Name" class="form-label fw-semibold">Role name <span class="text-danger">*</span></label>
                         <input asp-for="Name" class="form-control" placeholder="Support Manager" />
                         <span asp-validation-for="Name" class="text-danger small"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Description" class="form-label">Description</label>
-                        <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+                        <label asp-for="Description" class="form-label fw-semibold">Description</label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Describe what this role is responsible for."></textarea>
                     </div>
-                    <div class="mb-3">
-                        <label asp-for="BaseRedirectUrl" class="form-label">Default redirect URL (optional)</label>
+                    <div class="mb-4">
+                        <label asp-for="BaseRedirectUrl" class="form-label fw-semibold">Default redirect URL <span class="text-secondary fw-normal">(optional)</span></label>
                         <input asp-for="BaseRedirectUrl" class="form-control" placeholder="/Workspace" />
-                        <div class="form-text">A user-specific redirect should take precedence over this role default.</div>
+                        <div class="form-text">A user-specific redirect takes precedence over this role default.</div>
                     </div>
-                    <button class="btn btn-primary w-100" type="submit">Create role</button>
+                    <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit">＋ Create role</button>
                 </form>
             </div>
         </section>
-        <section class="card border-0 shadow-sm mt-4">
-            <div class="card-body p-4">
-                <h2 class="h5">Permission catalog</h2>
-                <p class="text-secondary small">Permissions are enforced by the API, not by hiding UI controls.</p>
-                @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
-                {
-                    <h3 class="small fw-bold text-uppercase text-secondary mt-3">@group.Key</h3>
-                    @foreach (var permission in group)
+
+        <section class="rp-panel mt-4">
+            <div class="rp-panel-head">
+                <h2 class="h6 fw-bold mb-1">Permission catalog</h2>
+                <p class="small text-secondary mb-0">Browse permissions grouped by module.</p>
+            </div>
+            <div class="p-3">
+                <label for="permissionCatalogSearch" class="form-label small fw-semibold">Find a permission</label>
+                <input id="permissionCatalogSearch" type="search" class="form-control form-control-sm" placeholder="Search name or code..." />
+                <div id="permissionCatalog">
+                    @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
                     {
-                        <div class="py-2 border-bottom">
-                            <div class="fw-semibold small">@permission.Name</div>
-                            <code class="small">@permission.Code</code>
+                        <div class="permission-catalog-group mt-3">
+                            <h3 class="rp-section-label mb-2">@group.Key <span class="fw-normal">(@group.Count())</span></h3>
+                            @foreach (var permission in group.OrderBy(x => x.Name))
+                            {
+                                <div class="permission-catalog-item py-2 border-bottom" data-search="@($"{permission.Name} {permission.Code} {permission.Module}".ToLowerInvariant())">
+                                    <div class="small fw-semibold">@permission.Name</div>
+                                    <code class="small text-secondary">@permission.Code</code>
+                                    @if (!string.IsNullOrWhiteSpace(permission.Description))
+                                    {
+                                        <div class="small text-secondary mt-1">@permission.Description</div>
+                                    }
+                                </div>
+                            }
                         </div>
                     }
-                }
+                </div>
+                <div id="permissionCatalogEmpty" class="small text-secondary py-3 d-none">No permissions match your search.</div>
             </div>
         </section>
     </div>
 
     <div class="col-xl-8">
-        <section class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h2 class="h5 mb-0">Platform roles <span class="badge bg-secondary">@Model.Roles.Count</span></h2>
+        <section class="rp-panel">
+            <div class="rp-panel-head d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">Role directory</h2>
+                    <p class="small text-secondary mb-0">Select a role to inspect or configure its permissions.</p>
+                </div>
+                <span class="badge rounded-pill text-bg-light border">@Model.Roles.Count roles</span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light"><tr><th>Role</th><th>Type</th><th>Permissions</th><th>Status</th></tr></thead>
-                    <tbody>
-                    @foreach (var role in Model.Roles)
+            <div class="p-3">
+                <div class="rp-sticky-tools">
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label class="visually-hidden" for="roleSearch">Search roles</label>
+                            <input id="roleSearch" type="search" class="form-control" placeholder="Search by role name, code, or description..." />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="visually-hidden" for="roleTypeFilter">Filter role type</label>
+                            <select id="roleTypeFilter" class="form-select">
+                                <option value="all">All role types</option>
+                                <option value="system">Built-in roles</option>
+                                <option value="custom">Custom roles</option>
+                                <option value="active">Active roles</option>
+                                <option value="inactive">Inactive roles</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="roleDirectory" class="d-flex flex-column gap-3">
+                    @foreach (var role in Model.Roles.OrderByDescending(x => x.IsSystemRole).ThenBy(x => x.Name))
                     {
-                        <tr>
-                            <td>
-                                <div class="fw-semibold">@role.Name</div>
-                                <code class="small">@role.Code</code>
-                                @if (!string.IsNullOrWhiteSpace(role.Description))
-                                {
-                                    <div class="small text-secondary mt-1">@role.Description</div>
-                                }
-                            </td>
-                            <td>
-                                @if (role.IsSystemRole) { <span class="badge text-bg-dark">Built-in</span> }
-                                else { <span class="badge text-bg-primary">Custom</span> }
-                            </td>
-                            <td>@role.Permissions.Count</td>
-                            <td>@if (role.IsActive) { <span class="badge text-bg-success">Active</span> } else { <span class="badge text-bg-secondary">Inactive</span> }</td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" class="bg-body-tertiary">
-                                @if (role.Code == "PLATFORM_SUPER_ADMIN")
-                                {
-                                    <div class="small text-secondary py-2"><span class="me-2">🔒</span>Protected Super Admin role. It always retains the full permission catalog.</div>
-                                }
-                                else if (role.IsSystemRole && !isSuperAdmin)
-                                {
-                                    <div class="small text-secondary py-2"><span class="me-2">🔒</span>Only Platform Super Admin can configure permissions for this built-in role.</div>
-                                }
-                                else
-                                {
-                                    <details>
-                                        <summary class="small fw-semibold py-2">Configure permissions for @role.Name</summary>
-                                        <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SavePermissions" method="post" class="pt-2">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="EditingRoleId" value="@role.Id" />
-                                            <div class="row g-2">
-                                                @foreach (var permission in Model.Permissions.OrderBy(x => x.Module).ThenBy(x => x.Name))
-                                                {
-                                                    var selected = role.Permissions.Contains(permission.Code, StringComparer.OrdinalIgnoreCase);
-                                                    <div class="col-md-6">
-                                                        <label class="border rounded p-2 d-flex gap-2 align-items-start h-100 bg-white">
-                                                            <input class="form-check-input mt-1" type="checkbox" name="SelectedPermissionIds" value="@permission.Id" @(selected ? "checked" : null) />
-                                                            <span>
-                                                                <span class="d-block small fw-semibold">@permission.Name</span>
-                                                                <code class="small">@permission.Code</code>
-                                                            </span>
-                                                        </label>
-                                                    </div>
-                                                }
+                        var isSuperRole = role.Code == "PLATFORM_SUPER_ADMIN";
+                        var canConfigure = !isSuperRole && (!role.IsSystemRole || isSuperAdmin);
+                        var searchText = $"{role.Name} {role.Code} {role.Description}".ToLowerInvariant();
+                        <article class="rp-role-card role-card" data-search="@searchText" data-type="@(role.IsSystemRole ? "system" : "custom")" data-active="@(role.IsActive ? "active" : "inactive")">
+                            <div class="rp-role-head">
+                                <div class="rp-role-mark" aria-hidden="true">@(isSuperRole ? "♛" : role.IsSystemRole ? "⚙" : "♙")</div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <h3 class="h6 fw-bold mb-0">@role.Name</h3>
+                                        @if (role.IsSystemRole) { <span class="badge rounded-pill text-bg-dark">Built-in</span> }
+                                        else { <span class="badge rounded-pill text-bg-primary">Custom</span> }
+                                        @if (role.IsActive) { <span class="badge rounded-pill text-bg-success">Active</span> }
+                                        else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }
+                                    </div>
+                                    <div class="d-flex gap-2 align-items-center flex-wrap mt-1">
+                                        <code class="small">@role.Code</code>
+                                        <span class="small text-secondary">· @role.Permissions.Count permissions</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(role.Description))
+                                    {
+                                        <p class="small text-secondary mb-0 mt-2">@role.Description</p>
+                                    }
+                                </div>
+                                <div class="rp-role-actions">
+                                    @if (isSuperRole)
+                                    {
+                                        <span class="small text-secondary"><span aria-hidden="true">🔒</span> Protected</span>
+                                    }
+                                    else if (canConfigure)
+                                    {
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-role-toggle="@role.Id" aria-expanded="false" aria-controls="role-permissions-@role.Id">Configure <span aria-hidden="true">⌄</span></button>
+                                    }
+                                    else
+                                    {
+                                        <span class="small text-secondary"><span aria-hidden="true">🔒</span> Protected</span>
+                                    }
+                                </div>
+                            </div>
+                            @if (isSuperRole)
+                            {
+                                <div class="px-3 pb-3"><div class="alert alert-info py-2 small mb-0">The Platform Super Admin role is protected and retains the full permission catalog.</div></div>
+                            }
+                            else if (role.IsSystemRole && !isSuperAdmin)
+                            {
+                                <div class="px-3 pb-3"><div class="small text-secondary">Only Platform Super Admin can configure permissions for this built-in role.</div></div>
+                            }
+                            else
+                            {
+                                <div id="role-permissions-@role.Id" class="rp-role-details d-none">
+                                    <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SavePermissions" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="EditingRoleId" value="@role.Id" />
+                                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+                                            <div>
+                                                <div class="fw-bold">Configure permissions</div>
+                                                <div class="small text-secondary">Choose only the access this role needs.</div>
                                             </div>
-                                            <button type="submit" class="btn btn-sm btn-primary mt-3">Save permissions</button>
-                                        </form>
-                                    </details>
-                                }
-                            </td>
-                        </tr>
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="@role.Id">Select all</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-clear-all="@role.Id">Clear all</button>
+                                            </div>
+                                        </div>
+                                        <label class="visually-hidden" for="permissionSearch-@role.Id">Search permissions for @role.Name</label>
+                                        <input id="permissionSearch-@role.Id" type="search" class="form-control form-control-sm mb-3 role-permission-search" placeholder="Filter permissions by name or code..." />
+                                        @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
+                                        {
+                                            <div class="permission-group mb-3">
+                                                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                                    <h4 class="rp-section-label mb-0">@group.Key</h4>
+                                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-select-group="@role.Id" data-module="@group.Key">Select group</button>
+                                                </div>
+                                                <div class="row g-2">
+                                                    @foreach (var permission in group.OrderBy(x => x.Name))
+                                                    {
+                                                        var selected = role.Permissions.Contains(permission.Code, StringComparer.OrdinalIgnoreCase);
+                                                        <div class="col-md-6 permission-option" data-search="@($"{permission.Name} {permission.Code} {permission.Module}".ToLowerInvariant())">
+                                                            <label class="rp-permission">
+                                                                <input class="form-check-input role-permission-checkbox" type="checkbox" name="SelectedPermissionIds" value="@permission.Id" data-module="@permission.Module" @(selected ? "checked" : null) />
+                                                                <span class="min-w-0">
+                                                                    <span class="d-block small fw-semibold">@permission.Name</span>
+                                                                    <code>@permission.Code</code>
+                                                                    @if (!string.IsNullOrWhiteSpace(permission.Description))
+                                                                    {
+                                                                        <span class="d-block small text-secondary mt-1">@permission.Description</span>
+                                                                    }
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap border-top pt-3 mt-2">
+                                            <span class="small text-secondary"><strong class="selected-permission-count">@role.Permissions.Count</strong> selected</span>
+                                            <button type="submit" class="btn btn-primary fw-semibold">Save permissions</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            }
+                        </article>
                     }
-                    @if (Model.Roles.Count == 0)
-                    {
-                        <tr><td colspan="4" class="text-center text-secondary py-4">No roles returned by the API.</td></tr>
-                    }
-                    </tbody>
-                </table>
+                </div>
+                <div id="roleEmpty" class="rp-empty d-none mt-3"><div class="fs-3 mb-2">⌕</div><div class="fw-semibold">No matching roles</div><div class="small">Try another search or change the role filter.</div></div>
             </div>
         </section>
+        <div class="alert alert-warning small mt-3 mb-0"><strong>Security note:</strong> Users may need to sign in again before updated permission claims take effect. Built-in Super Admin protections remain enforced by the API.</div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+(() => {
+    const roleSearch = document.getElementById('roleSearch');
+    const roleTypeFilter = document.getElementById('roleTypeFilter');
+    const roleCards = [...document.querySelectorAll('.role-card')];
+    const roleEmpty = document.getElementById('roleEmpty');
+
+    function filterRoles() {
+        const query = (roleSearch?.value || '').trim().toLowerCase();
+        const type = roleTypeFilter?.value || 'all';
+        let visible = 0;
+        roleCards.forEach(card => {
+            const matchesText = (card.dataset.search || '').includes(query);
+            const matchesType = type === 'all' || type === card.dataset.type || type === card.dataset.active;
+            const show = matchesText && matchesType;
+            card.classList.toggle('d-none', !show);
+            if (show) visible++;
+        });
+        roleEmpty?.classList.toggle('d-none', visible !== 0);
+    }
+    roleSearch?.addEventListener('input', filterRoles);
+    roleTypeFilter?.addEventListener('change', filterRoles);
+
+    document.querySelectorAll('[data-role-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+            const panel = document.getElementById('role-permissions-' + button.dataset.roleToggle);
+            if (!panel) return;
+            const open = panel.classList.toggle('d-none') === false;
+            button.setAttribute('aria-expanded', String(open));
+            button.innerHTML = open ? 'Close settings <span aria-hidden="true">⌃</span>' : 'Configure <span aria-hidden="true">⌄</span>';
+        });
+    });
+
+    function updateCount(panel) {
+        const count = panel.querySelectorAll('.role-permission-checkbox:checked').length;
+        const output = panel.querySelector('.selected-permission-count');
+        if (output) output.textContent = count;
+    }
+    document.querySelectorAll('.rp-role-details').forEach(panel => {
+        const roleId = panel.id.replace('role-permissions-', '');
+        panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.addEventListener('change', () => updateCount(panel)));
+        panel.querySelector('.role-permission-search')?.addEventListener('input', event => {
+            const query = event.target.value.trim().toLowerCase();
+            panel.querySelectorAll('.permission-option').forEach(option => option.classList.toggle('d-none', !(option.dataset.search || '').includes(query)));
+            panel.querySelectorAll('.permission-group').forEach(group => {
+                const options = [...group.querySelectorAll('.permission-option')];
+                group.classList.toggle('d-none', options.length > 0 && options.every(option => option.classList.contains('d-none')));
+            });
+        });
+        panel.querySelector('[data-select-all]')?.addEventListener('click', () => {
+            panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.checked = true);
+            updateCount(panel);
+        });
+        panel.querySelector('[data-clear-all]')?.addEventListener('click', () => {
+            panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.checked = false);
+            updateCount(panel);
+        });
+        panel.querySelectorAll('[data-select-group]').forEach(button => button.addEventListener('click', () => {
+            panel.querySelectorAll('.role-permission-checkbox').forEach(box => {
+                if (box.dataset.module === button.dataset.module) box.checked = true;
+            });
+            updateCount(panel);
+        }));
+    });
+
+    const catalogSearch = document.getElementById('permissionCatalogSearch');
+    catalogSearch?.addEventListener('input', () => {
+        const query = catalogSearch.value.trim().toLowerCase();
+        let count = 0;
+        document.querySelectorAll('.permission-catalog-item').forEach(item => {
+            const show = (item.dataset.search || '').includes(query);
+            item.classList.toggle('d-none', !show);
+            if (show) count++;
+        });
+        document.querySelectorAll('.permission-catalog-group').forEach(group => {
+            group.classList.toggle('d-none', group.querySelectorAll('.permission-catalog-item:not(.d-none)').length === 0);
+        });
+        document.getElementById('permissionCatalogEmpty')?.classList.toggle('d-none', count !== 0);
+    });
+})();
+</script>
+}
