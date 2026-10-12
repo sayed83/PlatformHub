@@ -11,6 +11,7 @@
     var activeCount = Model.Users.Count(x => x.IsActive);
     var inactiveCount = Model.Users.Count - activeCount;
     var assignmentCount = Model.Users.Sum(x => x.RoleAssignments.Count);
+    var highlightAssignmentId = ViewData["HighlightAssignmentId"] as long?;
 }
 <style>
     .ua-page { --ua-border: var(--bs-border-color); }
