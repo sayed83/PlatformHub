@@ -104,6 +104,65 @@
         </div>
         <div class="card-footer bg-body small text-secondary d-flex flex-wrap justify-content-between gap-2"><span>Showing @Model.Branches.Count branch(es)</span><span>Every branch belongs to this tenant.</span></div>
     </section>
+
+    <section class="card border-0 shadow-sm rounded-4 overflow-hidden mt-4">
+        <div class="card-header bg-body border-bottom p-3 p-lg-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h2 class="h5 fw-bold mb-1">Branch role assignments</h2>
+                <p class="small text-secondary mb-0">See exactly which users and roles are assigned to each branch.</p>
+            </div>
+            <a asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" class="btn btn-outline-primary btn-sm">Open Users &amp; Access</a>
+        </div>
+        <div class="p-3 p-lg-4">
+            @foreach (var branch in Model.Branches)
+            {
+                var branchRoles = Model.RoleAssignments.Where(x => x.BranchId == branch.Id).ToList();
+                <div class="border rounded-3 mb-3 overflow-hidden">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 bg-body-tertiary">
+                        <div>
+                            <div class="fw-semibold">@branch.Name <span class="text-secondary fw-normal">(@branch.Code)</span></div>
+                            <div class="small text-secondary">Branch ID: @branch.Id</div>
+                        </div>
+                        <span class="badge rounded-pill text-bg-light border">@branchRoles.Count assignment(s)</span>
+                    </div>
+                    @if (branchRoles.Count == 0)
+                    {
+                        <div class="p-3 small text-secondary">No direct role assignments found for this branch.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead><tr><th class="ps-3">User</th><th>Role</th><th>Scope</th><th>Status</th></tr></thead>
+                                <tbody>
+                                @foreach (var assignment in branchRoles)
+                                {
+                                    <tr>
+                                        <td class="ps-3"><div class="fw-semibold">@assignment.DisplayName</div><div class="small text-secondary">@@@assignment.UserName</div></td>
+                                        <td><div class="fw-semibold">@assignment.RoleName</div><code class="small">@assignment.RoleCode</code></td>
+                                        <td><div class="small">@(assignment.ProjectName is null ? "Branch-wide" : $"Project: {assignment.ProjectName}")</div><div class="small text-secondary">Tenant: @Model.TenantName</div></td>
+                                        <td>
+                                            @if (!assignment.IsUserActive) { <span class="badge text-bg-secondary">User inactive</span> }
+                                            else if (!assignment.IsRoleActive) { <span class="badge text-bg-warning">Role inactive</span> }
+                                            else { <span class="badge text-bg-success">Active</span> }
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            }
+            @if (Model.Branches.Count == 0)
+            {
+                <div class="text-secondary small">Create a branch to view its role assignments here.</div>
+            }
+            <div class="alert alert-info small mb-0">
+                <strong>Note:</strong> This list shows assignments directly linked to a branch. Tenant-wide assignments may also grant access within this tenant; check Users &amp; Access for those assignments.
+            </div>
+        </div>
+    </section>
 </div>
 
 <div class="modal fade" id="createBranchModal" tabindex="-1" aria-labelledby="createBranchTitle" aria-hidden="true">
