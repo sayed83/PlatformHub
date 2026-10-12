@@ -150,6 +150,49 @@ public sealed class PlatformApiClient(
         }
     }
 
+
+    public async Task<(T? Value, int? StatusCode, string? Error)> GetWithStatusAsync<T>(
+        string path, string? token = null, CancellationToken ct = default)
+    {
+        var client = factory.CreateClient("PlatformApi");
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (!string.IsNullOrWhiteSpace(token))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            using var response = await client.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
+                    path, (int)response.StatusCode, Truncate(body));
+                return (default, (int)response.StatusCode,
+                    TryReadApiMessage(body) ?? $"Platform API returned HTTP {(int)response.StatusCode}.");
+            }
+
+            if (string.IsNullOrWhiteSpace(body))
+                return (default, (int)response.StatusCode, "Platform API returned an empty response.");
+
+            return (JsonSerializer.Deserialize<T>(body, JsonOptions), (int)response.StatusCode, null);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Could not connect to Platform API for GET {Path}", path);
+            return (default, 502, "Cannot reach Platform API. Check that the API is running and Api:BaseUrl is correct.");
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Platform API GET {Path} timed out", path);
+            return (default, 504, "Platform API request timed out.");
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Platform API returned invalid JSON for GET {Path}", path);
+            return (default, 502, "Platform API returned invalid JSON.");
+        }
+    }
+
     public async Task<T?> GetAsync<T>(
         string path,
         string? token = null,
