@@ -239,6 +239,35 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             .ToListAsync(cancellationToken));
     }
 
+    [HttpGet("branches/{branchId:long}/assignments")]
+    [Authorize(Policy = "Role.View")]
+    public async Task<IActionResult> GetBranchAssignments(long branchId, CancellationToken cancellationToken)
+    {
+        var branchExists = await db.Branches.AsNoTracking().AnyAsync(x => x.Id == branchId, cancellationToken);
+        if (!branchExists) return NotFound(new { message = "Branch not found." });
+
+        var assignments = await db.UserRoleAssignments.AsNoTracking()
+            .Where(x => x.BranchId == branchId)
+            .OrderBy(x => x.Role.Name).ThenBy(x => x.User.DisplayName)
+            .Select(x => new
+            {
+                x.Id,
+                x.UserId,
+                UserName = x.User.UserName,
+                DisplayName = x.User.DisplayName,
+                IsUserActive = x.User.IsActive,
+                x.RoleId,
+                RoleCode = x.Role.Code,
+                RoleName = x.Role.Name,
+                IsRoleActive = x.Role.IsActive,
+                x.TenantId,
+                TenantName = x.Tenant == null ? null : x.Tenant.Name,
+                x.ProjectId,
+                ProjectName = x.Project == null ? null : x.Project.Name
+            }).ToListAsync(cancellationToken);
+        return Ok(assignments);
+    }
+
     [HttpGet("users/{userId:long}/roles")]
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetUserRoles(long userId, CancellationToken cancellationToken)
