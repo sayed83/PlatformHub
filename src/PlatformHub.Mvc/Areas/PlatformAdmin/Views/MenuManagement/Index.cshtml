@@ -642,9 +642,24 @@
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const iconHtml = (v, fallback) => { v = (v || '').trim(); if (!v) return fallback; if (/^bi-/.test(v)) v = 'bi ' + v; return /(^|\s)(bi|fa|fas|far|fab)[\s-]/.test(v) ? '<i class="' + esc(v) + '"></i>' : esc(v); };
         const selectedProject = () => Number(projectSelect.value || 0);
-        const send = async (path, body) => { const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('#editForm input[name="__RequestVerificationToken"]')?.value || '' }, body: JSON.stringify(body) }); const data = await r.json().catch(() => ({})); if (!r.ok) throw Error(data.message || 'Request failed.'); return data; };
-        async function loadProjects() { const r = await fetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })'); if (!r.ok) throw Error('Unable to load projects.'); const ps = await r.json(); projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName) + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join(''); }
-        async function refresh() { const p = selectedProject(); if (!p) { modules = []; menus = []; render(); return; } const [mr, ir] = await Promise.all([fetch(url('Data') + '?kind=modules&projectId=' + p), fetch(url('Data') + '?kind=items&projectId=' + p)]); if (!mr.ok || !ir.ok) throw Error('Unable to load project menu data.'); modules = await mr.json(); menus = await ir.json(); render(); }
+        const loginUrl = '@Url.Action("Login", "Account", new { area = "PlatformAdmin" })';
+        async function apiFetch(input, init) {
+            let response;
+            try {
+                response = await fetch(input, init);
+            } catch (error) {
+                // A browser-level network error means the MVC endpoint itself is unreachable.
+                throw error;
+            }
+            if ([401, 502, 503, 504].includes(response.status)) {
+                window.location.replace(loginUrl + '?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
+                throw new Error('Your session is no longer available or the Platform API is unreachable. Redirecting to login…');
+            }
+            return response;
+        }
+        const send = async (path, body) => { const r = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('#editForm input[name="__RequestVerificationToken"]')?.value || '' }, body: JSON.stringify(body) }); const data = await r.json().catch(() => ({})); if (!r.ok) throw Error(data.message || 'Request failed.'); return data; };
+        async function loadProjects() { const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })'); if (!r.ok) throw Error('Unable to load projects.'); const ps = await r.json(); projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join(''); }
+        async function refresh() { const p = selectedProject(); if (!p) { modules = []; menus = []; render(); return; } const [mr, ir] = await Promise.all([apiFetch(url('Data') + '?kind=modules&projectId=' + p), apiFetch(url('Data') + '?kind=items&projectId=' + p)]); if (!mr.ok || !ir.ok) throw Error('Unable to load project menu data.'); modules = await mr.json(); menus = await ir.json(); render(); }
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
         function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
