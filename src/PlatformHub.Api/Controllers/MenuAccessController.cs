@@ -11,6 +11,28 @@ namespace PlatformHub.Api.Controllers;
 [Authorize(Policy = "PlatformAdmin")]
 public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
 {
+
+    private async Task<bool> CanManageRoleAsync(long roleId, CancellationToken ct)
+    {
+        var role = await db.Roles.AsNoTracking()
+            .Where(x => x.Id == roleId)
+            .Select(x => new { x.Code })
+            .SingleOrDefaultAsync(ct);
+        return role is not null &&
+            (User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN") ||
+             !string.Equals(role.Code, "PLATFORM_SUPER_ADMIN", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<bool> CanManageUserAsync(long userId, CancellationToken ct)
+    {
+        var user = await db.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => new { x.IsPlatformAdmin })
+            .SingleOrDefaultAsync(ct);
+        return user is not null &&
+            (User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN") || !user.IsPlatformAdmin);
+    }
+
     [HttpGet("projects")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name)
@@ -22,9 +44,12 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         if (projectId <= 0) return BadRequest(new { message = "Select a project." });
         var projectExists = await db.Projects.AnyAsync(x => x.Id == projectId, ct);
         if (!projectExists) return NotFound(new { message = "Project not found." });
-        var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name)
+        var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
+        var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive &&
+                (isSuperAdmin || x.Code != "PLATFORM_SUPER_ADMIN")).OrderBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct);
         var users = await db.Users.AsNoTracking().Where(u => u.IsActive &&
+            (isSuperAdmin || !u.IsPlatformAdmin) &&
             db.UserRoleAssignments.Any(a => a.UserId == u.Id && (a.ProjectId == projectId ||
                 (a.ProjectId == null && a.TenantId == db.Projects.Where(p => p.Id == projectId).Select(p => (long?)p.TenantId).FirstOrDefault()))))
             .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.UserName, x.DisplayName }).ToListAsync(ct);
@@ -39,7 +64,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     public async Task<IActionResult> GetRoleAccess([FromQuery] long projectId, [FromQuery] long roleId, CancellationToken ct)
     {
         if (projectId <= 0 || roleId <= 0) return BadRequest(new { message = "Project and role are required." });
-        if (!await db.Roles.AnyAsync(x => x.Id == roleId, ct)) return NotFound(new { message = "Role not found." });
+        if (!await CanManageRoleAsync(roleId, ct)) return NotFound(new { message = "Role not found." });
         var menuIds = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.IsActive).Select(x => x.Id).ToListAsync(ct);
         var allowed = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.ProjectId == projectId && x.RoleId == roleId && menuIds.Contains(x.MenuItemId))
             .Select(x => new { x.MenuItemId, x.IsAllowed }).ToDictionaryAsync(x => x.MenuItemId, x => x.IsAllowed, ct);
@@ -50,7 +75,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     public async Task<IActionResult> SaveRoleAccess([FromBody] SaveRoleMenuAccessRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || request.RoleId <= 0) return BadRequest(new { message = "Project and role are required." });
-        if (!await db.Projects.AnyAsync(x => x.Id == request.ProjectId, ct) || !await db.Roles.AnyAsync(x => x.Id == request.RoleId, ct))
+        if (!await db.Projects.AnyAsync(x => x.Id == request.ProjectId, ct) || !await CanManageRoleAsync(request.RoleId, ct))
             return BadRequest(new { message = "Project or role does not exist." });
         var menuIds = await db.MenuItems.Where(x => x.ProjectId == request.ProjectId && x.IsActive).Select(x => x.Id).ToListAsync(ct);
         if (request.Items.Select(x => x.MenuItemId).Distinct().Count() != request.Items.Count ||
@@ -72,6 +97,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     public async Task<IActionResult> GetUserAccess([FromQuery] long projectId, [FromQuery] long userId, CancellationToken ct)
     {
         if (projectId <= 0 || userId <= 0) return BadRequest(new { message = "Project and user are required." });
+        if (!await CanManageUserAsync(userId, ct)) return NotFound(new { message = "User not found." });
         var menuIds = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.IsActive).Select(x => x.Id).ToListAsync(ct);
         var values = await db.UserWiseMenuAccesses.AsNoTracking().Where(x => x.ProjectId == projectId && x.UserId == userId && menuIds.Contains(x.MenuItemId))
             .Select(x => new { x.MenuItemId, x.IsAllowed }).ToDictionaryAsync(x => x.MenuItemId, x => x.IsAllowed, ct);
@@ -82,7 +108,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     public async Task<IActionResult> SaveUserAccess([FromBody] SaveUserMenuAccessRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || request.UserId <= 0) return BadRequest(new { message = "Project and user are required." });
-        if (!await db.Projects.AnyAsync(x => x.Id == request.ProjectId, ct) || !await db.Users.AnyAsync(x => x.Id == request.UserId, ct))
+        if (!await db.Projects.AnyAsync(x => x.Id == request.ProjectId, ct) || !await CanManageUserAsync(request.UserId, ct))
             return BadRequest(new { message = "Project or user does not exist." });
         var menuIds = await db.MenuItems.Where(x => x.ProjectId == request.ProjectId && x.IsActive).Select(x => x.Id).ToListAsync(ct);
         if (request.Items.Select(x => x.MenuItemId).Distinct().Count() != request.Items.Count ||
