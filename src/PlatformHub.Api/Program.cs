@@ -75,14 +75,20 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.Permission, "Platform.Dashboard.View"));
     options.AddPolicy("Tenant.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Tenant.View"));
+    options.AddPolicy("Tenant.Update", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Tenant.Update"));
+    options.AddPolicy("Tenant.Deactivate", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Tenant.Deactivate"));
     options.AddPolicy("Tenant.Create", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Tenant.Create"));
     options.AddPolicy("Branch.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Branch.View"));
+    options.AddPolicy("Branch.Update", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Branch.Update"));
+    options.AddPolicy("Branch.Deactivate", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Branch.Deactivate"));
     options.AddPolicy("Branch.Create", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Branch.Create"));
     options.AddPolicy("Project.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Project.View"));
+    options.AddPolicy("Project.Update", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Project.Update"));
+    options.AddPolicy("Project.Deactivate", policy => policy.RequireAuthenticatedUser().RequireClaim(AppClaimTypes.Permission, "Project.Deactivate"));
     options.AddPolicy("Project.Create", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Project.Create"));
 });
