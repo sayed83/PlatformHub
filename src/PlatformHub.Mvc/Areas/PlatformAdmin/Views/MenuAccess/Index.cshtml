@@ -1,50 +1,280 @@
 @{
-    ViewData["Title"] = "Role & User Menu Access";
+    ViewData["Title"] = "Menu Policy Editor";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<div class="mb-4"><div class="text-primary small fw-semibold text-uppercase">Security configuration</div><h1 class="h3 mb-1">Role &amp; User Menu Access</h1><p class="text-secondary mb-0">Grant menu access by role or apply a user-specific override.</p></div>
-<div id="notice" class="alert d-none" role="alert"></div>
-<div class="card border-0 shadow-sm mb-4"><div class="card-body"><label class="form-label fw-semibold" for="projectSelect">Project</label><select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select></div></div>
-<ul class="nav nav-tabs mb-3" role="tablist">
-<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#rolePane" type="button">Role-wise access</button></li>
-<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#userPane" type="button">User-wise overrides</button></li>
-</ul>
-<div class="tab-content">
-<section class="tab-pane fade show active" id="rolePane">
-<div class="card border-0 shadow-sm"><div class="card-body"><label class="form-label" for="roleSelect">Role</label><select id="roleSelect" class="form-select"><option value="">Select project first</option></select><p class="small text-secondary mt-2 mb-0">Checked menus are allowed for this role. Multiple roles are combined by granting access if any applicable role allows it.</p></div>
-<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Menu</th><th>Module</th><th class="text-center">Allowed</th></tr></thead><tbody id="roleRows"><tr><td colspan="3" class="text-center text-secondary py-4">Select a project and role.</td></tr></tbody></table></div>
-<div class="card-footer bg-white text-end"><button class="btn btn-primary" id="saveRole" disabled>Save role access</button></div></div>
-</section>
-<section class="tab-pane fade" id="userPane">
-<div class="card border-0 shadow-sm"><div class="card-body"><label class="form-label" for="userSelect">Project user</label><select id="userSelect" class="form-select"><option value="">Select project first</option></select><p class="small text-secondary mt-2 mb-0">Inherit uses role access. Allow or Deny overrides the combined role result for this user.</p></div>
-<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Menu</th><th>Module</th><th style="min-width:170px">User override</th></tr></thead><tbody id="userRows"><tr><td colspan="3" class="text-center text-secondary py-4">Select a project and user.</td></tr></tbody></table></div>
-<div class="card-footer bg-white text-end"><button class="btn btn-primary" id="saveUser" disabled>Save user overrides</button></div></div>
-</section>
+<style>
+    .policy-shell { min-width:0; }
+    .policy-tabs { border-bottom:1px solid #ded9e8; gap:.35rem; flex-wrap:wrap; }
+    .policy-tabs .nav-link { color:#746783; border:0; border-bottom:3px solid transparent; border-radius:0; padding:.8rem 1rem; font-weight:600; }
+    .policy-tabs .nav-link.active { color:#793ee0; background:transparent; border-bottom-color:#793ee0; }
+    .policy-toolbar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; }
+    .policy-search { position:relative; width:min(100%,380px); }
+    .policy-search input { padding-left:2.5rem; }
+    .policy-search span { position:absolute; left:.85rem; top:.48rem; color:#80778b; }
+    .policy-table-wrap { border:1px solid #e2deea; border-radius:.8rem; overflow:auto; max-height:calc(100vh - 360px); min-height:260px; }
+    .policy-table { margin:0; white-space:nowrap; }
+    .policy-table thead th { position:sticky; top:0; z-index:3; background:#f8f7fb; vertical-align:middle; border-bottom:1px solid #ded9e8; }
+    .policy-table th:first-child,.policy-table td:first-child { position:sticky; left:0; z-index:2; background:#fff; min-width:245px; max-width:340px; white-space:normal; }
+    .policy-table thead th:first-child { z-index:4; background:#f8f7fb; }
+    .policy-table th.policy-column { min-width:145px; text-align:center; }
+    .policy-table td.policy-cell { text-align:center; vertical-align:middle; min-width:145px; }
+    .policy-table tr:hover td { background:#fbf9ff; }
+    .policy-table tr:hover td:first-child { background:#fbf9ff; }
+    .policy-role-chip { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; border-radius:999px; padding:.45rem .75rem; font-size:.85rem; font-weight:700; }
+    .policy-role-chip.role { background:#f1e7ff; color:#7137c8; }
+    .policy-role-chip.user { background:#e4f4ed; color:#177b4a; }
+    .policy-check { width:1.25rem; height:1.25rem; cursor:pointer; accent-color:#8548e8; }
+    .policy-menu-name { display:flex; align-items:center; gap:.55rem; }
+    .policy-menu-icon { width:1.4rem; text-align:center; color:#7b718b; flex-shrink:0; }
+    .policy-code { color:#8c8497; font-size:.75rem; overflow-wrap:anywhere; }
+    .policy-decision { min-width:125px; max-width:160px; margin:auto; }
+    .policy-legend { display:flex; flex-wrap:wrap; gap:.75rem; font-size:.8rem; color:#746b80; }
+    .policy-legend span { display:inline-flex; align-items:center; gap:.35rem; }
+    .policy-dot { width:.6rem; height:.6rem; display:inline-block; border-radius:50%; }
+    .policy-status { min-height:0; }
+    @@media(max-width:767.98px) {
+        .policy-table-wrap { max-height:calc(100vh - 310px); }
+        .policy-table th:first-child,.policy-table td:first-child { min-width:185px; }
+        .policy-table th.policy-column,.policy-table td.policy-cell { min-width:125px; }
+    }
+</style>
+
+<div class="policy-shell">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+        <div>
+            <div class="text-primary small fw-semibold text-uppercase">Access control</div>
+            <h1 class="h3 mb-1">Menu Policy Editor</h1>
+            <p class="text-secondary mb-0">Configure project menu permissions in a role matrix, then apply user-specific overrides.</p>
+        </div>
+        <div style="min-width:min(100%,300px)">
+            <label class="form-label fw-semibold mb-1" for="projectSelect">Project</label>
+            <select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select>
+        </div>
+    </div>
+
+    <div id="notice" class="alert d-none policy-status py-2" role="status" aria-live="polite"></div>
+
+    <ul class="nav policy-tabs mb-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" id="role-tab" data-bs-toggle="tab" data-bs-target="#rolePane" type="button" role="tab"><span aria-hidden="true">▦</span> Role-wise menu access</button></li>
+        <li class="nav-item"><button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#userPane" type="button" role="tab"><span aria-hidden="true">♙</span> User-wise menu access</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <section class="tab-pane fade show active" id="rolePane" role="tabpanel" aria-labelledby="role-tab">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body pb-3">
+                    <div class="policy-toolbar">
+                        <div><h2 class="h5 mb-1">Role permission matrix</h2><p class="text-secondary small mb-0">Each column represents a role; each row represents a project menu.</p></div>
+                        <div class="policy-search"><span aria-hidden="true">⌕</span><input id="roleSearch" class="form-control" type="search" placeholder="Search menu or module…" aria-label="Search role menu matrix"></div>
+                    </div>
+                </div>
+                <div class="policy-table-wrap">
+                    <table class="table table-bordered policy-table" id="roleMatrix">
+                        <thead><tr id="roleHead"><th>Menu / resource</th><th class="text-secondary">Select a project</th></tr></thead>
+                        <tbody id="roleRows"><tr><td colspan="2" class="text-center text-secondary py-5">Choose a project to load the role matrix.</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="policy-legend"><span><i class="policy-dot" style="background:#198754"></i> Allowed</span><span><i class="policy-dot" style="background:#c7c2ce"></i> Denied</span></div>
+                    <button class="btn btn-primary" id="saveRole" disabled>Save role permissions</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-pane fade" id="userPane" role="tabpanel" aria-labelledby="user-tab">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body pb-3">
+                    <div class="policy-toolbar">
+                        <div><h2 class="h5 mb-1">User override matrix</h2><p class="text-secondary small mb-0">User decisions override the combined role result. Inherit keeps role permissions.</p></div>
+                        <div class="policy-search"><span aria-hidden="true">⌕</span><input id="userSearch" class="form-control" type="search" placeholder="Search menu or module…" aria-label="Search user menu matrix"></div>
+                    </div>
+                    <div class="policy-legend mt-3"><span><i class="policy-dot" style="background:#198754"></i> Allow</span><span><i class="policy-dot" style="background:#dc3545"></i> Deny</span><span><i class="policy-dot" style="background:#9a8da9"></i> Inherit from roles</span></div>
+                </div>
+                <div class="policy-table-wrap">
+                    <table class="table table-bordered policy-table" id="userMatrix">
+                        <thead><tr id="userHead"><th>Menu / resource</th><th class="text-secondary">Select a project</th></tr></thead>
+                        <tbody id="userRows"><tr><td colspan="2" class="text-center text-secondary py-5">Choose a project to load the user matrix.</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="small text-secondary">Only Allow/Deny entries are stored; Inherit removes a user override.</div>
+                    <button class="btn btn-primary" id="saveUser" disabled>Save user overrides</button>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
 (() => {
- const project=document.getElementById('projectSelect'), role=document.getElementById('roleSelect'), user=document.getElementById('userSelect');
- const roleRows=document.getElementById('roleRows'), userRows=document.getElementById('userRows');
- const token=()=>document.querySelector('input[name="__RequestVerificationToken"]')?.value||'';
- const url=(kind,p=0,s=0)=>'@Url.Action("Data","MenuAccess",new { area="PlatformAdmin" })'+'?kind='+encodeURIComponent(kind)+'&projectId='+p+'&selectionId='+s;
- const notice=(msg,type='success')=>{const n=document.getElementById('notice');n.textContent=msg;n.className='alert alert-'+type;};
- const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let menus=[], roles=[], users=[];
- async function get(path){const r=await fetch(path);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'Request failed.');return d;}
- async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':token()},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'Save failed.');return d;}
- function options(select,items,label,placeholder){select.innerHTML='<option value="">'+placeholder+'</option>'+items.map(x=>'<option value="'+x.id+'">'+esc(label(x))+'</option>').join('');}
- function renderRole(values=[]){const access=new Map(values.map(x=>[x.menuItemId,x.isAllowed]));roleRows.innerHTML=menus.length?menus.map(m=>'<tr><td><span class="fw-semibold">'+esc(m.name)+'</span><div class="small text-secondary">'+esc(m.code)+'</div></td><td>'+esc(m.moduleName||'Standalone')+'</td><td class="text-center"><input class="form-check-input role-check" type="checkbox" data-menu="'+m.id+'" '+(access.get(m.id)?'checked':'')+' aria-label="Allow '+esc(m.name)+'"></td></tr>').join(''):'<tr><td colspan="3" class="text-center text-secondary py-4">No active menus exist for this project.</td></tr>';document.getElementById('saveRole').disabled=!role.value;}
- function renderUser(values=[]){const access=new Map(values.map(x=>[x.menuItemId,x.decision]));userRows.innerHTML=menus.length?menus.map(m=>'<tr><td><span class="fw-semibold">'+esc(m.name)+'</span><div class="small text-secondary">'+esc(m.code)+'</div></td><td>'+esc(m.moduleName||'Standalone')+'</td><td><select class="form-select form-select-sm user-decision" data-menu="'+m.id+'" aria-label="Override for '+esc(m.name)+'"><option value="inherit" '+((access.get(m.id)||'inherit')==='inherit'?'selected':'')+'>Inherit role access</option><option value="allow" '+(access.get(m.id)==='allow'?'selected':'')+'>Allow</option><option value="deny" '+(access.get(m.id)==='deny'?'selected':'')+'>Deny</option></select></td></tr>').join(''):'<tr><td colspan="3" class="text-center text-secondary py-4">No active menus exist for this project.</td></tr>';document.getElementById('saveUser').disabled=!user.value;}
- async function loadRole(){if(!project.value||!role.value){renderRole();return;}const d=await get(url('role',project.value,role.value));renderRole(d);}
- async function loadUser(){if(!project.value||!user.value){renderUser();return;}const d=await get(url('user',project.value,user.value));renderUser(d);}
- async function loadProject(){menus=[];roles=[];users=[];role.value='';user.value='';renderRole();renderUser();if(!project.value){options(role,[],'','Select project first');options(user,[],'','Select project first');return;}const d=await get(url('lookups',project.value));menus=d.menus;roles=d.roles;users=d.users;options(role,roles,x=>x.name+' ('+x.code+')','Choose a role…');options(user,users,x=>x.displayName+' ('+x.userName+')','Choose a user…');renderRole();renderUser();}
- role.addEventListener('change',()=>loadRole().catch(e=>notice(e.message,'danger')));
- user.addEventListener('change',()=>loadUser().catch(e=>notice(e.message,'danger')));
- project.addEventListener('change',()=>loadProject().catch(e=>notice(e.message,'danger')));
- document.getElementById('saveRole').addEventListener('click',async()=>{try{const items=[...roleRows.querySelectorAll('.role-check')].map(x=>({menuItemId:Number(x.dataset.menu),isAllowed:x.checked}));await post('@Url.Action("SaveRole","MenuAccess",new { area="PlatformAdmin" })',{projectId:Number(project.value),roleId:Number(role.value),items});notice('Role menu access saved.');}catch(e){notice(e.message,'danger');}});
- document.getElementById('saveUser').addEventListener('click',async()=>{try{const items=[...userRows.querySelectorAll('.user-decision')].map(x=>({menuItemId:Number(x.dataset.menu),decision:x.value}));await post('@Url.Action("SaveUser","MenuAccess",new { area="PlatformAdmin" })',{projectId:Number(project.value),userId:Number(user.value),items});notice('User overrides saved. Inherit entries use role access.');}catch(e){notice(e.message,'danger');}});
- const form=document.createElement('form');form.innerHTML='@Html.AntiForgeryToken()';document.body.appendChild(form);
- get(url('projects')).then(items=>{options(project,items,x=>x.tenantName+' / '+x.name+' ('+x.code+')','Choose a project…');}).catch(e=>notice(e.message,'danger'));
+    const project = document.getElementById('projectSelect');
+    const roleHead = document.getElementById('roleHead');
+    const userHead = document.getElementById('userHead');
+    const roleRows = document.getElementById('roleRows');
+    const userRows = document.getElementById('userRows');
+    const roleSearch = document.getElementById('roleSearch');
+    const userSearch = document.getElementById('userSearch');
+    const saveRoleButton = document.getElementById('saveRole');
+    const saveUserButton = document.getElementById('saveUser');
+    const baseUrl = '@Url.Action("Data", "MenuAccess", new { area = "PlatformAdmin" })';
+    const saveRoleUrl = '@Url.Action("SaveRole", "MenuAccess", new { area = "PlatformAdmin" })';
+    const saveUserUrl = '@Url.Action("SaveUser", "MenuAccess", new { area = "PlatformAdmin" })';
+    const csrf = '@Html.AntiForgeryToken()';
+    let menus = [], roles = [], users = [];
+    let roleState = new Map(), userState = new Map();
+    let dirtyRoles = new Set(), dirtyUsers = new Set();
+
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const requestUrl = (kind, projectId, selectionId = 0) => baseUrl + '?kind=' + encodeURIComponent(kind) + '&projectId=' + projectId + '&selectionId=' + selectionId;
+    const notice = (message, type = 'success') => {
+        const node = document.getElementById('notice');
+        node.textContent = message;
+        node.className = 'alert alert-' + type + ' policy-status py-2';
+    };
+    async function get(url) {
+        const response = await fetch(url, { credentials: 'same-origin' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Could not load menu permissions.');
+        return data;
+    }
+    async function post(url, payload) {
+        const form = document.createElement('form');
+        form.innerHTML = csrf;
+        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        const response = await fetch(url, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type':'application/json','RequestVerificationToken':token},
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Could not save menu permissions.');
+        return data;
+    }
+    function options(select, items, label, placeholder) {
+        select.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+            items.map(item => '<option value="' + item.id + '">' + esc(label(item)) + '</option>').join('');
+    }
+    function menuCell(menu) {
+        const depth = menu.parentMenuId ? 1 : 0;
+        return '<div class="policy-menu-name" style="padding-left:' + (depth * 1.2) + 'rem">' +
+            '<span class="policy-menu-icon" aria-hidden="true">' + esc(menu.icon || (menu.parentMenuId ? '↳' : '▤')) + '</span>' +
+            '<div><div class="fw-semibold">' + esc(menu.name) + '</div><div class="policy-code">' + esc(menu.code) +
+            (menu.moduleName ? ' · ' + esc(menu.moduleName) : ' · Standalone') + '</div></div></div>';
+    }
+    function filteredMenus(query) {
+        const q = query.trim().toLowerCase();
+        if (!q) return menus;
+        return menus.filter(m => [m.name,m.code,m.moduleName].some(v => String(v || '').toLowerCase().includes(q)));
+    }
+    function renderRoleMatrix() {
+        roleHead.innerHTML = '<th>Menu / resource</th>' + roles.map(r =>
+            '<th class="policy-column"><span class="policy-role-chip role">' + esc(r.name) + '</span><div class="policy-code mt-1">' + esc(r.code) + '</div></th>'
+        ).join('');
+        const rows = filteredMenus(roleSearch.value);
+        roleRows.innerHTML = rows.length ? rows.map(m => '<tr data-search="' + esc((m.name+' '+m.code+' '+(m.moduleName||'')).toLowerCase()) + '"><td>' + menuCell(m) + '</td>' +
+            roles.map(r => {
+                const key = r.id + ':' + m.id;
+                const checked = roleState.get(key) === true;
+                return '<td class="policy-cell"><input type="checkbox" class="policy-check role-check" data-role="' + r.id + '" data-menu="' + m.id + '" ' + (checked ? 'checked' : '') +
+                    ' aria-label="' + esc(r.name + ' allow ' + m.name) + '"></td>';
+            }).join('') + '</tr>').join('') :
+            '<tr><td colspan="' + (roles.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
+        saveRoleButton.disabled = !project.value || roles.length === 0 || dirtyRoles.size === 0;
+    }
+    function renderUserMatrix() {
+        userHead.innerHTML = '<th>Menu / resource</th>' + users.map(u =>
+            '<th class="policy-column"><span class="policy-role-chip user">' + esc(u.displayName) + '</span><div class="policy-code mt-1">' + esc(u.userName) + '</div></th>'
+        ).join('');
+        const rows = filteredMenus(userSearch.value);
+        userRows.innerHTML = rows.length ? rows.map(m => '<tr><td>' + menuCell(m) + '</td>' +
+            users.map(u => {
+                const key = u.id + ':' + m.id;
+                const decision = userState.get(key) || 'inherit';
+                return '<td class="policy-cell"><select class="form-select form-select-sm policy-decision user-decision" data-user="' + u.id + '" data-menu="' + m.id + '" aria-label="' + esc(u.displayName + ' decision for ' + m.name) + '">' +
+                    '<option value="inherit" ' + (decision === 'inherit' ? 'selected' : '') + '>Inherit</option>' +
+                    '<option value="allow" ' + (decision === 'allow' ? 'selected' : '') + '>✓ Allow</option>' +
+                    '<option value="deny" ' + (decision === 'deny' ? 'selected' : '') + '>✕ Deny</option></select></td>';
+            }).join('') + '</tr>').join('') :
+            '<tr><td colspan="' + (users.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
+        saveUserButton.disabled = !project.value || users.length === 0 || dirtyUsers.size === 0;
+    }
+    async function loadRoleMatrix() {
+        roleState = new Map(); dirtyRoles.clear();
+        const results = await Promise.all(roles.map(async r => {
+            const items = await get(requestUrl('role', project.value, r.id));
+            return {roleId:r.id, items};
+        }));
+        for (const result of results)
+            for (const item of result.items) roleState.set(result.roleId + ':' + item.menuItemId, !!item.isAllowed);
+        renderRoleMatrix();
+    }
+    async function loadUserMatrix() {
+        userState = new Map(); dirtyUsers.clear();
+        const results = await Promise.all(users.map(async u => {
+            const items = await get(requestUrl('user', project.value, u.id));
+            return {userId:u.id, items};
+        }));
+        for (const result of results)
+            for (const item of result.items) userState.set(result.userId + ':' + item.menuItemId, item.decision || 'inherit');
+        renderUserMatrix();
+    }
+    async function loadProject() {
+        menus=[]; roles=[]; users=[]; roleState=new Map(); userState=new Map();
+        dirtyRoles.clear(); dirtyUsers.clear();
+        renderRoleMatrix(); renderUserMatrix();
+        saveRoleButton.disabled = true; saveUserButton.disabled = true;
+        if (!project.value) return;
+        const data = await get(requestUrl('lookups', project.value));
+        menus=data.menus || []; roles=data.roles || []; users=data.users || [];
+        renderRoleMatrix(); renderUserMatrix();
+        await Promise.all([loadRoleMatrix(), loadUserMatrix()]);
+        notice('Loaded ' + menus.length + ' menus, ' + roles.length + ' roles, and ' + users.length + ' users.');
+    }
+
+    roleRows.addEventListener('change', event => {
+        const input = event.target.closest('.role-check');
+        if (!input) return;
+        const key = input.dataset.role + ':' + input.dataset.menu;
+        roleState.set(key, input.checked);
+        dirtyRoles.add(Number(input.dataset.role));
+        saveRoleButton.disabled = false;
+    });
+    userRows.addEventListener('change', event => {
+        const input = event.target.closest('.user-decision');
+        if (!input) return;
+        userState.set(input.dataset.user + ':' + input.dataset.menu, input.value);
+        dirtyUsers.add(Number(input.dataset.user));
+        saveUserButton.disabled = false;
+    });
+    roleSearch.addEventListener('input', renderRoleMatrix);
+    userSearch.addEventListener('input', renderUserMatrix);
+    project.addEventListener('change', () => loadProject().catch(error => notice(error.message, 'danger')));
+
+    saveRoleButton.addEventListener('click', async () => {
+        saveRoleButton.disabled = true;
+        try {
+            for (const roleId of dirtyRoles) {
+                const items = menus.map(m => ({menuItemId:m.id, isAllowed:roleState.get(roleId + ':' + m.id) === true}));
+                await post(saveRoleUrl, {projectId:Number(project.value), roleId, items});
+            }
+            dirtyRoles.clear(); renderRoleMatrix();
+            notice('Role-wise menu permissions saved successfully.');
+        } catch (error) { notice(error.message, 'danger'); renderRoleMatrix(); }
+    });
+    saveUserButton.addEventListener('click', async () => {
+        saveUserButton.disabled = true;
+        try {
+            for (const userId of dirtyUsers) {
+                const items = menus.map(m => ({menuItemId:m.id, decision:userState.get(userId + ':' + m.id) || 'inherit'}));
+                await post(saveUserUrl, {projectId:Number(project.value), userId, items});
+            }
+            dirtyUsers.clear(); renderUserMatrix();
+            notice('User-wise overrides saved successfully.');
+        } catch (error) { notice(error.message, 'danger'); renderUserMatrix(); }
+    });
+
+    get(requestUrl('projects', 0)).then(items => {
+        options(project, items, x => x.tenantName + ' / ' + x.name + ' (' + x.code + ')', 'Choose a project…');
+    }).catch(error => notice(error.message, 'danger'));
 })();
 </script>
