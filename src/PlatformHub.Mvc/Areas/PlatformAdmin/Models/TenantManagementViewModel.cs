@@ -5,6 +5,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Models;
 public sealed class TenantManagementViewModel
 {
     public IReadOnlyList<TenantViewModel> Tenants { get; init; } = Array.Empty<TenantViewModel>();
+    public IReadOnlyList<ProjectRowViewModel> Projects { get; init; } = Array.Empty<ProjectRowViewModel>();
     public IReadOnlySet<long> CanHardDeleteTenantIds { get; init; } = new HashSet<long>();
 
     [Required(ErrorMessage = "Tenant code is required.")]
