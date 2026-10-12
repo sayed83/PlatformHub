@@ -10,7 +10,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class ProjectsController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(long? tenantId, CancellationToken ct)
+    public async Task<IActionResult> Index(long? tenantId, long? highlightProjectId, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true")
             return Forbid();
@@ -24,6 +24,7 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 "Platform API is unavailable. Please verify that the API is running and try again.");
 
+        ViewData["HighlightProjectId"] = highlightProjectId;
         return View(model);
     }
 
