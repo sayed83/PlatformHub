@@ -38,6 +38,21 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     }
 
 
+    [HttpGet]
+    public async Task<IActionResult> Dependencies(long id, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var details = await api.GetAsync<TenantDependencyViewModel>($"api/v1/platform/access/tenants/{id}/dependencies", token, ct);
+        if (details is null)
+        {
+            TempData["ErrorMessage"] = "Unable to load tenant dependencies. Check your Tenant.View permission and API logs.";
+            return RedirectToAction(nameof(Index));
+        }
+        return View("Dependencies", details);
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(long id, string code, string name, CancellationToken ct)
     {
