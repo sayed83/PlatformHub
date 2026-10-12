@@ -6,7 +6,7 @@ using PlatformHub.Infrastructure.Persistence;
 
 namespace PlatformHub.Infrastructure.Platform;
 
-public sealed class PlatformService(PlatformDbContext db) : IPlatformService
+public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedureExecutor dapper) : IPlatformService
 {
     public async Task<PlatformSummaryDto> GetSummaryAsync(CancellationToken cancellationToken)
     {
@@ -88,12 +88,13 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
 
     public async Task<IReadOnlyList<ProjectDto>> GetProjectsAsync(long? tenantId, CancellationToken cancellationToken)
     {
-        var query = db.Projects.AsNoTracking().Include(x => x.Tenant).AsQueryable();
-        if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
-        return await query.OrderBy(x => x.Tenant == null ? 1 : 0)
-            .ThenBy(x => x.Tenant == null ? string.Empty : x.Tenant.Name).ThenBy(x => x.Name)
-            .Select(x => new ProjectDto(x.Id, x.TenantId, x.Tenant == null ? null : x.Tenant.Name,
-                x.Code, x.Name, x.BaseUrl, x.IsActive)).ToListAsync(cancellationToken);
+        var rows = await dapper.QueryAsync<ProjectListRow>(
+            "dbo.usp_Platform_GetProjects",
+            new { TenantId = tenantId },
+            cancellationToken);
+
+        return rows.Select(x => new ProjectDto(
+            x.Id, x.TenantId, x.TenantName, x.Code, x.Name, x.BaseUrl, x.IsActive)).ToArray();
     }
 
     public async Task<ProjectDto> CreateProjectAsync(CreateProjectRequest request, CancellationToken cancellationToken)
@@ -250,4 +251,16 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
 
     public Task<bool> IsPlatformAdminAsync(long userId, CancellationToken cancellationToken) =>
         db.Users.AnyAsync(x => x.Id == userId && x.IsActive && x.IsPlatformAdmin, cancellationToken);
+}
+
+
+internal sealed class ProjectListRow
+{
+    public long Id { get; init; }
+    public long? TenantId { get; init; }
+    public string? TenantName { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string? BaseUrl { get; init; }
+    public bool IsActive { get; init; }
 }
