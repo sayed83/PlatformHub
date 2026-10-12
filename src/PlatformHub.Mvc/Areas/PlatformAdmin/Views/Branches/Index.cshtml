@@ -65,11 +65,11 @@
                             <td class="text-end pe-3">
                                 <div class="d-flex flex-wrap justify-content-end gap-1">
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editBranch-@branch.Id">Edit</button>
-                                    <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Deactivate this branch? Its data will be retained.');">
+                                    <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Delete" method="post" class="d-inline" data-confirm="Deactivate this branch? Its data will be retained.">
                                         @Html.AntiForgeryToken()<input type="hidden" name="id" value="@branch.Id" /><input type="hidden" name="tenantId" value="@Model.TenantId" /><input type="hidden" name="hardDelete" value="false" />
                                         <button type="submit" class="btn btn-sm btn-outline-warning">Soft delete</button>
                                     </form>
-                                    <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Permanently delete this branch? This cannot be undone.');">
+                                    <form asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Delete" method="post" class="d-inline" data-confirm="Permanently delete this branch? This cannot be undone.">
                                         @Html.AntiForgeryToken()<input type="hidden" name="id" value="@branch.Id" /><input type="hidden" name="tenantId" value="@Model.TenantId" /><input type="hidden" name="hardDelete" value="true" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Hard delete</button>
                                     </form>
