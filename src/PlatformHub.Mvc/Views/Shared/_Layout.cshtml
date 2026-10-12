@@ -149,12 +149,13 @@ else
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-.select2-container{width:100%!important}.select2-container--default .select2-selection--single{height:38px;border:1px solid #ced4da;border-radius:.375rem;display:flex;align-items:center}.select2-container--default .select2-selection--single .select2-selection__rendered{line-height:36px;padding-left:.75rem;color:var(--bs-body-color)}.select2-container--default .select2-selection--single .select2-selection__arrow{height:36px;right:.35rem}.select2-dropdown{z-index:2000;border-color:#ced4da}.select2-container--open{z-index:2001}
+.select2-container{width:100%!important}.select2-container--default .select2-selection--single{height:38px;border:1px solid #ced4da;border-radius:.375rem;display:flex;align-items:center}.select2-container--default .select2-selection--single .select2-selection__rendered{line-height:36px;padding-left:.75rem;color:var(--bs-body-color)}.select2-container--default .select2-selection--single .select2-selection__arrow{height:36px;right:.35rem}.select2-dropdown{z-index:2000;border-color:#ced4da}.select2-container--open{z-index:2001}.swal2-container{z-index:30000!important}
 </style>
 <script>
 (function(){
  function initSelect2(root){
   if(!window.jQuery||!jQuery.fn.select2)return;
+  if(jQuery(root).closest('.swal2-container').length||jQuery(root).is('.swal2-container')||jQuery(root).closest('.swal2-popup').length)return;
   jQuery(root).find('select').addBack('select').each(function(){
    const el=jQuery(this);
    if(el.hasClass('select2-hidden-accessible')||el.is('[data-select2="off"]'))return;
@@ -169,6 +170,7 @@ else
    const form=event.target, message=form&&form.getAttribute&&form.getAttribute('data-confirm');
    if(!message||form.dataset.confirmed==='true')return;
    event.preventDefault();
+   if(window.jQuery&&jQuery.fn.select2)jQuery('select.select2-hidden-accessible').each(function(){const el=jQuery(this);if(el.select2('isOpen'))el.select2('close');});
    const hard=form.querySelector('input[name="hardDelete"][value="true"]');
    const result=await Swal.fire({title:hard?'Permanently delete?':'Please confirm',text:message,icon:hard?'warning':'question',showCancelButton:true,confirmButtonText:hard?'Yes, permanently delete':'Confirm',cancelButtonText:'Cancel',confirmButtonColor:hard?'#dc3545':'#0d6efd',reverseButtons:true,focusCancel:true});
    if(result.isConfirmed){form.dataset.confirmed='true';form.requestSubmit();}
