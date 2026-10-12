@@ -658,8 +658,29 @@
             return response;
         }
         const send = async (path, body) => { const r = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('#editForm input[name="__RequestVerificationToken"]')?.value || '' }, body: JSON.stringify(body) }); const data = await r.json().catch(() => ({})); if (!r.ok) throw Error(data.message || 'Request failed.'); return data; };
-        async function loadProjects() { const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })'); if (!r.ok) throw Error('Unable to load projects.'); const ps = await r.json(); projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join(''); }
-        async function refresh() { const p = selectedProject(); if (!p) { modules = []; menus = []; render(); return; } const [mr, ir] = await Promise.all([apiFetch(url('Data') + '?kind=modules&projectId=' + p), apiFetch(url('Data') + '?kind=items&projectId=' + p)]); if (!mr.ok || !ir.ok) throw Error('Unable to load project menu data.'); modules = await mr.json(); menus = await ir.json(); render(); }
+        async function readError(response, fallback) {
+            const payload = await response.json().catch(() => null);
+            return payload?.message || payload?.detail || (response.status ? fallback + ' (HTTP ' + response.status + ')' : fallback);
+        }
+        async function loadProjects() {
+            const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })');
+            if (!r.ok) throw Error(await readError(r, 'Unable to load projects.'));
+            const ps = await r.json();
+            projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join('');
+        }
+        async function refresh() {
+            const p = selectedProject();
+            if (!p) { modules = []; menus = []; render(); return; }
+            const [mr, ir] = await Promise.all([
+                apiFetch(url('Data') + '?kind=modules&projectId=' + p),
+                apiFetch(url('Data') + '?kind=items&projectId=' + p)
+            ]);
+            if (!mr.ok) throw Error(await readError(mr, 'Unable to load modules.'));
+            if (!ir.ok) throw Error(await readError(ir, 'Unable to load menu entries.'));
+            modules = await mr.json();
+            menus = await ir.json();
+            render();
+        }
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
         function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
