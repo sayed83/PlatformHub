@@ -78,6 +78,14 @@ public sealed class PlatformService(PlatformDbContext db) : IPlatformService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task ActivateTenantAsync(long id, CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new ArgumentException("Tenant was not found.");
+        tenant.IsActive = true;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ProjectDto>> GetProjectsAsync(long? tenantId, CancellationToken cancellationToken)
     {
         var query = db.Projects.AsNoTracking().Include(x => x.Tenant).AsQueryable();
