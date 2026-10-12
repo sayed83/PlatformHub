@@ -703,8 +703,8 @@
         }
         function syncGeneratedRoute() {
             if (!routeAuto) return;
-            const controller = document.getElementById('entryController').value.trim().replace(/^\\/+|\\/+$/g, '');
-            const action = document.getElementById('entryAction').value.trim().replace(/^\\/+|\\/+$/g, '');
+            const controller = document.getElementById('entryController').value.trim().replace(/^\/+|\/+$/g, '');
+            const action = document.getElementById('entryAction').value.trim().replace(/^\/+|\/+$/g, '');
             document.getElementById('entryRoute').value = controller && action
                 ? '/' + controller.toLowerCase() + '/' + action.toLowerCase()
                 : '';
