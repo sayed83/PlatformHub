@@ -53,7 +53,7 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
             }
 
             ModelState.AddModelError(string.Empty,
-                "Project could not be created. Check that the tenant is active and the project code is unique within that tenant.");
+                "Project could not be created. Check the selected tenant (if any) and ensure the project code is unique within that scope.");
         }
 
         var current = await LoadModelAsync(token, model.TenantId, ct);
