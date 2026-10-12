@@ -58,7 +58,7 @@ public sealed class WorkspaceController(
         var tenantIds = assignments.Where(x => x.TenantId.HasValue)
             .Select(x => x.TenantId!.Value)
             .Concat(branches.Select(x => x.TenantId))
-            .Concat(projects.Select(x => x.TenantId))
+            .Concat(projects.Where(x => x.TenantId.HasValue).Select(x => x.TenantId!.Value))
             .Distinct().ToArray();
         var tenants = await db.Tenants.AsNoTracking()
             .Where(x => tenantIds.Contains(x.Id) && x.IsActive)
