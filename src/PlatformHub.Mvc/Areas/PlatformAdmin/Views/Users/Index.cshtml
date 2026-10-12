@@ -27,6 +27,9 @@
     .ua-section-title { font-size: .9rem; font-weight: 700; }
     .ua-sticky-tools { background: var(--bs-body-bg); }
     .ua-details summary { cursor: pointer; list-style-position: inside; }
+    .ua-remove-role { white-space: nowrap; min-width: 5.25rem; }
+    .ua-remove-role span { font-size: 1rem; font-weight: 700; margin-right: .2rem; }
+    .ua-symbol { font-size: 1.1rem; line-height: 1; margin-right: .2rem; }
     .ua-details[open] summary { margin-bottom: .9rem; }
     @@media (max-width: 767.98px) { .ua-hero { padding: 1rem; } .ua-stat-value { font-size: 1.35rem; } }
 </style>
@@ -34,7 +37,7 @@
 <div class="ua-page">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-            <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Dashboard</a>
+            <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="small text-decoration-none"><span aria-hidden="true">←</span> Dashboard</a>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <h1 class="h3 fw-bold mb-0">Users &amp; Access</h1>
                 <span class="badge rounded-pill text-bg-light border text-dark">Administration</span>
@@ -44,7 +47,7 @@
         @if (canCreate)
         {
             <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                <i class="bi bi-person-plus me-1"></i> Create user
+                <span aria-hidden="true" class="ua-symbol">＋</span> Create user
             </button>
         }
     </div>
@@ -64,12 +67,12 @@
         <div class="card-header ua-sticky-tools border-bottom p-3 p-lg-4">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                 <div><h2 class="h5 fw-bold mb-1">User directory</h2><div class="small text-secondary">Search accounts and manage access from each user row.</div></div>
-                <span class="small text-secondary"><i class="bi bi-funnel me-1"></i> Filters apply when you submit</span>
+                <span class="small text-secondary">Filters apply when you submit</span>
             </div>
             <form method="get" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" class="row g-2 align-items-end">
                 <div class="col-12 col-lg">
                     <label class="form-label small fw-semibold" for="search">Search</label>
-                    <div class="input-group"><span class="input-group-text bg-body"><i class="bi bi-search"></i></span><input class="form-control" id="search" name="search" value="@Model.Search" placeholder="Username or display name..." /></div>
+                    <div class="input-group"><span class="input-group-text bg-body"><span aria-hidden="true">⌕</span></span><input class="form-control" id="search" name="search" value="@Model.Search" placeholder="Username or display name..." /></div>
                 </div>
                 <div class="col-8 col-lg-3">
                     <label class="form-label small fw-semibold" for="active">Account status</label>
@@ -81,7 +84,7 @@
                 </div>
                 <div class="col-4 col-lg-auto d-flex gap-2">
                     <button class="btn btn-primary flex-grow-1" type="submit">Search</button>
-                    <a class="btn btn-outline-secondary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" title="Clear filters"><i class="bi bi-arrow-counterclockwise"></i></a>
+                    <a class="btn btn-outline-secondary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index" title="Clear filters"><span aria-hidden="true">↺</span></a>
                 </div>
             </form>
         </div>
@@ -108,12 +111,12 @@
                             @if (user.Roles.Count == 0) { <span class="small text-secondary">No roles</span> }
                             @foreach (var role in user.Roles) { <span class="badge rounded-pill text-bg-light border text-dark me-1 mb-1">@role</span> }
                         </td>
-                        <td>@if (user.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis"><i class="bi bi-check-circle me-1"></i>Active</span> } else { <span class="badge rounded-pill text-bg-secondary"><i class="bi bi-pause-circle me-1"></i>Inactive</span> }</td>
+                        <td>@if (user.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis"><span aria-hidden="true">✓</span> Active</span> } else { <span class="badge rounded-pill text-bg-secondary"><span aria-hidden="true">Ⅱ</span> Inactive</span> }</td>
                         <td><span class="badge rounded-pill text-bg-light border text-dark">@user.RoleAssignments.Count assignment(s)</span></td>
                         <td class="text-end pe-3 pe-lg-4">
                             <div class="d-inline-flex flex-wrap justify-content-end gap-1">
-                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#access-@user.Id" aria-expanded="false" aria-controls="access-@user.Id"><i class="bi bi-shield-check me-1"></i>Access</button>
-                                @if (canUpdate || canDeactivate) { <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageUser-@user.Id"><i class="bi bi-pencil-square me-1"></i>Manage</button> }
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#access-@user.Id" aria-expanded="false" aria-controls="access-@user.Id"><span aria-hidden="true">✓</span> Access</button>
+                                @if (canUpdate || canDeactivate) { <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageUser-@user.Id"><span aria-hidden="true">✎</span> Manage</button> }
                             </div>
                         </td>
                     </tr>
@@ -123,9 +126,9 @@
                                 <div class="py-3">
                                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                                         <div><div class="ua-section-title">Access &amp; role assignments</div><div class="small text-secondary">Use the narrowest scope required for this user.</div></div>
-                                        @if (canAssign) { <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id"><i class="bi bi-plus-lg me-1"></i>Assign role</button> }
+                                        @if (canAssign) { <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id"><span aria-hidden="true">＋</span> Assign role</button> }
                                     </div>
-                                    @if (user.RoleAssignments.Count == 0) { <div class="alert alert-light border small mb-3"><i class="bi bi-info-circle me-1"></i>No role assignments. This user may not be able to access tenant features.</div> }
+                                    @if (user.RoleAssignments.Count == 0) { <div class="alert alert-light border small mb-3"><span aria-hidden="true">ⓘ</span> No role assignments. This user may not be able to access tenant features.</div> }
                                     <div class="row g-2 mb-3">
                                         @foreach (var assignment in user.RoleAssignments)
                                         {
@@ -137,11 +140,11 @@
                                                         {
                                                             <form asp-area="PlatformAdmin" asp-controller="Users" asp-action="RemoveRole" method="post" class="m-0" onsubmit="return confirm('Remove this role assignment?');">
                                                                 @Html.AntiForgeryToken()<input type="hidden" name="userId" value="@user.Id" /><input type="hidden" name="assignmentId" value="@assignment.Id" />
-                                                                <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Remove @assignment.RoleName assignment" title="Remove assignment"><i class="bi bi-trash"></i></button>
+                                                                <button class="btn btn-sm btn-outline-danger ua-remove-role" type="submit" aria-label="Remove @assignment.RoleName assignment" title="Remove assignment"><span aria-hidden="true">×</span> Remove</button>
                                                             </form>
                                                         }
                                                     </div>
-                                                    <div class="small text-secondary mt-2"><i class="bi bi-diagram-3 me-1"></i>@(assignment.ProjectName is not null ? $"Project: {assignment.ProjectName}" : assignment.BranchName is not null ? $"Branch: {assignment.BranchName}" : assignment.TenantName is not null ? $"Tenant: {assignment.TenantName}" : "Global scope")</div>
+                                                    <div class="small text-secondary mt-2"><span aria-hidden="true">↳</span> @(assignment.ProjectName is not null ? $"Project: {assignment.ProjectName}" : assignment.BranchName is not null ? $"Branch: {assignment.BranchName}" : assignment.TenantName is not null ? $"Tenant: {assignment.TenantName}" : "Global scope")</div>
                                                 </div>
                                             </div>
                                         }
@@ -157,7 +160,7 @@
                                                     <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Tenant</label><select class="form-select js-tenant-scope" name="TenantId"><option value="">Infer from branch/project</option>@foreach (var tenant in Model.Tenants.Where(x => x.IsActive)){<option value="@tenant.Id">@tenant.Code — @tenant.Name</option>}</select></div>
                                                     <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Branch (optional)</label><select class="form-select js-branch-scope" name="BranchId"><option value="">No branch</option>@foreach (var branch in Model.Branches.Where(x => x.IsActive)){<option value="@branch.Id" data-tenant-id="@branch.TenantId">@branch.Code — @branch.Name</option>}</select></div>
                                                     <div class="col-12 col-lg-3"><label class="form-label small fw-semibold">Project (optional)</label><select class="form-select js-project-scope" name="ProjectId"><option value="">No project</option>@foreach (var project in Model.Projects.Where(x => x.IsActive)){<option value="@project.Id" data-tenant-id="@project.TenantId">@project.Code — @project.Name</option>}</select></div>
-                                                    <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-2"><div class="form-text"><i class="bi bi-shield-lock me-1"></i>Choose the least-privileged scope. Branch and project must belong to the selected tenant.</div><div class="d-flex gap-2"><button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id">Cancel</button><button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Assign role</button></div></div>
+                                                    <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-2"><div class="form-text"><span aria-hidden="true">▣</span> Choose the least-privileged scope. Branch and project must belong to the selected tenant.</div><div class="d-flex gap-2"><button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#assign-@user.Id">Cancel</button><button class="btn btn-primary" type="submit"><span aria-hidden="true">✓</span> Assign role</button></div></div>
                                                 </form>
                                             </div>
                                         </div>
@@ -167,11 +170,11 @@
                         </td>
                     </tr>
                 }
-                @if (Model.Users.Count == 0) { <tr><td colspan="5" class="text-center py-5"><div class="mb-2"><i class="bi bi-people fs-1 text-secondary"></i></div><div class="fw-semibold">No users found</div><div class="small text-secondary mb-3">Try changing the search or status filter.</div><a class="btn btn-sm btn-outline-primary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index">Clear filters</a></td></tr> }
+                @if (Model.Users.Count == 0) { <tr><td colspan="5" class="text-center py-5"><div class="mb-2"><span class="fs-1 text-secondary" aria-hidden="true">♙</span></div><div class="fw-semibold">No users found</div><div class="small text-secondary mb-3">Try changing the search or status filter.</div><a class="btn btn-sm btn-outline-primary" asp-area="PlatformAdmin" asp-controller="Users" asp-action="Index">Clear filters</a></td></tr> }
                 </tbody>
             </table>
         </div>
-        <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 small text-secondary"><span>Showing @Model.Users.Count user(s)</span><span><i class="bi bi-lock me-1"></i>Role and scope changes are validated by the API.</span></div>
+        <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 small text-secondary"><span>Showing @Model.Users.Count user(s)</span><span><span aria-hidden="true">▣</span> Role and scope changes are validated by the API.</span></div>
     </section>
 </div>
 
@@ -191,7 +194,7 @@
                         @if (isSuperAdmin) { <div class="col-12"><div class="form-check border rounded-3 p-3 ps-5"><input asp-for="IsPlatformAdmin" class="form-check-input" /><label asp-for="IsPlatformAdmin" class="form-check-label fw-semibold">Create as Platform Admin (not Super Admin)</label><div class="form-text">Platform Admin accounts cannot manage protected Super Admin accounts. The API enforces this restriction.</div></div></div> }
                     </div>
                 </div>
-                <div class="modal-footer px-4 pb-4"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary px-4" type="submit"><i class="bi bi-person-plus me-1"></i>Create user</button></div>
+                <div class="modal-footer px-4 pb-4"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary px-4" type="submit"><span aria-hidden="true">＋</span> Create user</button></div>
             </form>
         </div></div>
     </div>
