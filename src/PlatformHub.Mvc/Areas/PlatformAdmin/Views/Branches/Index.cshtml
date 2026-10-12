@@ -57,7 +57,7 @@
                 {
                     @foreach (var branch in Model.Branches)
                     {
-                        <tr>
+                        <tr id="branch-@branch.Id" class="@((ViewData["HighlightBranchId"] as long?) == branch.Id ? "table-warning border border-warning" : "")">
                             <td class="ps-3 ps-lg-4"><div class="d-flex align-items-center gap-3"><span class="bm-avatar">@((string.IsNullOrWhiteSpace(branch.Name) ? branch.Code : branch.Name).Trim().Substring(0,1).ToUpperInvariant())</span><div class="min-w-0"><div class="fw-semibold">@branch.Name</div><div class="small text-secondary">Branch ID: @branch.Id</div></div></div></td>
                             <td><code class="fw-semibold">@branch.Code</code></td>
                             <td><div class="text-break">@(string.IsNullOrWhiteSpace(branch.Address) ? "Address not provided" : branch.Address)</div></td>
