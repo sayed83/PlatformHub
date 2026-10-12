@@ -7,8 +7,7 @@ public sealed class ProjectManagementViewModel
     public IReadOnlyList<ProjectRowViewModel> Projects { get; init; } = Array.Empty<ProjectRowViewModel>();
     public IReadOnlyList<TenantViewModel> Tenants { get; init; } = Array.Empty<TenantViewModel>();
 
-    [Range(1, long.MaxValue, ErrorMessage = "Select a tenant.")]
-    public long TenantId { get; set; }
+    public long? TenantId { get; set; }
 
     [Required(ErrorMessage = "Project code is required.")]
     [StringLength(50)]
@@ -25,4 +24,4 @@ public sealed class ProjectManagementViewModel
 }
 
 public sealed record ProjectRowViewModel(
-    long Id, long TenantId, string TenantName, string Code, string Name, string? BaseUrl, bool IsActive);
+    long Id, long? TenantId, string? TenantName, string Code, string Name, string? BaseUrl, bool IsActive);
