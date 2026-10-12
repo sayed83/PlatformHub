@@ -5,7 +5,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     var activeCount = Model.Projects.Count(x => x.IsActive);
     var inactiveCount = Model.Projects.Count - activeCount;
-    var tenantCount = Model.Projects.Select(x => x.TenantId).Distinct().Count();
+    var tenantCount = Model.Projects.Where(x => x.TenantId.HasValue).Select(x => x.TenantId!.Value).Distinct().Count();
 }
 <style>
     .pm-stat { border: 1px solid var(--bs-border-color); border-radius: .9rem; background: var(--bs-body-bg); padding: 1rem; height: 100%; }
@@ -100,7 +100,7 @@
                             <td class="ps-3 ps-lg-4">
                                 <div class="d-flex align-items-center gap-3"><span class="pm-avatar">@((string.IsNullOrWhiteSpace(project.Name) ? project.Code : project.Name).Trim().Substring(0,1).ToUpperInvariant())</span><div class="min-w-0"><div class="fw-semibold">@project.Name</div><code class="small">@project.Code</code></div></div>
                             </td>
-                            <td><div class="fw-semibold">@project.TenantName</div><div class="small text-secondary">Tenant ID: @project.TenantId</div></td>
+                            <td>@if (project.TenantId.HasValue) { <div class="fw-semibold">@project.TenantName</div><div class="small text-secondary">Tenant ID: @project.TenantId</div> } else { <span class="badge text-bg-light border">Standalone</span><div class="small text-secondary">No tenant assigned</div> }</td>
                             <td>@if (!string.IsNullOrWhiteSpace(project.BaseUrl)) { <a href="@project.BaseUrl" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-break">@project.BaseUrl</a> } else { <span class="text-secondary">Not configured</span> }</td>
                             <td>@if (project.IsActive) { <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis">✓ Active</span> } else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }</td>
                             <td class="text-end pe-3 pe-lg-4">
@@ -156,10 +156,10 @@
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow rounded-4">
             <form asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
-                <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="createProjectTitle">Create project</h2><p class="small text-secondary mb-0">A project must belong to an active tenant.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="createProjectTitle">Create project</h2><p class="small text-secondary mb-0">Select an active tenant or leave it unassigned to create a standalone project.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body px-4">
                     <div class="row g-3">
-                        <div class="col-12"><label asp-for="TenantId" class="form-label fw-semibold">Tenant</label><select asp-for="TenantId" class="form-select"><option value="0">Select tenant</option>@foreach (var tenant in Model.Tenants.Where(t => t.IsActive)) { <option value="@tenant.Id">@tenant.Code — @tenant.Name</option> }</select><span asp-validation-for="TenantId" class="text-danger small"></span></div>
+                        <div class="col-12"><label asp-for="TenantId" class="form-label fw-semibold">Tenant</label><select asp-for="TenantId" class="form-select"><option value="">No tenant (standalone project)</option>@foreach (var tenant in Model.Tenants.Where(t => t.IsActive)) { <option value="@tenant.Id">@tenant.Code — @tenant.Name</option> }</select><span asp-validation-for="TenantId" class="text-danger small"></span></div>
                         <div class="col-md-6"><label asp-for="Code" class="form-label fw-semibold">Project code</label><input asp-for="Code" class="form-control" placeholder="e.g. ERP" maxlength="50"/><div class="form-text">Letters, numbers, hyphens, and underscores.</div><span asp-validation-for="Code" class="text-danger small"></span></div>
                         <div class="col-md-6"><label asp-for="Name" class="form-label fw-semibold">Project name</label><input asp-for="Name" class="form-control" placeholder="Project display name" maxlength="200"/><span asp-validation-for="Name" class="text-danger small"></span></div>
                         <div class="col-12"><label asp-for="BaseUrl" class="form-label fw-semibold">Base URL <span class="text-secondary fw-normal">(optional)</span></label><input asp-for="BaseUrl" class="form-control" placeholder="https://project.example.com" maxlength="500"/><div class="form-text">Use a full URL including https://, or leave it empty.</div><span asp-validation-for="BaseUrl" class="text-danger small"></span></div>
