@@ -14,7 +14,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     [HttpGet("projects")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive)
-            .OrderBy(x => x.Name).Select(x => new { x.Id, x.TenantId, TenantName = x.Tenant.Name, x.Code, x.Name })
+            .OrderBy(x => x.Name).Select(x => new { x.Id, x.TenantId, TenantName = x.Tenant == null ? "Shared catalogue" : x.Tenant.Name, x.Code, x.Name })
             .ToListAsync(ct));
 
 
