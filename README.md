@@ -287,3 +287,24 @@ The current API is a platform-management scaffold; it does not yet contain Inven
 - Background jobs and exports must resolve their tenant scope explicitly; they must never depend on an ambient HTTP request context.
 
 Authorization-filter regression tests in `tests/PlatformHub.SecurityTests/RequireScopedPermissionAttributeTests.cs` cover unresolved context denial, client scope override denial, permission-service invocation with server-resolved IDs, and allowed/denied permission results.
+
+## Phase 4 closure checklist — existing API surface
+
+Phase 4 hardening for the current PlatformHub API surface is being closed as one auditable change set. The repository currently contains platform/workspace/navigation APIs, not tenant-facing Inventory, Sales, Purchase, or Accounting business-data controllers. Those future APIs cannot be marked secured until they exist and have endpoint-level tests.
+
+Completed controls in the current API:
+- Resolve workspace headers only after checking that the authenticated user, tenant, branch, and project are active and structurally consistent.
+- Reject inactive users even when a previously issued JWT and role assignment still exist.
+- Reject tenantless project-only assignments; shared projects require an explicit tenant anchor and an enabled tenant subscription.
+- Check the requested permission against current database-backed role assignments and the resolved workspace; menu visibility does not grant API access.
+- Provide fail-closed EF query helpers and a reusable `RequireScopedPermission` authorization filter. These are opt-in protections and must be applied to each future business endpoint.
+- Validate role-assignment writes against active tenant, branch, and project records; reject cross-tenant branch/project combinations and disabled shared-project subscriptions; keep the protected Platform Super Admin role global-only.
+- Keep platform-wide management routes under the Platform Admin policy instead of forcing them through tenant workspace scope.
+
+Release verification:
+1. Run `dotnet test tests/PlatformHub.SecurityTests/PlatformHub.SecurityTests.csproj`.
+2. Run `dotnet build` from the solution root.
+3. Confirm the GitHub Actions build/security-test workflow succeeds for the Phase 4 pull request.
+4. No database migration is expected for these authorization and validation changes.
+
+Remaining release rule (not a current-code defect): when tenant-facing business controllers, exports, stored procedures, or background jobs are added, each must explicitly resolve tenant/workspace scope, enforce permission checks, apply scoped data predicates, validate related IDs on writes, and include cross-tenant read/write/delete regression tests before release. The current platform-only Dapper stored procedure is an intentionally platform-admin catalogue query; do not use it as a pattern for tenant business data.
