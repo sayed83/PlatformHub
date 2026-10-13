@@ -308,3 +308,24 @@ Release verification:
 4. No database migration is expected for these authorization and validation changes.
 
 Remaining release rule (not a current-code defect): when tenant-facing business controllers, exports, stored procedures, or background jobs are added, each must explicitly resolve tenant/workspace scope, enforce permission checks, apply scoped data predicates, validate related IDs on writes, and include cross-tenant read/write/delete regression tests before release. The current platform-only Dapper stored procedure is an intentionally platform-admin catalogue query; do not use it as a pattern for tenant business data.
+
+
+## Tenant-scoped Inventory Catalog API
+
+The first business-data vertical slice is the Inventory Item catalog. It is deliberately separate from platform administration data and uses the validated active workspace from `ActiveTenantContext`.
+
+- Routes: `GET/POST /api/inventory/items`, `GET/PUT/DELETE /api/inventory/items/{id}`.
+- Authorization uses database-backed `Inventory.Item.View`, `Inventory.Item.Create`, `Inventory.Item.Update`, and `Inventory.Item.Deactivate` permissions.
+- Every query and write is constrained by the server-resolved tenant, branch, and project. Client request bodies cannot choose ownership IDs.
+- Delete is a soft deactivation; duplicate SKU checks are workspace-scoped.
+- The inventory catalog has its own `InventoryDbContext` and `__InventoryMigrationsHistory` table, sharing the configured `PlatformDb` SQL Server connection. Platform tables/migrations are not changed.
+
+Apply the new catalog schema after deploying this version:
+
+```powershell
+dotnet ef database update --context InventoryDbContext --project src/PlatformHub.Infrastructure --startup-project src/PlatformHub.Api
+```
+
+A tenant user needs an active tenant/branch/project workspace selected through the existing workspace context middleware and an assigned role with the relevant Inventory permissions. The built-in Super Admin receives all seeded permissions; tenant and branch admin roles receive catalog permissions as part of the permission seeding. Custom roles must be granted permissions in Role & Permissions.
+
+This is the first business-data slice, not a claim that Sales, Purchase, stock movements, accounting postings, reports, exports, or background jobs are already implemented. Each subsequent module must use the same explicit scope checks and add its own cross-tenant regression tests.
