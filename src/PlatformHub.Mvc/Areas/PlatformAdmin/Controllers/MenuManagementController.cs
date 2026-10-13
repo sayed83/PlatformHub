@@ -24,13 +24,17 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Data(string kind, long projectId, CancellationToken ct)
+    public async Task<IActionResult> Data(string kind, long projectId, long? moduleId, bool standaloneOnly, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
-        var path = kind == "modules" ? $"api/v1/project-menus/modules?projectId={projectId}"
-            : $"api/v1/project-menus/items?projectId={projectId}";
+
+        var path = kind == "modules"
+            ? $"api/v1/project-menus/modules?projectId={projectId}"
+            : $"api/v1/project-menus/items?projectId={projectId}" +
+              (standaloneOnly ? "&standaloneOnly=true" : moduleId.HasValue ? $"&moduleId={moduleId.Value}" : string.Empty);
+
         var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>(path, token, ct);
         if (result.StatusCode == 401) return Unauthorized(new { message = "Platform API session expired. Please sign in again." });
         if (result.Value is null) return StatusCode(result.StatusCode ?? 502, new { message = result.Error ?? "Could not load data from Platform API." });
