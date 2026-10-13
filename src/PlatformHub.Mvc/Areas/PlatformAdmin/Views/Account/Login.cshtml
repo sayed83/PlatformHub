@@ -20,7 +20,7 @@
                       asp-action="Login"
                       method="post">
                     @Html.AntiForgeryToken()
-                    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                    <input type="hidden" name="returnUrl" value="@(ViewData["ReturnUrl"])" />
 
                     <div class="mb-3">
                         <label for="UserName" class="form-label">User name</label>
