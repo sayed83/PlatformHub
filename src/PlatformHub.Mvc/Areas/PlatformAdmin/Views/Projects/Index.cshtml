@@ -42,11 +42,11 @@
         <div>
             <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small"><span aria-hidden="true">←</span> Dashboard</a>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-2"><h1 class="h3 fw-bold mb-0">Project management</h1><span class="badge rounded-pill text-bg-light border text-dark">Platform administration</span></div>
-            <p class="text-secondary mb-0 mt-1">Organize projects under tenants and manage the project directory.</p>
+            <p class="text-secondary mb-0 mt-1">Maintain a reusable application catalogue, then assign existing projects to one or more tenants.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-secondary"><span aria-hidden="true">▦</span> Manage tenants</a>
-            @if (Model.Tenants.Any(t => t.IsActive)) { <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal"><span aria-hidden="true" class="pm-symbol">＋</span> Create project</button> }
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal"><span aria-hidden="true" class="pm-symbol">＋</span> Create project</button>
         </div>
     </div>
 
@@ -90,7 +90,7 @@
                 <tbody>
                 @if (Model.Projects.Count == 0)
                 {
-                    <tr class="pm-empty-row"><td colspan="5" class="text-center py-5"><div class="text-secondary fs-1 mb-2" aria-hidden="true">▦</div><div class="fw-semibold">No projects found</div><div class="small text-secondary mb-3">Try another tenant filter or create a project.</div>@if (Model.Tenants.Any(t => t.IsActive)) { <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal">＋ Create project</button> }</td></tr>
+                    <tr class="pm-empty-row"><td colspan="5" class="text-center py-5"><div class="text-secondary fs-1 mb-2" aria-hidden="true">▦</div><div class="fw-semibold">No projects found</div><div class="small text-secondary mb-3">Try another tenant filter or create a project.</div><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal">＋ Create project</button></td></tr>
                 }
                 else
                 {
@@ -149,13 +149,11 @@
                 </tbody>
             </table>
         </div>
-        <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 small text-secondary"><span>Showing @Model.Projects.Count project(s)</span><span>Projects are associated with a tenant.</span></div>
+        <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 small text-secondary"><span>Showing @Model.Projects.Count project(s)</span><span>Projects are reusable catalogue entries. Use Tenant Management → Assign projects to grant tenant access.</span></div>
     </section>
 </div>
 
-@if (Model.Tenants.Any(t => t.IsActive))
-{
-    <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectTitle" aria-hidden="true">
+<div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow rounded-4">
             <form asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
