@@ -54,6 +54,17 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
+    options.AddPolicy("auth-refresh", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
     options.AddPolicy("platform-bootstrap", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -96,6 +107,29 @@ builder.Services.AddAuthentication("PlatformBearer")
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = AppClaimTypes.UserId
+        };
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userIdText = context.Principal?.FindFirst(AppClaimTypes.UserId)?.Value;
+                var sessionIdText = context.Principal?.FindFirst(AppClaimTypes.SessionId)?.Value;
+                if (!long.TryParse(userIdText, out var userId) || !long.TryParse(sessionIdText, out var sessionId))
+                {
+                    context.Fail("Token has no valid session.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<PlatformDbContext>();
+                var now = DateTime.UtcNow;
+                var activeSession = await db.RefreshSessions.AsNoTracking().AnyAsync(
+                    x => x.Id == sessionId && x.UserId == userId && x.RevokedUtc == null && x.ExpiresUtc > now,
+                    context.HttpContext.RequestAborted);
+                var activeUser = activeSession && await db.Users.AsNoTracking().AnyAsync(
+                    x => x.Id == userId && x.IsActive, context.HttpContext.RequestAborted);
+                if (!activeUser)
+                    context.Fail("Token session has been revoked or the account is inactive.");
+            }
         };
     });
 builder.Services.AddAuthorization(options =>
@@ -215,6 +249,27 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy" }))
+    .AllowAnonymous()
+    .WithTags("Health");
+
+app.MapGet("/health/ready", async (PlatformDbContext db, CancellationToken ct) =>
+{
+    try
+    {
+        if (await db.Database.CanConnectAsync(ct))
+            return Results.Ok(new { status = "Ready" });
+    }
+    catch (Exception)
+    {
+        // Do not expose connection strings or provider errors through the health endpoint.
+    }
+
+    return Results.Json(new { status = "NotReady" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+})
+    .AllowAnonymous()
+    .WithTags("Health");
+
 app.MapControllers();
 app.Run();
 
@@ -229,4 +284,5 @@ public static class AppClaimTypes
     public const string TenantId = "ph_tenant_id";
     public const string BranchId = "ph_branch_id";
     public const string ProjectId = "ph_project_id";
+    public const string SessionId = "ph_session_id";
 }
