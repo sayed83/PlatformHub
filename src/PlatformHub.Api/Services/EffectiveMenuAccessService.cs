@@ -108,14 +108,22 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         if (project.TenantId.HasValue && !tenantIds.Contains(project.TenantId.Value))
             tenantIds.Add(project.TenantId.Value); // compatibility for pre-migration project ownership
 
+        // A project ID alone is not a tenant boundary: shared catalogue projects can be
+        // subscribed to by many tenants. Every project-specific assignment must also be
+        // anchored to an active tenant subscription (or legacy tenant-owned project).
+        // Tenantless project assignments are intentionally not accepted.
         return await db.UserRoleAssignments.AsNoTracking()
             .Where(a => a.UserId == userId && a.Role.IsActive &&
-                (a.ProjectId == projectId ||
-                 (a.ProjectId == null && a.BranchId == null &&
-                    a.TenantId.HasValue && tenantIds.Contains(a.TenantId.Value)) ||
-                 (a.ProjectId == null && a.BranchId != null &&
-                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive &&
-                        tenantIds.Contains(b.TenantId)))))
+                (
+                    (a.TenantId.HasValue && tenantIds.Contains(a.TenantId.Value) &&
+                        (a.ProjectId == null || a.ProjectId == projectId) &&
+                        (a.BranchId == null || db.Branches.Any(b =>
+                            b.Id == a.BranchId && b.IsActive && tenantIds.Contains(b.TenantId))))
+                    ||
+                    (a.TenantId == null && a.ProjectId == null && a.BranchId != null &&
+                        db.Branches.Any(b => b.Id == a.BranchId && b.IsActive &&
+                            tenantIds.Contains(b.TenantId)))
+                ))
             .Select(a => a.RoleId)
             .Distinct()
             .ToListAsync(ct);
