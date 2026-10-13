@@ -75,7 +75,7 @@ public sealed class InventoryItemsControllerScopeTests
         Assert.Empty(await db.Products.ToListAsync());
     }
 
-    private static InventoryItemModel Item(long id, long tenant, long? branch, long? project,
+    private static InventoryItem Item(long id, long tenant, long? branch, long? project,
         string sku, bool active = true) => new()
     {
         Id = id,
