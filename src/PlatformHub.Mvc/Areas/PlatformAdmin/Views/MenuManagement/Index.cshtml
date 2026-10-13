@@ -625,7 +625,9 @@
 </div>
 
 <script>
-    (() => {
+    // Run after the page AND the layout scripts (jQuery / Select2) have loaded,
+    // so the dropdown change events can be bound correctly.
+    document.addEventListener('DOMContentLoaded', () => {
         const projectSelect = document.getElementById('projectSelect'), moduleRows = document.getElementById('moduleRows'), menuRows = document.getElementById('menuRows');
         const modalElement = document.getElementById('editModal');
         const modal = {
@@ -652,6 +654,24 @@
         const selectedProject = () => Number(projectSelect.value || 0);
         const loginUrl = '@Url.Action("Login", "Account", new { area = "PlatformAdmin" })';
         const NO_CACHE = { cache: 'no-store' };
+
+        // Bind a change handler that works with BOTH plain <select> and Select2.
+        // Select2 raises jQuery events, which addEventListener('change') may not receive.
+        function bindChange(el, handler) {
+            if (!el) return;
+            if (window.jQuery) {
+                window.jQuery(el).off('change.pmStudio').on('change.pmStudio', handler);
+            } else {
+                el.addEventListener('change', handler);
+            }
+        }
+
+        // After changing a select's options/value from code, refresh the Select2 display.
+        function refreshSelect2(el) {
+            if (el && window.jQuery && window.jQuery(el).hasClass('select2-hidden-accessible')) {
+                window.jQuery(el).trigger('change.select2');
+            }
+        }
 
         // ---------- Stat cards (single place that updates them) ----------
         function setStats(m, i, a) {
@@ -684,6 +704,7 @@
             if (!r.ok) throw Error(await readError(r, 'Unable to load projects.'));
             const ps = await r.json();
             projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join('');
+            refreshSelect2(projectSelect);
         }
 
         function showLoadingRows() {
@@ -729,8 +750,8 @@
             const moduleFilter = document.getElementById('menuModuleFilter');
             if ([...moduleFilter.options].some(option => option.value === activeMenuFilter)) {
                 moduleFilter.value = activeMenuFilter;
-                if (window.jQuery && jQuery.fn.select2) jQuery(moduleFilter).trigger('change.select2');
             }
+            refreshSelect2(moduleFilter);
             render();
 
             // Default: counts calculated from the loaded data
@@ -849,6 +870,7 @@
             filter.innerHTML = '<option value="">All modules</option><option value="__standalone">Standalone menus</option>' +
                 modules.map(m => '<option value="' + m.id + '">' + esc(m.name) + '</option>').join('');
             if ([...filter.options].some(o => o.value === previous)) filter.value = previous;
+            refreshSelect2(filter);
         }
 
         // render() only draws the tables/footers. Cards are handled by setStats().
@@ -876,6 +898,8 @@
             document.getElementById('parentId').innerHTML = '<option value="">No parent (top-level)</option>' + menus.filter(x => x.id !== item.id).map(x => '<option value="' + x.id + '">' + esc(x.name) + '</option>').join('');
             document.getElementById('moduleId').value = item.moduleId || '';
             document.getElementById('parentId').value = item.parentMenuId || '';
+            refreshSelect2(document.getElementById('moduleId'));
+            refreshSelect2(document.getElementById('parentId'));
             if (type === 'items' && !item.id) {
                 document.getElementById('entryCode').value = makeMenuCode(document.getElementById('entryName').value);
                 // Default sort order for the currently selected module (standalone by default)
@@ -897,9 +921,9 @@
         document.getElementById('entryAction').addEventListener('input', syncGeneratedRoute);
         document.getElementById('entryRoute').addEventListener('input', () => { routeAuto = false; });
 
-        // Module change -> update sort order immediately (create AND edit modal)
-        ['change', 'input'].forEach(evt =>
-            document.getElementById('moduleId').addEventListener(evt, applySortOrderForModule));
+        // Module change in the editor -> update sort order immediately (create AND edit modal).
+        // Select2-safe: also fires when the dropdown is a Select2 control.
+        bindChange(document.getElementById('moduleId'), applySortOrderForModule);
 
         document.getElementById('moduleSearch').addEventListener('input', render);
         document.getElementById('menuSearch').addEventListener('input', render);
@@ -912,7 +936,8 @@
                 minimumResultsForSearch: 0
             });
         }
-        document.getElementById('menuModuleFilter').addEventListener('change', () => {
+        // Module filter changed -> reload menu entries for that module (Select2-safe)
+        bindChange(document.getElementById('menuModuleFilter'), () => {
             loadMenusForSelectedModule().catch(error => notice(error.message, 'danger'));
         });
 
@@ -930,7 +955,8 @@
                 }
             }
         }
-        projectSelect.addEventListener('change', onProjectChanged);
+        // Project changed -> reload modules, menu entries and summary cards (Select2-safe)
+        bindChange(projectSelect, onProjectChanged);
 
         document.getElementById('editForm').addEventListener('submit', async e => {
             e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
@@ -945,9 +971,10 @@
                 // Automatically select the first available project and load its data/cards.
                 if (projectSelect.options.length > 1) {
                     projectSelect.selectedIndex = 1;
+                    refreshSelect2(projectSelect);
                 }
                 await refresh();
             })
             .catch(e => notice(e.message, 'danger'));
-    })();
+    });
 </script>
