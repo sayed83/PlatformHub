@@ -148,9 +148,22 @@
         node.className = 'alert alert-' + type + ' policy-status py-2';
     };
     async function get(url) {
-        const response = await fetch(url, { credentials: 'same-origin' });
+        let response;
+        try {
+            response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+        } catch {
+            throw new Error('Could not reach the MVC server. Check that PlatformHub.Mvc is running.');
+        }
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.message || 'Could not load menu permissions.');
+        if (response.status === 401) {
+            window.location.replace('/PlatformAdmin/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
+            throw new Error('Your session expired. Redirecting to Platform Admin login…');
+        }
+        if (!response.ok) {
+            const endpoint = url.split('?')[0].split('/').pop();
+            throw new Error((data.message || 'Could not load menu permissions.') +
+                ' (HTTP ' + response.status + ', request: ' + endpoint + ')');
+        }
         return data;
     }
     async function post(url, payload) {
@@ -239,12 +252,25 @@
         dirtyRoles.clear(); dirtyUsers.clear();
         renderRoleMatrix(); renderUserMatrix();
         saveRoleButton.disabled = true; saveUserButton.disabled = true;
-        if (!project.value) return;
+        if (!project.value) {
+            notice('Select a project to load role-wise and user-wise menu access.', 'info');
+            return;
+        }
+
+        roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and role access…</td></tr>';
+        userRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and user access…</td></tr>';
+        notice('Loading project access data…', 'info');
+
         const data = await get(requestUrl('lookups', project.value));
-        menus=data.menus || []; roles=data.roles || []; users=data.users || [];
-        renderRoleMatrix(); renderUserMatrix();
+        menus = data.menus || [];
+        roles = data.roles || [];
+        users = data.users || [];
+        renderRoleMatrix();
+        renderUserMatrix();
+
         await Promise.all([loadRoleMatrix(), loadUserMatrix()]);
-        notice('Loaded ' + menus.length + ' menus, ' + roles.length + ' roles, and ' + users.length + ' users.');
+        notice('Loaded ' + menus.length + ' menus, ' + roles.length + ' roles, and ' + users.length + ' users.' +
+            (users.length ? '' : ' No active users have a role assignment for this project or its tenant.'));
     }
 
     roleRows.addEventListener('change', event => {
@@ -264,7 +290,13 @@
     });
     roleSearch.addEventListener('input', renderRoleMatrix);
     userSearch.addEventListener('input', renderUserMatrix);
-    project.addEventListener('change', () => loadProject().catch(error => notice(error.message, 'danger')));
+    project.addEventListener('change', () => {
+        loadProject().catch(error => {
+            roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
+            userRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
+            notice(error.message, 'danger');
+        });
+    });
 
     saveRoleButton.addEventListener('click', async () => {
         saveRoleButton.disabled = true;
