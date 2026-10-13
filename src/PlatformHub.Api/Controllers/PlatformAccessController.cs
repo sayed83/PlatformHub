@@ -349,43 +349,72 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         if (role.Code == PlatformRbacSeeder.SuperAdminCode && !user.IsPlatformAdmin)
             return BadRequest(new { message = "The protected Platform Super Admin role can only be assigned to a platform administrator account." });
 
-        if (request.ProjectId.HasValue)
-        {
-            var project = await db.Projects.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == request.ProjectId.Value && x.IsActive, cancellationToken);
-            if (project is null) return BadRequest(new { message = "Project scope does not exist or is inactive." });
+        // Normalize and validate scope from the database before persisting it.
+        // Tenant/branch/project scopes must form one coherent active workspace.
+        if (request.TenantId is <= 0 || request.BranchId is <= 0 || request.ProjectId is <= 0)
+            return BadRequest(new { message = "Tenant, branch, and project IDs must be positive when supplied." });
 
-            if (request.TenantId.HasValue)
-            {
-                var assigned = project.TenantId == request.TenantId ||
-                    await db.TenantProjects.AnyAsync(tp => tp.TenantId == request.TenantId.Value &&
-                        tp.ProjectId == project.Id && tp.IsEnabled, cancellationToken);
-                if (!assigned)
-                    return BadRequest(new { message = "This project is not assigned to the selected tenant. Assign it from Tenant Management first." });
-            }
-            else if (project.TenantId.HasValue)
-            {
-                request = request with { TenantId = project.TenantId };
-            }
-            else
-            {
-                return BadRequest(new { message = "Select a tenant when assigning a role to a reusable project." });
-            }
+        if (request.TenantId.HasValue)
+        {
+            var tenantIsActive = await db.Tenants.AsNoTracking()
+                .AnyAsync(x => x.Id == request.TenantId.Value && x.IsActive, cancellationToken);
+            if (!tenantIsActive)
+                return BadRequest(new { message = "Tenant scope does not exist or is inactive." });
         }
 
         if (request.BranchId.HasValue)
         {
             var branch = await db.Branches.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == request.BranchId.Value, cancellationToken);
-            if (branch is null) return BadRequest(new { message = "Branch scope does not exist." });
-            if (request.TenantId.HasValue && request.TenantId != branch.TenantId)
+                .SingleOrDefaultAsync(x => x.Id == request.BranchId.Value && x.IsActive, cancellationToken);
+            if (branch is null)
+                return BadRequest(new { message = "Branch scope does not exist or is inactive." });
+
+            if (request.TenantId.HasValue && request.TenantId.Value != branch.TenantId)
                 return BadRequest(new { message = "Branch and tenant scope do not match." });
-            if (request.TenantId is null) request = request with { TenantId = branch.TenantId };
+
+            if (!request.TenantId.HasValue)
+                request = request with { TenantId = branch.TenantId };
+
+            // The branch's tenant must itself still be active.
+            if (!await db.Tenants.AsNoTracking().AnyAsync(
+                    x => x.Id == branch.TenantId && x.IsActive, cancellationToken))
+                return BadRequest(new { message = "The branch belongs to an inactive tenant." });
         }
 
-        if (request.TenantId.HasValue &&
-            !await db.Tenants.AnyAsync(x => x.Id == request.TenantId.Value, cancellationToken))
-            return BadRequest(new { message = "Tenant scope does not exist." });
+        if (request.ProjectId.HasValue)
+        {
+            var project = await db.Projects.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.Id == request.ProjectId.Value && x.IsActive, cancellationToken);
+            if (project is null)
+                return BadRequest(new { message = "Project scope does not exist or is inactive." });
+
+            // A tenant-owned project implies its tenant when the caller omitted it.
+            if (!request.TenantId.HasValue && project.TenantId.HasValue)
+                request = request with { TenantId = project.TenantId.Value };
+
+            // Reusable/shared projects always need an explicit tenant anchor.
+            if (!request.TenantId.HasValue)
+                return BadRequest(new { message = "Select an active tenant when assigning a role to a reusable project." });
+
+            var tenantIsActive = await db.Tenants.AsNoTracking()
+                .AnyAsync(x => x.Id == request.TenantId.Value && x.IsActive, cancellationToken);
+            if (!tenantIsActive)
+                return BadRequest(new { message = "Tenant scope does not exist or is inactive." });
+
+            var projectBelongsToTenant = project.TenantId == request.TenantId.Value;
+            var activeSubscriptionExists = await db.TenantProjects.AsNoTracking()
+                .AnyAsync(tp => tp.TenantId == request.TenantId.Value
+                    && tp.ProjectId == project.Id
+                    && tp.IsEnabled
+                    && tp.Tenant.IsActive, cancellationToken);
+
+            if (!projectBelongsToTenant && !activeSubscriptionExists)
+                return BadRequest(new { message = "This project is not actively assigned to the selected tenant. Enable its subscription from Tenant Management first." });
+        }
+
+        // If a branch was selected, a project assignment must be valid for that same tenant.
+        if (request.BranchId.HasValue && request.ProjectId.HasValue && !request.TenantId.HasValue)
+            return BadRequest(new { message = "Branch/project assignments must be anchored to a tenant." });
 
         var duplicate = await db.UserRoleAssignments.AnyAsync(x =>
             x.UserId == userId && x.RoleId == role.Id &&
