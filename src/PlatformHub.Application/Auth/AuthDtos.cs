@@ -16,3 +16,6 @@ public sealed record TenantDto(long Id, string Code, string Name, bool IsActive)
 public sealed record CreateTenantRequest(string Code, string Name);
 public sealed record ProjectDto(long Id, long? TenantId, string? TenantName, string Code, string Name, string? BaseUrl, bool IsActive);
 public sealed record CreateProjectRequest(long? TenantId, string Code, string Name, string? BaseUrl);
+
+public sealed record RefreshTokenRequest(string RefreshToken);
+public sealed record LogoutRequest(string RefreshToken);
