@@ -78,7 +78,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         var tenantRoleIds = await db.UserRoleAssignments.AsNoTracking()
             .Where(a => a.TenantId == tenantId ||
                 (a.BranchId != null && db.Branches.Any(b => b.Id == a.BranchId && b.TenantId == tenantId)) ||
-                (a.ProjectId == projectId && a.TenantId == null))
+                (a.ProjectId == projectId && a.TenantId == tenantId))
             .Select(a => a.RoleId).Distinct().ToListAsync(ct);
         var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive && tenantRoleIds.Contains(x.Id) &&
                 (isSuperAdmin || x.Code != "PLATFORM_SUPER_ADMIN")).OrderBy(x => x.Name)
@@ -89,7 +89,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
             db.UserRoleAssignments.Any(a => a.UserId == u.Id &&
                 (a.TenantId == tenantId ||
                  (a.BranchId != null && db.Branches.Any(b => b.Id == a.BranchId && b.TenantId == tenantId)) ||
-                 a.ProjectId == projectId)))
+                 (a.ProjectId == projectId && a.TenantId == tenantId))))
             .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.UserName, x.DisplayName }).ToListAsync(ct);
         var menus = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.IsActive)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
