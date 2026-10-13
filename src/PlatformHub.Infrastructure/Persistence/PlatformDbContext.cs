@@ -159,7 +159,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         });
         modelBuilder.Entity<RoleWiseMenuAccess>(e =>
         {
-            e.ToTable("RoleWiseMenuAccess", "dbo");
+            e.ToTable("RoleWiseMenuAccesses", "dbo");
             e.HasKey(x => x.Id);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Role).WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Restrict);
@@ -168,7 +168,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         });
         modelBuilder.Entity<UserWiseMenuAccess>(e =>
         {
-            e.ToTable("UserWiseMenuAccess", "dbo");
+            e.ToTable("UserWiseMenuAccesses", "dbo");
             e.HasKey(x => x.Id);
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
