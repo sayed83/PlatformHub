@@ -574,6 +574,10 @@
                 <div class="pm-toolbar">
                     <div><h2>Navigation entries</h2><p>Set the parent, module, route, icon, and visibility of each menu.</p></div>
                     <div class="pm-actions">
+                        <select id="menuModuleFilter" class="form-select" aria-label="Filter menu entries by module" style="width:auto;min-width:190px;max-width:240px">
+                            <option value="">All modules</option>
+                            <option value="__standalone">Standalone menus</option>
+                        </select>
                         <div class="pm-search"><span class="pm-search-icon" aria-hidden="true">⌕</span><input id="menuSearch" class="form-control" type="search" placeholder="Search menus or routes…" aria-label="Search menu entries"></div>
                         <button class="btn btn-primary" id="addMenu" type="button">＋ New menu</button>
                     </div>
@@ -720,6 +724,7 @@
             if (seq !== refreshSeq) return;
 
             modules = m; menus = i;
+            loadMenuModuleFilter();
             render();
 
             // Default: counts calculated from the loaded data
@@ -807,7 +812,24 @@
         }
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
-        function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
+        function menuMatches(x) {
+            const q = document.getElementById('menuSearch').value.trim().toLowerCase();
+            const selectedModule = document.getElementById('menuModuleFilter').value;
+            const isStandalone = x.moduleId == null || Number(x.moduleId) === 0;
+            if (selectedModule === '__standalone' && !isStandalone) return false;
+            if (selectedModule && selectedModule !== '__standalone' && Number(x.moduleId) !== Number(selectedModule)) return false;
+            const moduleName = modules.find(m => Number(m.id) === Number(x.moduleId))?.name || 'Standalone';
+            const parentName = menus.find(m => Number(m.id) === Number(x.parentMenuId))?.name || '';
+            return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName]
+                .some(v => String(v || '').toLowerCase().includes(q));
+        }
+        function loadMenuModuleFilter() {
+            const filter = document.getElementById('menuModuleFilter');
+            const previous = filter.value;
+            filter.innerHTML = '<option value="">All modules</option><option value="__standalone">Standalone menus</option>' +
+                modules.map(m => '<option value="' + m.id + '">' + esc(m.name) + '</option>').join('');
+            if ([...filter.options].some(o => o.value === previous)) filter.value = previous;
+        }
 
         // render() only draws the tables/footers. Cards are handled by setStats().
         function render() {
@@ -859,7 +881,9 @@
         ['change', 'input'].forEach(evt =>
             document.getElementById('moduleId').addEventListener(evt, applySortOrderForModule));
 
-        document.getElementById('moduleSearch').addEventListener('input', render); document.getElementById('menuSearch').addEventListener('input', render);
+        document.getElementById('moduleSearch').addEventListener('input', render);
+        document.getElementById('menuSearch').addEventListener('input', render);
+        document.getElementById('menuModuleFilter').addEventListener('change', render);
 
         // Project change -> direct effect (no need to click Refresh)
         async function onProjectChanged() {
