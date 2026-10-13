@@ -1,0 +1,127 @@
+@using PlatformHub.Mvc.Areas.PlatformAdmin.Models
+@model TenantProjectAssignmentViewModel
+@{
+    ViewData["Title"] = "Tenant project assignments";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+<style>
+    .tenant-project-picker { max-width: 100%; }
+    .tenant-project-picker .select2-container { width: 100% !important; }
+    .tenant-project-picker .select2-container--bootstrap-5 .select2-selection--multiple {
+        min-height: 48px; padding: .35rem .5rem; border-color: #ced4da; border-radius: .5rem;
+    }
+    .tenant-project-picker .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+        display: flex; flex-wrap: wrap; gap: .35rem; align-items: center;
+    }
+    .tenant-project-picker .select2-container--bootstrap-5 .select2-selection__choice {
+        margin: .15rem .2rem .15rem 0; padding: .2rem .45rem; border: 1px solid #b6d0fe;
+        border-radius: .375rem; background: #eaf2ff; color: #174ea6;
+    }
+    .tenant-project-picker .select2-container--bootstrap-5 .select2-search--inline .select2-search__field {
+        margin-top: .25rem; min-width: 12rem;
+    }
+    .tenant-project-option { display: flex; align-items: flex-start; gap: .65rem; }
+    .tenant-project-option .project-code { font-size: .75rem; color: #64748b; }
+</style>
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="small text-decoration-none">← Tenant management</a>
+            <h1 class="h3 fw-bold mt-2 mb-1">Project assignments</h1>
+            <p class="text-secondary mb-0">Assign existing application projects to <strong>@Model.TenantName</strong> (@Model.TenantCode). You do not need to create a new project for every tenant.</p>
+        </div>
+        <span class="badge rounded-pill text-bg-primary">@Model.Projects.Count(p => p.IsActive) active catalogue projects</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success alert-dismissible fade show" role="status">@success<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
+    @if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger alert-dismissible fade show" role="alert">@error<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div> }
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-body p-4 border-bottom">
+            <h2 class="h5 fw-bold mb-1">Available applications</h2>
+            <p class="small text-secondary mb-0">Select every application this tenant can access. Existing project definitions are shared; assignment does not duplicate them.</p>
+        </div>
+        <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="AssignProjects" method="post" id="tenantProjectsForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.TenantId" />
+            <div class="card-body p-4">
+                @if (!Model.Projects.Any(p => p.IsActive))
+                {
+                    <div class="alert alert-info mb-0">
+                        No active projects are in the catalogue yet. <a asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Index" class="alert-link">Create a reusable project definition</a> first, then return here to assign it.
+                    </div>
+                }
+                else
+                {
+                    <label for="projectIds" class="form-label fw-semibold">Applications available to @Model.TenantName</label>
+                    <div class="tenant-project-picker">
+                        <select id="projectIds" name="projectIds" class="form-select" multiple data-placeholder="Type to search applications…" data-select2="off">
+                            @foreach (var project in Model.Projects.Where(p => p.IsActive).OrderBy(p => p.Name))
+                            {
+                                if (Model.SelectedProjectIds.Contains(project.Id))
+                                {
+                                    <option value="@project.Id" selected>@project.Name (@project.Code)</option>
+                                }
+                                else
+                                {
+                                    <option value="@project.Id">@project.Name (@project.Code)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                        <div class="form-text">Search by application name or code. Select multiple applications, then save once.</div>
+                        <span class="small text-secondary"><strong id="selectedProjectCount">@Model.SelectedProjectIds.Count</strong> selected</span>
+                    </div>
+                    <div class="alert alert-light border mt-3 mb-0">
+                        <strong>Important:</strong> Removing a project here revokes the tenant's application assignment. Make sure users and branches that need this application are reassigned before removing it.
+                    </div>
+                }
+            </div>
+            <div class="card-footer bg-body d-flex flex-wrap justify-content-between gap-2 p-3">
+                <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                @if (Model.Projects.Any(p => p.IsActive))
+                {
+                    <button type="submit" class="btn btn-primary">Save project assignments</button>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+@section Scripts {
+<script>
+    (function () {
+        const element = document.getElementById('projectIds');
+        const count = document.getElementById('selectedProjectCount');
+        if (!element || !window.jQuery || !jQuery.fn.select2) return;
+
+        const picker = jQuery(element);
+        if (picker.hasClass('select2-hidden-accessible')) picker.select2('destroy');
+
+        picker.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: element.dataset.placeholder || 'Type to search applications…',
+            closeOnSelect: false,
+            allowClear: false,
+            minimumResultsForSearch: 0,
+            templateResult: function (item) {
+                if (!item.id) return item.text;
+                const parts = item.text.match(/^(.*) \(([^()]*)\)$/);
+                if (!parts) return item.text;
+                return jQuery('<span><span class="d-block fw-semibold"></span><span class="project-code"></span></span>')
+                    .find('.fw-semibold').text(parts[1]).end()
+                    .find('.project-code').text(parts[2]).end();
+            }
+        });
+
+        function updateCount() {
+            if (count) count.textContent = String(picker.val()?.length || 0);
+        }
+        picker.on('change.tenantProjects', updateCount);
+        updateCount();
+    })();
+</script>
+}
