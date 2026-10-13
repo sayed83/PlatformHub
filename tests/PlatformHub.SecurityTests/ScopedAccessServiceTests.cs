@@ -26,7 +26,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedBranchAssignmentAsync(db);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         Assert.True(await service.CanAccessAsync(10, "Project.View", 1, branchId: 101));
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, branchId: 102));
@@ -37,7 +37,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedBranchAssignmentAsync(db);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         Assert.False(await service.CanAccessAsync(10, "User.Create", 1, branchId: 101));
     }
@@ -50,7 +50,7 @@ public sealed class ScopedAccessServiceTests
         var user = await db.Users.SingleAsync(x => x.Id == 10);
         user.IsActive = false;
         await db.SaveChangesAsync();
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, branchId: 101));
     }
@@ -60,7 +60,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         Assert.True(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
         Assert.False(await service.CanAccessAsync(10, "Project.View", 2, projectId: 501));
@@ -71,7 +71,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: false);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
     }
@@ -81,7 +81,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedReusableProjectAssignmentAsync(db, tenantId: null, subscriptionEnabled: true);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         // A shared project subscription is not a substitute for an explicit tenant-scoped assignment.
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));

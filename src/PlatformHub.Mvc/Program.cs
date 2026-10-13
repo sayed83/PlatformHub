@@ -16,13 +16,15 @@ builder.Services.AddRazorPages();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<PlatformApiClient>();
 builder.Services.AddTransient<PlatformApiResilienceHandler>();
+builder.Services.AddTransient<ActiveTenantScopeHeaderHandler>();
 builder.Services.AddHttpClient("PlatformApi", client =>
 {
     client.BaseAddress = apiBaseAddress;
     // Fail quickly enough to render the MVC Error Center instead of leaving a page hanging.
     client.Timeout = TimeSpan.FromSeconds(12);
 })
-.AddHttpMessageHandler<PlatformApiResilienceHandler>();
+.AddHttpMessageHandler<PlatformApiResilienceHandler>()
+.AddHttpMessageHandler<ActiveTenantScopeHeaderHandler>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

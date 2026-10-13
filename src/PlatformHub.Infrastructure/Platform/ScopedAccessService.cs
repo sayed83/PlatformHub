@@ -93,12 +93,7 @@ public sealed class ScopedAccessService(
                 && a.BranchId == branchId.Value
                 && db.Branches.Any(b => b.Id == branchId.Value
                     && b.TenantId == tenantId && b.IsActive))
-            || (a.TenantId == null && projectId.HasValue
-                && a.ProjectId == projectId.Value
-                && db.Projects.Any(p => p.Id == projectId.Value && p.IsActive &&
-                    (p.TenantId == tenantId ||
-                     db.TenantProjects.Any(tp => tp.TenantId == tenantId &&
-                         tp.ProjectId == p.Id && tp.IsEnabled)))));
+            );
 
         matchingAssignment = matchingAssignment.Where(a =>
             a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value));
