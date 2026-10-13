@@ -188,3 +188,20 @@ dotnet test tests/PlatformHub.SecurityTests/PlatformHub.SecurityTests.csproj
 ```
 
 The tests use EF Core InMemory and do not connect to or modify your development SQL Server database. Add equivalent integration tests for every new tenant-facing API endpoint before release.
+
+
+## Refresh tokens and session revocation
+
+- Access tokens expire after 15 minutes and are bound to a persisted refresh session.
+- `POST /api/v1/auth/refresh` rotates a refresh token. Only a SHA-256 hash is stored in SQL Server; the previous token is revoked atomically.
+- Reuse of a rotated refresh token revokes the user's active refresh sessions and requires a fresh login.
+- `POST /api/v1/auth/logout` revokes the supplied refresh session. Protected API requests validate that the access token's session remains active and that the user is still active.
+- Apply the `AddRefreshSessions` migration before deploying this version. The MVC login ticket holds the refresh token in an encrypted, HttpOnly authentication cookie; browser JavaScript does not receive it.
+
+## Production readiness
+
+See [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) for deployment gates, health probes, monitoring/alert recommendations, authentication smoke tests, and rollback guidance.
+
+- `GET /health/live` reports process liveness.
+- `GET /health/ready` verifies SQL Server connectivity and returns 503 when the database is unavailable.
+- These endpoints do not expose database errors or secrets. Configure your hosting platform to monitor them and alert on repeated failures.

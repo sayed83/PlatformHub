@@ -1,4 +1,9 @@
+using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using PlatformHub.Mvc.Models;
 using System.Text;
 using System.Text.Json;
 
@@ -6,7 +11,8 @@ namespace PlatformHub.Mvc.Services;
 
 public sealed class PlatformApiClient(
     IHttpClientFactory factory,
-    ILogger<PlatformApiClient> logger)
+    ILogger<PlatformApiClient> logger,
+    IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -22,7 +28,7 @@ public sealed class PlatformApiClient(
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         try
         {
-            using var response = await client.SendAsync(request, ct);
+            using var response = await SendWithRefreshAsync(client, request, ct);
             var responseBody = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
@@ -236,6 +242,74 @@ public sealed class PlatformApiClient(
             logger.LogError(ex, "Platform API DELETE {Path} timed out", path);
             return false;
         }
+    }
+
+    private async Task<HttpResponseMessage> SendWithRefreshAsync(
+        HttpClient client, HttpRequestMessage request, CancellationToken ct)
+    {
+        var context = httpContextAccessor.HttpContext;
+        var refreshToken = context?.User.FindFirst("ph_api_refresh_token")?.Value;
+        var userIdText = context?.User.FindFirst("ph_user_id")?.Value;
+        var isAuthEndpoint = request.RequestUri?.OriginalString.Contains("/api/v1/auth/", StringComparison.OrdinalIgnoreCase) == true;
+        var method = request.Method;
+        var uri = request.RequestUri;
+        var version = request.Version;
+        var headers = request.Headers.ToDictionary(x => x.Key, x => x.Value.ToArray());
+        var contentBytes = request.Content is null ? null : await request.Content.ReadAsByteArrayAsync(ct);
+        var contentHeaders = request.Content?.Headers.ToDictionary(x => x.Key, x => x.Value.ToArray());
+
+        var response = await client.SendAsync(request, ct);
+        if (response.StatusCode != HttpStatusCode.Unauthorized || context is null || isAuthEndpoint ||
+            string.IsNullOrWhiteSpace(refreshToken) || !long.TryParse(userIdText, out var userId))
+            return response;
+
+        response.Dispose();
+        using var refreshResponse = await client.PostAsJsonAsync(
+            "api/v1/auth/refresh", new { RefreshToken = refreshToken }, ct);
+        if (!refreshResponse.IsSuccessStatusCode)
+        {
+            var refreshError = await refreshResponse.Content.ReadAsStringAsync(ct);
+            logger.LogWarning("Platform API refresh failed with HTTP {StatusCode} for UserId={UserId}",
+                (int)refreshResponse.StatusCode, userId);
+            var isConcurrentRotation = TryReadApiMessage(refreshError)?.Contains(
+                "already been rotated", StringComparison.OrdinalIgnoreCase) == true;
+            if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized && !isConcurrentRotation)
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+        }
+
+        var tokens = await refreshResponse.Content.ReadFromJsonAsync<ApiLoginResponse>(JsonOptions, ct);
+        if (tokens is null || string.IsNullOrWhiteSpace(tokens.AccessToken) || string.IsNullOrWhiteSpace(tokens.RefreshToken))
+        {
+            logger.LogError("Platform API refresh returned an incomplete token response for UserId={UserId}", userId);
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+        }
+
+        var auth = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        var identity = new ClaimsIdentity(context.User.Identity);
+        foreach (var claim in identity.FindAll("ph_api_access_token").ToArray()) identity.RemoveClaim(claim);
+        foreach (var claim in identity.FindAll("ph_api_refresh_token").ToArray()) identity.RemoveClaim(claim);
+        identity.AddClaim(new Claim("ph_api_access_token", tokens.AccessToken));
+        identity.AddClaim(new Claim("ph_api_refresh_token", tokens.RefreshToken));
+        var principal = new ClaimsPrincipal(identity);
+        context.User = principal;
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+            auth.Properties ?? new AuthenticationProperties { IsPersistent = false, AllowRefresh = true });
+
+        var retry = new HttpRequestMessage(method, uri) { Version = version };
+        foreach (var header in headers)
+            if (!string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                retry.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        retry.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        if (contentBytes is not null)
+        {
+            retry.Content = new ByteArrayContent(contentBytes);
+            if (contentHeaders is not null)
+                foreach (var header in contentHeaders)
+                    retry.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        return await client.SendAsync(retry, ct);
     }
 
 }

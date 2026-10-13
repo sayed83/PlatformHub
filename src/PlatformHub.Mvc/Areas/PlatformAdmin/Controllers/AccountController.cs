@@ -53,6 +53,9 @@ public sealed class AccountController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        var refreshToken = User.FindFirst("ph_api_refresh_token")?.Value;
+        if (!string.IsNullOrWhiteSpace(refreshToken))
+            await api.PostAsync<object>("api/v1/auth/logout", new { RefreshToken = refreshToken });
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }
@@ -65,7 +68,8 @@ public sealed class AccountController(PlatformApiClient api) : Controller
             new("ph_user_name", result.User.UserName),
             new("ph_display_name", result.User.DisplayName),
             new("ph_platform_admin", "true"),
-            new("ph_api_access_token", result.AccessToken)
+            new("ph_api_access_token", result.AccessToken),
+            new("ph_api_refresh_token", result.RefreshToken)
         };
         claims.AddRange(result.User.Roles.Select(x => new Claim("ph_role", x)));
         claims.AddRange(result.User.Permissions.Select(x => new Claim("ph_permission", x)));
