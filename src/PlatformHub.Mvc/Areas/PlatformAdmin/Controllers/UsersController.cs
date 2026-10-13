@@ -17,8 +17,7 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         if (token is null) return Challenge();
         var model = await LoadAsync(token, search, active, ct);
         if (model is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                "Unable to load users, roles, or tenants from the Platform API.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
         ViewData["HighlightAssignmentId"] = highlightAssignmentId;
         return View(model);
     }
