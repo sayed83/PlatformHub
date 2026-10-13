@@ -51,7 +51,10 @@ public sealed class ScopedAccessService(PlatformDbContext db) : IScopedAccessSer
         if (projectId.HasValue)
         {
             var projectValid = await db.Projects.AsNoTracking()
-                .AnyAsync(x => x.Id == projectId.Value && x.TenantId == tenantId && x.IsActive, cancellationToken);
+                .AnyAsync(x => x.Id == projectId.Value && x.IsActive &&
+                    (x.TenantId == tenantId ||
+                     db.TenantProjects.Any(tp => tp.TenantId == tenantId &&
+                         tp.ProjectId == x.Id && tp.IsEnabled)), cancellationToken);
             if (!projectValid) return false;
         }
 
