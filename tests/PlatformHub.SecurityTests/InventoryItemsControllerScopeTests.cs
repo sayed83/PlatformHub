@@ -14,7 +14,7 @@ public sealed class InventoryItemsControllerScopeTests
     public async Task List_returns_only_items_in_the_resolved_tenant_branch_and_project()
     {
         await using var db = CreateDb();
-        db.InventoryItems.AddRange(
+        db.InventoryItemModels.AddRange(
             Item(1, 10, 101, 1001, "TEN10-OWN"),
             Item(2, 20, 101, 1001, "TEN20-OTHER"),
             Item(3, 10, 102, 1001, "BRANCH-OTHER"),
@@ -22,7 +22,7 @@ public sealed class InventoryItemsControllerScopeTests
             Item(5, 10, 101, 1001, "TEN10-OWN-2", active: false));
         await db.SaveChangesAsync();
 
-        var controller = new InventoryItemsController(db, new ActiveTenantContext(10, 101, 1001));
+        var controller = new InventoryItemModelsController(db, new ActiveTenantContext(10, 101, 1001));
         var result = await controller.List(null, 1, 50, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
@@ -35,10 +35,10 @@ public sealed class InventoryItemsControllerScopeTests
     public async Task Get_returns_not_found_for_an_item_owned_by_another_tenant()
     {
         await using var db = CreateDb();
-        db.InventoryItems.Add(Item(99, 20, 101, 1001, "OTHER-TENANT"));
+        db.InventoryItemModels.Add(Item(99, 20, 101, 1001, "OTHER-TENANT"));
         await db.SaveChangesAsync();
 
-        var controller = new InventoryItemsController(db, new ActiveTenantContext(10, 101, 1001));
+        var controller = new InventoryItemModelsController(db, new ActiveTenantContext(10, 101, 1001));
         var result = await controller.Get(99, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
@@ -48,14 +48,14 @@ public sealed class InventoryItemsControllerScopeTests
     public async Task Create_uses_server_resolved_scope_instead_of_client_scope_fields()
     {
         await using var db = CreateDb();
-        var controller = new InventoryItemsController(db, new ActiveTenantContext(10, 101, 1001));
+        var controller = new InventoryItemModelsController(db, new ActiveTenantContext(10, 101, 1001));
 
         var result = await controller.Create(new SaveInventoryItemRequest("SKU-1", "Widget", "pcs"),
             CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var item = Assert.IsType<InventoryItemDto>(created.Value);
-        var stored = await db.InventoryItems.SingleAsync();
+        var stored = await db.InventoryItemModels.SingleAsync();
         Assert.Equal(10, stored.TenantId);
         Assert.Equal(101, stored.BranchId);
         Assert.Equal(1001, stored.ProjectId);
@@ -66,16 +66,16 @@ public sealed class InventoryItemsControllerScopeTests
     public async Task Unresolved_workspace_cannot_create_inventory_item()
     {
         await using var db = CreateDb();
-        var controller = new InventoryItemsController(db, new ActiveTenantContext());
+        var controller = new InventoryItemModelsController(db, new ActiveTenantContext());
 
         var result = await controller.Create(new SaveInventoryItemRequest("SKU-1", "Widget", "pcs"),
             CancellationToken.None);
 
         Assert.IsType<ForbidResult>(result.Result);
-        Assert.Empty(await db.InventoryItems.ToListAsync());
+        Assert.Empty(await db.InventoryItemModels.ToListAsync());
     }
 
-    private static InventoryItem Item(long id, long tenant, long? branch, long? project,
+    private static InventoryItemModel Item(long id, long tenant, long? branch, long? project,
         string sku, bool active = true) => new()
     {
         Id = id,
