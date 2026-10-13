@@ -70,7 +70,7 @@ public sealed class InventoryItemsController(
             return Conflict(new { message = "An item with this SKU already exists in the active workspace." });
 
         var now = DateTime.UtcNow;
-        var item = new InventoryItemModel
+        var item = new InventoryItem
         {
             TenantId = tenantId,
             BranchId = branchId,
@@ -132,7 +132,7 @@ public sealed class InventoryItemsController(
         return NoContent();
     }
 
-    private IQueryable<InventoryItemModel> ScopedQuery(long tenantId, long? branchId, long? projectId)
+    private IQueryable<InventoryItem> ScopedQuery(long tenantId, long? branchId, long? projectId)
     {
         var query = db.Products.Where(x => x.TenantId == tenantId);
         if (branchId.HasValue) query = query.Where(x => x.BranchId == branchId.Value);
