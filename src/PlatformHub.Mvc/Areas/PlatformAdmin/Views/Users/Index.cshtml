@@ -238,28 +238,51 @@
 @section Scripts {
 <script>
 (() => {
-    function filterScopeOptions(form) {
+    function initAssignmentScope(form) {
         const tenant = form.querySelector('.js-tenant-scope');
         const branch = form.querySelector('.js-branch-scope');
         const project = form.querySelector('.js-project-scope');
         if (!tenant || !branch || !project) return;
-        [branch, project].forEach(select => {
-            const selected = select.value;
-            Array.from(select.options).forEach(option => {
-                if (!option.value) { option.hidden = false; return; }
-                const matches = !tenant.value || option.dataset.tenantId === tenant.value;
-                option.hidden = !matches;
-                option.disabled = !matches;
-                if (!matches && option.value === selected) select.value = '';
-            });
-        });
+
+        // Keep a copy of the original options, then rebuild each list for the chosen tenant.
+        // Rebuilding is more reliable than hiding <option> elements when Select2 is active.
+        const allBranches = Array.from(branch.options)
+            .filter(option => option.value)
+            .map(option => ({ value: option.value, text: option.textContent, tenantId: option.dataset.tenantId }));
+        const allProjects = Array.from(project.options)
+            .filter(option => option.value)
+            .map(option => ({ value: option.value, text: option.textContent, tenantId: option.dataset.tenantId }));
+
+        function refill(select, items, emptyText, selectedValue) {
+            const previousValue = selectedValue || select.value;
+            select.replaceChildren(new Option(emptyText, ''));
+            const filtered = items.filter(item => !tenant.value || item.tenantId === tenant.value);
+            filtered.forEach(item => select.add(new Option(item.text, item.value)));
+            if (filtered.some(item => item.value === previousValue)) {
+                select.value = previousValue;
+            } else {
+                select.value = '';
+            }
+            if (window.jQuery && jQuery.fn.select2 && jQuery(select).hasClass('select2-hidden-accessible')) {
+                jQuery(select).trigger('change.select2');
+            } else {
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        function applyTenantScope() {
+            const previousBranch = branch.value;
+            const previousProject = project.value;
+            refill(branch, allBranches, 'No branch', previousBranch);
+            refill(project, allProjects, 'No project', previousProject);
+        }
+
+        tenant.addEventListener('change', applyTenantScope);
+        // Populate the dependent dropdowns immediately on initial render as well.
+        applyTenantScope();
     }
-    document.querySelectorAll('form[action*="AssignRole"]').forEach(form => {
-        const tenant = form.querySelector('.js-tenant-scope');
-        if (!tenant) return;
-        tenant.addEventListener('change', () => filterScopeOptions(form));
-        filterScopeOptions(form);
-    });
+
+    document.querySelectorAll('form[action*="AssignRole"]').forEach(initAssignmentScope);
 })();
 </script>
 }
