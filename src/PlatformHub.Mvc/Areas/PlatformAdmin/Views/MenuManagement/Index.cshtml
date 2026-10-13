@@ -635,14 +635,28 @@
             document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => tab.classList.toggle('active', tab === button));
             document.querySelectorAll('.tab-pane').forEach(pane => { const active = '#' + pane.id === button.dataset.bsTarget; pane.classList.toggle('show', active); pane.classList.toggle('active', active); });
         }));
+
         let modules = [], menus = [], kind = 'modules', codeAuto = false, routeAuto = false;
+        let refreshSeq = 0;   // ignores outdated refresh responses
+
         const url = (action) => '@Url.Action("__ACTION__", "MenuManagement", new { area = "PlatformAdmin" })'.replace('__ACTION__', action);
         const notice = (message, type = 'success') => { const n = document.getElementById('notice'); n.textContent = message; n.className = 'alert alert-' + type; };
+        const hideNotice = () => document.getElementById('notice').classList.add('d-none');
         const fail = message => { const e = document.getElementById('formError'); e.textContent = message; e.classList.remove('d-none'); };
+        const clearFail = () => document.getElementById('formError').classList.add('d-none');
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const iconHtml = (v, fallback) => { v = (v || '').trim(); if (!v) return fallback; if (/^bi-/.test(v)) v = 'bi ' + v; return /(^|\s)(bi|fa|fas|far|fab)[\s-]/.test(v) ? '<i class="' + esc(v) + '"></i>' : esc(v); };
         const selectedProject = () => Number(projectSelect.value || 0);
         const loginUrl = '@Url.Action("Login", "Account", new { area = "PlatformAdmin" })';
+        const NO_CACHE = { cache: 'no-store' };
+
+        // ---------- Stat cards (single place that updates them) ----------
+        function setStats(m, i, a) {
+            document.getElementById('moduleCount').textContent = m;
+            document.getElementById('menuCount').textContent = i;
+            document.getElementById('activeCount').textContent = a;
+        }
+
         async function apiFetch(input, init) {
             let response;
             try {
@@ -663,49 +677,69 @@
             return payload?.message || payload?.detail || (response.status ? fallback + ' (HTTP ' + response.status + ')' : fallback);
         }
         async function loadProjects() {
-            const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })');
+            const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })', NO_CACHE);
             if (!r.ok) throw Error(await readError(r, 'Unable to load projects.'));
             const ps = await r.json();
             projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join('');
         }
+
+        function showLoadingRows() {
+            moduleRows.innerHTML = '<tr><td colspan="5"><div class="pm-empty">Loading modules…</div></td></tr>';
+            menuRows.innerHTML = '<tr><td colspan="7"><div class="pm-empty">Loading menu entries…</div></td></tr>';
+            document.getElementById('moduleSummary').textContent = 'Loading…';
+            document.getElementById('menuSummary').textContent = 'Loading…';
+        }
+
         async function refresh() {
+            const seq = ++refreshSeq;
             const p = selectedProject();
+
             if (!p) {
                 modules = []; menus = [];
                 render();
-                document.getElementById('moduleCount').textContent = '0';
-                document.getElementById('menuCount').textContent = '0';
-                document.getElementById('activeCount').textContent = '0';
+                setStats(0, 0, 0);
                 return;
             }
 
+            // Direct effect: clear old project values immediately
+            modules = []; menus = [];
+            setStats('—', '—', '—');
+            showLoadingRows();
+
             const [mr, ir, sr] = await Promise.all([
-                apiFetch(url('Data') + '?kind=modules&projectId=' + p),
-                apiFetch(url('Data') + '?kind=items&projectId=' + p),
-                apiFetch(url('Summary') + '?projectId=' + p)
+                apiFetch(url('Data') + '?kind=modules&projectId=' + p, NO_CACHE),
+                apiFetch(url('Data') + '?kind=items&projectId=' + p, NO_CACHE),
+                apiFetch(url('Summary') + '?projectId=' + p, NO_CACHE).catch(() => null)
             ]);
+            if (seq !== refreshSeq) return; // user changed project again
+
             if (!mr.ok) throw Error(await readError(mr, 'Unable to load modules.'));
             if (!ir.ok) throw Error(await readError(ir, 'Unable to load menu entries.'));
-            if (!sr.ok) throw Error(await readError(sr, 'Unable to load project summary.'));
 
-            [modules, menus] = await Promise.all([mr.json(), ir.json()]);
-            const summary = await sr.json();
+            const [m, i] = await Promise.all([mr.json(), ir.json()]);
+            if (seq !== refreshSeq) return;
+
+            modules = m; menus = i;
             render();
-            document.getElementById('moduleCount').textContent = summary.moduleCount;
-            document.getElementById('menuCount').textContent = summary.menuCount;
-            document.getElementById('activeCount').textContent = summary.activeCount;
+
+            // Default: counts calculated from the loaded data
+            let moduleCount = modules.length;
+            let menuCount = menus.length;
+            let activeCount = modules.filter(x => x.isActive).length + menus.filter(x => x.isActive).length;
+
+            // Prefer server summary when available
+            if (sr && sr.ok) {
+                try {
+                    const s = await sr.json();
+                    if (seq !== refreshSeq) return;
+                    moduleCount = s.moduleCount ?? moduleCount;
+                    menuCount = s.menuCount ?? menuCount;
+                    activeCount = s.activeCount ?? activeCount;
+                } catch { /* keep local counts */ }
+            }
+            setStats(moduleCount, menuCount, activeCount);
         }
 
-        async function loadNextSortOrder(moduleId) {
-            const p = selectedProject();
-            if (!p) return 1;
-            const query = new URLSearchParams({ projectId: String(p) });
-            if (moduleId) query.set('moduleId', String(moduleId));
-            const response = await apiFetch(url('NextSortOrder') + '?' + query.toString());
-            if (!response.ok) throw Error(await readError(response, 'Unable to calculate sort order.'));
-            const result = await response.json();
-            return Number(result.sortOrder) || 1;
-        }
         function makeMenuCode(displayName, currentId = 0) {
             // Preserve every character in each word: "Follow up Serial" -> "FOLLOW_UP_SERIAL".
             const base = String(displayName || '')
@@ -734,14 +768,35 @@
 
             return candidate;
         }
+
+        // Last sort order inside the selected module (or standalone) + 1, calculated from loaded menus
         function nextModuleSortOrder(moduleId, currentId = 0) {
-            const selectedModuleId = Number(moduleId || 0);
-            const siblings = menus.filter(x =>
-                Number(x.id) !== Number(currentId) &&
-                Number(x.moduleId || 0) === selectedModuleId);
-            const maxOrder = siblings.reduce((max, item) => Math.max(max, Number(item.sortOrder) || 0), 0);
+            const selected = Number(moduleId) || 0;
+            const maxOrder = menus
+                .filter(x => Number(x.id) !== Number(currentId) &&
+                    (Number(x.moduleId) || 0) === selected)
+                .reduce((max, x) => Math.max(max, Number(x.sortOrder) || 0), 0);
             return maxOrder + 1;
         }
+
+        // Called when the Module dropdown changes (works for both NEW and EDIT)
+        function applySortOrderForModule() {
+            if (kind !== 'items') return;
+
+            const sortInput = document.getElementById('entrySort');
+            const id = Number(document.getElementById('entryId').value) || 0;
+            const moduleId = document.getElementById('moduleId').value;
+
+            // Editing and switched back to the original module: restore original order
+            if (id && String(moduleId) === String(modalElement.dataset.origModule || '')) {
+                sortInput.value = modalElement.dataset.origSort ?? '';
+                return;
+            }
+
+            sortInput.value = nextModuleSortOrder(moduleId, id);
+            clearFail();
+        }
+
         function syncGeneratedRoute() {
             if (!routeAuto) return;
             const controller = document.getElementById('entryController').value.trim().replace(/^\/+|\/+$/g, '');
@@ -753,18 +808,25 @@
         function status(v) { return '<span class="pm-status ' + (v ? 'active' : 'inactive') + '">' + (v ? 'Active' : 'Inactive') + '</span>'; }
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
         function menuMatches(x) { const q = document.getElementById('menuSearch').value.trim().toLowerCase(); const moduleName = modules.find(m => m.id === x.moduleId)?.name || 'Standalone'; const parentName = menus.find(m => m.id === x.parentMenuId)?.name || ''; return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName].some(v => String(v || '').toLowerCase().includes(q)); }
+
+        // render() only draws the tables/footers. Cards are handled by setStats().
         function render() {
             const filteredModules = modules.filter(moduleMatches), filteredMenus = menus.filter(menuMatches);
             moduleRows.innerHTML = filteredModules.length ? filteredModules.map(x => '<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-mod-icon">' + iconHtml(x.icon, '▦') + '</span><div><div class="pm-primary">' + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></div></div></td><td><span class="text-secondary">' + esc(x.description || 'No description') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">' + (modules.length ? 'No matching modules' : 'No modules created yet') + '</div><div class="small mb-3">' + (modules.length ? 'Try another search term.' : 'Create a module to group related navigation entries.') + '</div>' + (modules.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>') + '</div></td></tr>';
             menuRows.innerHTML = filteredMenus.length ? filteredMenus.map(x => '<tr><td><div class="pm-primary">' + (x.parentMenuId ? '<span class="text-secondary me-1">↳</span>' : '') + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></td><td>' + esc(modules.find(m => m.id === x.moduleId)?.name || 'Standalone') + '</td><td>' + esc(menus.find(m => m.id === x.parentMenuId)?.name || '—') + '</td><td><span class="pm-route" title="' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join('/') || 'No route configured') + '">' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join(' / ') || 'No route configured') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="7"><div class="pm-empty"><div class="pm-empty-icon">☷</div><div class="fw-semibold text-dark mb-1">' + (menus.length ? 'No matching menu entries' : 'No menu entries created yet') + '</div><div class="small mb-3">' + (menus.length ? 'Try another search term.' : 'Add your first menu entry to connect the project to a page or route.') + '</div>' + (menus.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-menu>＋ Create first menu</button>') + '</div></td></tr>';
-            document.getElementById('moduleCount').textContent = modules.length; document.getElementById('menuCount').textContent = menus.length; document.getElementById('activeCount').textContent = modules.filter(x => x.isActive).length + menus.filter(x => x.isActive).length;
             document.getElementById('moduleSummary').textContent = filteredModules.length + ' of ' + modules.length + ' modules'; document.getElementById('menuSummary').textContent = filteredMenus.length + ' of ' + menus.length + ' menu entries';
         }
+
         function openEditor(type, item = {}) {
             kind = type;
             codeAuto = type === 'items' && !item.id;
             routeAuto = type === 'items' && !item.id;
-            document.getElementById('editForm').reset(); document.getElementById('formError').classList.add('d-none'); document.getElementById('entryId').value = item.id || ''; document.getElementById('entryKind').value = type; document.getElementById('modalTitle').textContent = (item.id ? 'Edit ' : 'Create ') + (type === 'modules' ? 'module' : 'menu entry'); document.getElementById('modalKicker').textContent = item.id ? 'UPDATE PROJECT CONFIGURATION' : 'NEW PROJECT CONFIGURATION';
+
+            // Remember original values so we can restore them when editing
+            modalElement.dataset.origModule = item.moduleId || '';
+            modalElement.dataset.origSort = item.sortOrder ?? '';
+
+            document.getElementById('editForm').reset(); clearFail(); document.getElementById('entryId').value = item.id || ''; document.getElementById('entryKind').value = type; document.getElementById('modalTitle').textContent = (item.id ? 'Edit ' : 'Create ') + (type === 'modules' ? 'module' : 'menu entry'); document.getElementById('modalKicker').textContent = item.id ? 'UPDATE PROJECT CONFIGURATION' : 'NEW PROJECT CONFIGURATION';
             document.querySelectorAll('.module-only').forEach(e => e.classList.toggle('d-none', type !== 'modules')); document.querySelectorAll('.menu-only').forEach(e => e.classList.toggle('d-none', type !== 'items'));
             for (const [id, key] of [['entryCode', 'code'], ['entryName', 'name'], ['entryDescription', 'description'], ['entryIcon', 'icon'], ['entryArea', 'area'], ['entryController', 'controller'], ['entryAction', 'action'], ['entryRoute', 'routeUrl'], ['entryMenuIcon', 'icon'], ['entrySort', 'sortOrder']]) { const el = document.getElementById(id); if (el) el.value = item[key] ?? (id === 'entrySort' ? 0 : ''); }
             document.getElementById('entryActive').checked = item.isActive ?? true; document.getElementById('entryExternal').checked = item.isExternal ?? false;
@@ -774,17 +836,13 @@
             document.getElementById('parentId').value = item.parentMenuId || '';
             if (type === 'items' && !item.id) {
                 document.getElementById('entryCode').value = makeMenuCode(document.getElementById('entryName').value);
-                document.getElementById('entrySort').value = '';
-                loadNextSortOrder(document.getElementById('moduleId').value)
-                    .then(value => {
-                        if (kind === 'items' && !document.getElementById('entryId').value)
-                            document.getElementById('entrySort').value = value;
-                    })
-                    .catch(error => notice(error.message, 'danger'));
+                // Default sort order for the currently selected module (standalone by default)
+                applySortOrderForModule();
             }
             modalElement.querySelector('.modal-body').scrollTop = 0;
             modal.show();
         }
+
         document.getElementById('addModule').addEventListener('click', () => openEditor('modules')); document.getElementById('addMenu').addEventListener('click', () => openEditor('items')); document.getElementById('quickAddMenu').addEventListener('click', () => { if (!selectedProject()) { notice('Choose a project before adding a menu.', 'warning'); return; } document.querySelector('#menus-tab').click(); openEditor('items'); });
         moduleRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-module]')) return openEditor('modules'); const b = e.target.closest('[data-edit-module]'); if (b) openEditor('modules', modules.find(x => x.id === Number(b.dataset.editModule))); });
         menuRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-menu]')) return openEditor('items'); const b = e.target.closest('[data-edit-menu]'); if (b) openEditor('items', menus.find(x => x.id === Number(b.dataset.editMenu))); });
@@ -796,23 +854,31 @@
         document.getElementById('entryController').addEventListener('input', syncGeneratedRoute);
         document.getElementById('entryAction').addEventListener('input', syncGeneratedRoute);
         document.getElementById('entryRoute').addEventListener('input', () => { routeAuto = false; });
-        document.getElementById('moduleId').addEventListener('change', async () => {
-            if (kind !== 'items' || document.getElementById('entryId').value) return;
-            const sortInput = document.getElementById('entrySort');
-            sortInput.value = '';
-            try {
-                sortInput.value = await loadNextSortOrder(document.getElementById('moduleId').value);
-            } catch (error) {
-                notice(error.message, 'danger');
-            }
-        });
+
+        // Module change -> update sort order immediately (create AND edit modal)
+        ['change', 'input'].forEach(evt =>
+            document.getElementById('moduleId').addEventListener(evt, applySortOrderForModule));
+
         document.getElementById('moduleSearch').addEventListener('input', render); document.getElementById('menuSearch').addEventListener('input', render);
-        projectSelect.addEventListener('change', async () => {
-            notice('Loading project navigation…', 'info');
-            try { await refresh(); document.getElementById('notice').classList.add('d-none'); }
-            catch (e) { notice(e.message, 'danger'); }
-        });
+
+        // Project change -> direct effect (no need to click Refresh)
+        async function onProjectChanged() {
+            if (selectedProject()) notice('Loading project navigation…', 'info');
+            const seq = refreshSeq + 1; // the seq this refresh() call will get
+            try {
+                await refresh();
+                if (seq === refreshSeq) hideNotice(); // only hide if this is still the latest request
+            } catch (e) {
+                if (seq === refreshSeq) {
+                    setStats('—', '—', '—');
+                    notice(e.message, 'danger');
+                }
+            }
+        }
+        projectSelect.addEventListener('change', onProjectChanged);
+
         document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
+
         document.getElementById('editForm').addEventListener('submit', async e => {
             e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
             const common = { id: Number(document.getElementById('entryId').value) || null, projectId: selectedProject(), code: document.getElementById('entryCode').value, name: document.getElementById('entryName').value, sortOrder: Number(document.getElementById('entrySort').value) || 0, isActive: document.getElementById('entryActive').checked }; let body, action;
@@ -820,15 +886,14 @@
             else { body = { ...common, moduleId: Number(document.getElementById('moduleId').value) || null, parentMenuId: Number(document.getElementById('parentId').value) || null, area: document.getElementById('entryArea').value, controller: document.getElementById('entryController').value, action: document.getElementById('entryAction').value, routeUrl: document.getElementById('entryRoute').value, icon: document.getElementById('entryMenuIcon').value, isExternal: document.getElementById('entryExternal').checked }; action = 'SaveMenu'; }
             const btn = document.getElementById('saveBtn'); btn.disabled = true; btn.textContent = 'Saving…'; try { await send(url(action), body); modal.hide(); await refresh(); notice('Saved successfully.'); } catch (err) { fail(err.message); } finally { btn.disabled = false; btn.textContent = 'Save changes'; }
         });
+
         loadProjects()
             .then(async () => {
                 // Automatically select the first available project and load its data/cards.
                 if (projectSelect.options.length > 1) {
                     projectSelect.selectedIndex = 1;
-                    await refresh();
-                } else {
-                    await refresh();
                 }
+                await refresh();
             })
             .catch(e => notice(e.message, 'danger'));
     })();
