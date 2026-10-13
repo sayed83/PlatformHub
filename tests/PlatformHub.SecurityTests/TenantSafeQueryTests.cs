@@ -30,6 +30,42 @@ public sealed class TenantSafeQueryTests
     }
 
     [Fact]
+    public async Task Active_branch_scope_returns_no_rows_when_branch_filter_is_omitted()
+    {
+        await using var db = new TenantTestDbContext(new DbContextOptionsBuilder<TenantTestDbContext>()
+            .UseInMemoryDatabase($"tenant-query-missing-branch-{Guid.NewGuid():N}").Options);
+        db.Rows.AddRange(
+            new TestScopedRow { Id = 1, TenantId = 10, BranchId = 101, ProjectId = 1001, Name = "Selected branch" },
+            new TestScopedRow { Id = 2, TenantId = 10, BranchId = 102, ProjectId = 1001, Name = "Other branch" });
+        await db.SaveChangesAsync();
+
+        var result = await db.Rows
+            .WhereInActiveWorkspace(new ActiveTenantContext(10, 101, 1001),
+                nameof(TestScopedRow.TenantId), projectIdProperty: nameof(TestScopedRow.ProjectId))
+            .ToListAsync();
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task Active_project_scope_returns_no_rows_when_project_filter_is_omitted()
+    {
+        await using var db = new TenantTestDbContext(new DbContextOptionsBuilder<TenantTestDbContext>()
+            .UseInMemoryDatabase($"tenant-query-missing-project-{Guid.NewGuid():N}").Options);
+        db.Rows.AddRange(
+            new TestScopedRow { Id = 1, TenantId = 10, BranchId = 101, ProjectId = 1001, Name = "Selected project" },
+            new TestScopedRow { Id = 2, TenantId = 10, BranchId = 101, ProjectId = 1002, Name = "Other project" });
+        await db.SaveChangesAsync();
+
+        var result = await db.Rows
+            .WhereInActiveWorkspace(new ActiveTenantContext(10, 101, 1001),
+                nameof(TestScopedRow.TenantId), branchIdProperty: nameof(TestScopedRow.BranchId))
+            .ToListAsync();
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
     public async Task Unresolved_workspace_returns_no_tenant_rows()
     {
         await using var db = new TenantTestDbContext(new DbContextOptionsBuilder<TenantTestDbContext>()
