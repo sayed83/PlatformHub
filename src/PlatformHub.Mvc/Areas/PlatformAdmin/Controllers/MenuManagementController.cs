@@ -9,12 +9,12 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class MenuManagementController(PlatformApiClient api) : Controller
 {
     public IActionResult Index() =>
-        User.FindFirst("ph_platform_admin")?.Value == "true" ? View() : Forbid();
+        User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN") ? View() : Forbid();
 
     [HttpGet]
     public async Task<IActionResult> Projects(CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
         var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>("api/v1/project-menus/projects", token, ct);
