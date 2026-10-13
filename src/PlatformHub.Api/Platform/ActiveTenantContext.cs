@@ -14,6 +14,18 @@ public interface IActiveTenantContext
 
 public sealed class ActiveTenantContext : IActiveTenantContext
 {
+    public ActiveTenantContext() { }
+
+    // Public value constructor makes the immutable scope easy to exercise in isolated tests.
+    public ActiveTenantContext(long tenantId, long? branchId = null, long? projectId = null)
+    {
+        TenantId = tenantId;
+        BranchId = branchId;
+        ProjectId = projectId;
+        IsResolved = tenantId > 0 && (!branchId.HasValue || branchId.Value > 0) &&
+            (!projectId.HasValue || projectId.Value > 0);
+    }
+
     public long? TenantId { get; internal set; }
     public long? BranchId { get; internal set; }
     public long? ProjectId { get; internal set; }
