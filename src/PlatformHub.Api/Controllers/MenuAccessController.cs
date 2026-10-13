@@ -36,39 +36,60 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     [HttpGet("projects")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name)
-            .Select(x => new
-            {
-                x.Id,
-                x.Code,
-                x.Name,
-                TenantName = x.Tenant == null ? "Shared catalogue" : x.Tenant.Name
-            }).ToListAsync(ct));
+            .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct));
 
-    [HttpGet("lookups")]
-    public async Task<IActionResult> Lookups([FromQuery] long projectId, CancellationToken ct)
+    [HttpGet("tenants")]
+    public async Task<IActionResult> Tenants([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0) return BadRequest(new { message = "Select a project." });
-        var projectExists = await db.Projects.AnyAsync(x => x.Id == projectId, ct);
-        if (!projectExists) return NotFound(new { message = "Project not found." });
-        var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
-        var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive &&
-                (isSuperAdmin || x.Code != "PLATFORM_SUPER_ADMIN")).OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct);
-        var projectTenantIds = await db.TenantProjects.AsNoTracking()
+        var projectExists = await db.Projects.AnyAsync(x => x.Id == projectId && x.IsActive, ct);
+        if (!projectExists) return NotFound(new { message = "Project not found or inactive." });
+
+        var tenants = await db.TenantProjects.AsNoTracking()
             .Where(tp => tp.ProjectId == projectId && tp.IsEnabled && tp.Tenant.IsActive)
-            .Select(tp => tp.TenantId).Distinct().ToListAsync(ct);
+            .Select(tp => new { tp.Tenant.Id, tp.Tenant.Code, tp.Tenant.Name })
+            .Distinct().OrderBy(x => x.Name).ToListAsync(ct);
+
+        // Backward compatibility for legacy projects that still have a TenantId column value.
         var legacyTenantId = await db.Projects.AsNoTracking()
             .Where(p => p.Id == projectId).Select(p => p.TenantId).SingleAsync(ct);
-        if (legacyTenantId.HasValue && !projectTenantIds.Contains(legacyTenantId.Value))
-            projectTenantIds.Add(legacyTenantId.Value);
+        if (legacyTenantId.HasValue && !tenants.Any(t => t.Id == legacyTenantId.Value))
+        {
+            var legacy = await db.Tenants.AsNoTracking()
+                .Where(t => t.Id == legacyTenantId.Value && t.IsActive)
+                .Select(t => new { t.Id, t.Code, t.Name }).SingleOrDefaultAsync(ct);
+            if (legacy is not null) tenants.Add(legacy);
+        }
+        return Ok(tenants);
+    }
 
-        // Show users explicitly assigned to this project or assigned within any tenant
-        // that has subscribed to the reusable project.
+    [HttpGet("lookups")]
+    public async Task<IActionResult> Lookups([FromQuery] long projectId, [FromQuery] long tenantId, CancellationToken ct)
+    {
+        if (projectId <= 0 || tenantId <= 0) return BadRequest(new { message = "Select a project and tenant." });
+        var tenantHasProject = await db.TenantProjects.AsNoTracking()
+            .AnyAsync(tp => tp.ProjectId == projectId && tp.TenantId == tenantId && tp.IsEnabled && tp.Tenant.IsActive, ct);
+        var legacyTenantId = await db.Projects.AsNoTracking().Where(p => p.Id == projectId)
+            .Select(p => p.TenantId).SingleOrDefaultAsync(ct);
+        if (!tenantHasProject && legacyTenantId != tenantId)
+            return BadRequest(new { message = "The selected project is not assigned to this tenant." });
+
+        var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
+        var tenantRoleIds = await db.UserRoleAssignments.AsNoTracking()
+            .Where(a => a.TenantId == tenantId ||
+                (a.BranchId != null && db.Branches.Any(b => b.Id == a.BranchId && b.TenantId == tenantId)) ||
+                (a.ProjectId == projectId && a.TenantId == null))
+            .Select(a => a.RoleId).Distinct().ToListAsync(ct);
+        var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive && tenantRoleIds.Contains(x.Id) &&
+                (isSuperAdmin || x.Code != "PLATFORM_SUPER_ADMIN")).OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct);
+
         var users = await db.Users.AsNoTracking().Where(u => u.IsActive &&
             (isSuperAdmin || !u.IsPlatformAdmin) &&
             db.UserRoleAssignments.Any(a => a.UserId == u.Id &&
-                (a.ProjectId == projectId ||
-                 (a.ProjectId == null && a.TenantId.HasValue && projectTenantIds.Contains(a.TenantId.Value)))))
+                (a.TenantId == tenantId ||
+                 (a.BranchId != null && db.Branches.Any(b => b.Id == a.BranchId && b.TenantId == tenantId)) ||
+                 a.ProjectId == projectId)))
             .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.UserName, x.DisplayName }).ToListAsync(ct);
         var menus = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.IsActive)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
