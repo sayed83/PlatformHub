@@ -56,6 +56,9 @@ public sealed class PlatformApiClient(
         try
         {
             using var document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+
             foreach (var name in new[] { "message", "detail", "title", "error" })
                 if (document.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
                     return value.GetString();
