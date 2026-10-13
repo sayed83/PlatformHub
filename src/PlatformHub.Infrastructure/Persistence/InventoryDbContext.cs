@@ -16,7 +16,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         modelBuilder.HasDefaultSchema("dbo");
         modelBuilder.Entity<InventoryItem>(e =>
         {
-            e.ToTable("InventoryItems", "dbo");
+            e.ToTable("Products", "dbo");
             e.HasKey(x => x.Id);
             e.Property(x => x.Sku).HasMaxLength(80).IsRequired();
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
