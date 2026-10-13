@@ -585,8 +585,7 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Tenant");
                 });
