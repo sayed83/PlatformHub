@@ -92,7 +92,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     public async Task<IActionResult> UpdateProject(long id, [FromBody] ProjectUpdateRequest request, CancellationToken cancellationToken)
     {
         if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
-        try { return Ok(await platform.UpdateProjectAsync(id, request.Code, request.Name, request.BaseUrl, cancellationToken)); }
+        try { return Ok(await platform.UpdateProjectAsync(id, request.TenantId, request.Code, request.Name, request.BaseUrl, cancellationToken)); }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
