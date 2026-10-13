@@ -133,7 +133,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         user.BaseRedirectUrl = string.IsNullOrWhiteSpace(request.BaseRedirectUrl) ? null : request.BaseRedirectUrl.Trim();
         user.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { message = "User updated.", user.Id, user.UserName, user.DisplayName, user.IsActive, user.BaseRedirectUrl });
+        await RevokeSessionsAsync(userId, cancellationToken);
+        return Ok(new { message = "User updated. Existing sessions were revoked; the user must sign in again.", user.Id, user.UserName, user.DisplayName, user.IsActive, user.BaseRedirectUrl });
     }
 
     [HttpPost("users/{userId:long}/reset-password")]
@@ -146,7 +147,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         if (user is null || (user.IsPlatformAdmin && !IsSuperAdmin())) return NotFound(new { message = "User not found." });
         user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { message = "Password reset successfully. The user should sign in again." });
+        await RevokeSessionsAsync(userId, cancellationToken);
+        return Ok(new { message = "Password reset successfully. Existing sessions were revoked." });
     }
 
     [HttpGet("roles")]
@@ -219,12 +221,24 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
                 return BadRequest(new { message = "One or more permission IDs are invalid." });
         }
 
+        var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
+            .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
         var current = await db.RolePermissions.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
         db.RolePermissions.RemoveRange(current);
         foreach (var permissionId in permissionIds)
             db.RolePermissions.Add(new PlatformRolePermission { RoleId = roleId, PermissionId = permissionId });
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { message = "Role permissions updated.", roleId, permissionCount = permissionIds.Length });
+        if (affectedUserIds.Length > 0)
+            await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
+        return Ok(new { message = "Role permissions updated. Sessions for affected users were revoked.", roleId, permissionCount = permissionIds.Length });
+    }
+
+    private async Task RevokeSessionsAsync(long userId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        await db.RefreshSessions.Where(x => x.UserId == userId && x.RevokedUtc == null)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, now), cancellationToken);
     }
 
     private bool IsSuperAdmin() => User.HasClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode);
@@ -388,7 +402,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             ProjectId = request.ProjectId
         });
         await db.SaveChangesAsync(cancellationToken);
-        return CreatedAtAction(nameof(GetUserRoles), new { userId }, new { message = "Role assigned successfully." });
+        await RevokeSessionsAsync(userId, cancellationToken);
+        return CreatedAtAction(nameof(GetUserRoles), new { userId }, new { message = "Role assigned successfully. The user must sign in again." });
     }
 
     [HttpDelete("users/{userId:long}/roles/{assignmentId:long}")]
@@ -406,6 +421,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
 
         db.UserRoleAssignments.Remove(assignment);
         await db.SaveChangesAsync(cancellationToken);
+        await RevokeSessionsAsync(userId, cancellationToken);
         return NoContent();
     }
 }
