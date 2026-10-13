@@ -25,7 +25,9 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
 builder.Services.AddScoped<IDapperStoredProcedureExecutor, DapperStoredProcedureExecutor>();
-builder.Services.AddScoped<IScopedAccessService, ScopedAccessService>();\nbuilder.Services.AddScoped<ActiveTenantContext>();\nbuilder.Services.AddScoped<IActiveTenantContext>(sp => sp.GetRequiredService<ActiveTenantContext>());
+builder.Services.AddScoped<IScopedAccessService, ScopedAccessService>();
+builder.Services.AddScoped<ActiveTenantContext>();
+builder.Services.AddScoped<IActiveTenantContext>(sp => sp.GetRequiredService<ActiveTenantContext>());
 builder.Services.AddScoped<EffectiveMenuAccessService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
