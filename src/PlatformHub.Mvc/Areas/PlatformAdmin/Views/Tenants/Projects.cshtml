@@ -55,26 +55,21 @@
                 }
                 else
                 {
-                    <label for="projectIds" class="form-label fw-semibold">Applications available to @Model.TenantName</label>
-                    <div class="tenant-project-picker">
-                        <select id="projectIds" name="projectIds" class="form-select" multiple data-placeholder="Type to search applications…" data-select2="off">
-                            @foreach (var project in Model.Projects.Where(p => p.IsActive).OrderBy(p => p.Name))
+                    <label for="projectIds" class="form-label fw-semibold">Projects for @Model.TenantName</label>
+                    <select id="projectIds" name="projectIds" class="form-select" multiple data-placeholder="Search and select projects">
+                        @foreach (var project in Model.Projects.Where(p => p.IsActive).OrderBy(p => p.Name))
+                        {
+                            if (Model.SelectedProjectIds.Contains(project.Id))
                             {
-                                if (Model.SelectedProjectIds.Contains(project.Id))
-                                {
-                                    <option value="@project.Id" selected>@project.Name (@project.Code)</option>
-                                }
-                                else
-                                {
-                                    <option value="@project.Id">@project.Name (@project.Code)</option>
-                                }
+                                <option value="@project.Id" selected>@project.Code — @project.Name</option>
                             }
-                        </select>
-                    </div>
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
-                        <div class="form-text">Search by application name or code. Select multiple applications, then save once.</div>
-                        <span class="small text-secondary"><strong id="selectedProjectCount">@Model.SelectedProjectIds.Count</strong> selected</span>
-                    </div>
+                            else
+                            {
+                                <option value="@project.Id">@project.Code — @project.Name</option>
+                            }
+                        }
+                    </select>
+                    <div class="form-text mt-2">Use the search field to find School Management, Hospital Management, ComplexERP, or another existing project.</div>
                     <div class="alert alert-light border mt-3 mb-0">
                         <strong>Important:</strong> Removing a project here revokes the tenant's application assignment. Make sure users and branches that need this application are reassigned before removing it.
                     </div>
@@ -94,28 +89,14 @@
 <script>
     (function () {
         const element = document.getElementById('projectIds');
-        const count = document.getElementById('selectedProjectCount');
-        if (!element || !window.jQuery || !jQuery.fn.select2) return;
-
-        const picker = jQuery(element);
-        if (picker.hasClass('select2-hidden-accessible')) picker.select2('destroy');
-
-        picker.select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: element.dataset.placeholder || 'Type to search applications…',
-            closeOnSelect: false,
-            allowClear: false,
-            minimumResultsForSearch: 0,
-            templateResult: function (item) {
-                if (!item.id) return item.text;
-                const parts = item.text.match(/^(.*) \(([^()]*)\)$/);
-                if (!parts) return item.text;
-                return jQuery('<span><span class="d-block fw-semibold"></span><span class="project-code"></span></span>')
-                    .find('.fw-semibold').text(parts[1]).end()
-                    .find('.project-code').text(parts[2]).end();
-            }
-        });
+        if (!element) return;
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery(element).select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: element.dataset.placeholder,
+                closeOnSelect: false
+            });
 
         function updateCount() {
             if (count) count.textContent = String(picker.val()?.length || 0);
