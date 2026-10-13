@@ -99,6 +99,39 @@ public sealed class EffectiveMenuAccessServiceTests
         Assert.False(await service.HasAccessAsync(10, 300, 1, "SHARED_MENU"));
     }
 
+    [Fact]
+    public async Task Shared_project_menu_access_is_limited_to_the_selected_tenant()
+    {
+        await using var db = await CreateDbAsync();
+        db.Tenants.Add(new Tenant { Id = 2, Code = "T2", Name = "Tenant Two", IsActive = true });
+        db.Projects.Add(new Project
+        {
+            Id = 400, TenantId = null, Code = "REUSABLE", Name = "Reusable Project", IsActive = true
+        });
+        db.TenantProjects.AddRange(
+            new TenantProject { Id = 401, TenantId = 1, ProjectId = 400, IsEnabled = true },
+            new TenantProject { Id = 402, TenantId = 2, ProjectId = 400, IsEnabled = true });
+        db.MenuItems.Add(new MenuItem
+        {
+            Id = 40, ProjectId = 400, Code = "REUSABLE_MENU", Name = "Reusable Menu", IsActive = true
+        });
+        db.RoleWiseMenuAccesses.Add(new RoleWiseMenuAccess
+        {
+            ProjectId = 400, RoleId = 5, MenuItemId = 40, IsAllowed = true
+        });
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            Id = 403, UserId = 10, RoleId = 5, TenantId = 2, ProjectId = 400
+        });
+        await db.SaveChangesAsync();
+
+        var service = new EffectiveMenuAccessService(db);
+        Assert.Empty(await service.GetForUserAsync(10, 400, 1));
+        Assert.False(await service.HasAccessAsync(10, 400, 1, "REUSABLE_MENU"));
+        Assert.Contains(await service.GetForUserAsync(10, 400, 2), x => x.Code == "REUSABLE_MENU");
+        Assert.True(await service.HasAccessAsync(10, 400, 2, "REUSABLE_MENU"));
+    }
+
     private static async Task<PlatformDbContext> CreateDbAsync()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
