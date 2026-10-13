@@ -273,3 +273,17 @@ For every new tenant business endpoint:
 - Validate parent/detail/foreign-key IDs belong to the same workspace.
 - Keep Dapper/raw SQL, exports, bulk operations and background jobs explicitly scoped; the attribute cannot automatically secure query predicates.
 - Add endpoint-level tests for cross-tenant IDs and denied writes/deletes.
+
+
+## Phase 4 tenant-isolation audit — current API inventory
+
+The current API is a platform-management scaffold; it does not yet contain Inventory, Sales, Purchase, or Accounting business-data controllers. Do not treat those future endpoints as secured merely because active workspace context exists.
+
+- `WorkspaceController` is workspace discovery/context functionality. Its context endpoint validates requested tenant, branch, and project access explicitly through `IScopedAccessService`.
+- `NavigationController` requires a resolved active tenant and resolves menu access for the selected tenant/project. Navigation visibility is not a substitute for business endpoint authorization.
+- `PlatformController`, `PlatformAccessController`, `TenantProjectsController`, `ProjectMenusController`, and `MenuAccessController` are intentionally platform-administration endpoints protected by Platform Admin policies; do not force them through a tenant-only filter.
+- The current Dapper call in `PlatformService.GetProjectsAsync` invokes `dbo.usp_Platform_GetProjects` from a Platform Admin endpoint. No tenant-facing business stored-procedure call is present in the current API inventory. Any future business procedure must receive validated tenant/workspace IDs and enforce those predicates inside SQL.
+- Tenant-facing business endpoints must require authentication and a specific scoped permission, load resources through tenant/branch/project-scoped predicates, validate related IDs on writes, and add cross-tenant read/update/delete tests.
+- Background jobs and exports must resolve their tenant scope explicitly; they must never depend on an ambient HTTP request context.
+
+Authorization-filter regression tests in `tests/PlatformHub.SecurityTests/RequireScopedPermissionAttributeTests.cs` cover unresolved context denial, client scope override denial, permission-service invocation with server-resolved IDs, and allowed/denied permission results.
