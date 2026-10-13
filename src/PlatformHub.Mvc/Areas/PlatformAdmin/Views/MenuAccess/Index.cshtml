@@ -3,48 +3,252 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <style>
-    .policy-shell { min-width:0; }
-    .policy-hero { border:1px solid var(--bs-border-color); border-radius:1rem; padding:1.25rem 1.4rem; background:linear-gradient(120deg,rgba(13,110,253,.09),rgba(13,110,253,.015)); }
-    .policy-project-card { min-width:min(100%,320px); padding:.85rem 1rem; border:1px solid var(--bs-border-color); border-radius:.85rem; background:var(--bs-body-bg); }
-    .policy-help { border:1px solid var(--bs-border-color); border-radius:.8rem; background:var(--bs-tertiary-bg); padding:.85rem 1rem; }
-    .policy-card-head { border-bottom:1px solid var(--bs-border-color); }
-    .policy-savebar { position:sticky; bottom:0; z-index:5; background:var(--bs-body-bg); border-top:1px solid var(--bs-border-color); }
-    .policy-table tbody tr:nth-child(even) td:not(:first-child) { background:rgba(127,127,127,.025); }
-    .policy-table td:first-child { box-shadow:2px 0 5px rgba(20,20,40,.035); }
-    .policy-check:focus-visible, .policy-decision:focus-visible { outline:3px solid rgba(13,110,253,.35); outline-offset:2px; }
-    .policy-table-wrap:has(tbody tr:nth-child(2)) { scroll-behavior:smooth; }
-    .policy-tabs { border-bottom:1px solid #ded9e8; gap:.35rem; flex-wrap:wrap; }
-    .policy-tabs .nav-link { color:#746783; border:0; border-bottom:3px solid transparent; border-radius:0; padding:.8rem 1rem; font-weight:600; }
-    .policy-tabs .nav-link.active { color:#793ee0; background:transparent; border-bottom-color:#793ee0; }
-    .policy-toolbar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; }
-    .policy-search { position:relative; width:min(100%,380px); }
-    .policy-search input { padding-left:2.5rem; }
-    .policy-search span { position:absolute; left:.85rem; top:.48rem; color:#80778b; }
-    .policy-table-wrap { border:1px solid #e2deea; border-radius:.8rem; overflow:auto; max-height:calc(100vh - 360px); min-height:260px; }
-    .policy-table { margin:0; white-space:nowrap; }
-    .policy-table thead th { position:sticky; top:0; z-index:3; background:#f8f7fb; vertical-align:middle; border-bottom:1px solid #ded9e8; }
-    .policy-table th:first-child,.policy-table td:first-child { position:sticky; left:0; z-index:2; background:#fff; min-width:245px; max-width:340px; white-space:normal; }
-    .policy-table thead th:first-child { z-index:4; background:#f8f7fb; }
-    .policy-table th.policy-column { min-width:145px; text-align:center; }
-    .policy-table td.policy-cell { text-align:center; vertical-align:middle; min-width:145px; }
-    .policy-table tr:hover td { background:#fbf9ff; }
-    .policy-table tr:hover td:first-child { background:#fbf9ff; }
-    .policy-role-chip { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; border-radius:999px; padding:.45rem .75rem; font-size:.85rem; font-weight:700; }
-    .policy-role-chip.role { background:#f1e7ff; color:#7137c8; }
-    .policy-role-chip.user { background:#e4f4ed; color:#177b4a; }
-    .policy-check { width:1.25rem; height:1.25rem; cursor:pointer; accent-color:#8548e8; }
-    .policy-menu-name { display:flex; align-items:center; gap:.55rem; }
-    .policy-menu-icon { width:1.4rem; text-align:center; color:#7b718b; flex-shrink:0; }
-    .policy-code { color:#8c8497; font-size:.75rem; overflow-wrap:anywhere; }
-    .policy-decision { min-width:125px; max-width:160px; margin:auto; }
-    .policy-legend { display:flex; flex-wrap:wrap; gap:.75rem; font-size:.8rem; color:#746b80; }
-    .policy-legend span { display:inline-flex; align-items:center; gap:.35rem; }
-    .policy-dot { width:.6rem; height:.6rem; display:inline-block; border-radius:50%; }
-    .policy-status { min-height:0; }
+    .policy-shell {
+        min-width: 0;
+    }
+
+    .policy-hero {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        padding: 1.25rem 1.4rem;
+        background: linear-gradient(120deg,rgba(13,110,253,.09),rgba(13,110,253,.015));
+    }
+
+    .policy-project-card {
+        min-width: min(100%,320px);
+        padding: .85rem 1rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: .85rem;
+        background: var(--bs-body-bg);
+    }
+
+    .policy-help {
+        border: 1px solid var(--bs-border-color);
+        border-radius: .8rem;
+        background: var(--bs-tertiary-bg);
+        padding: .85rem 1rem;
+    }
+
+    .policy-card-head {
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .policy-savebar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        background: var(--bs-body-bg);
+        border-top: 1px solid var(--bs-border-color);
+    }
+
+    .policy-table tbody tr:nth-child(even) td:not(:first-child) {
+        background: rgba(127,127,127,.025);
+    }
+
+    .policy-table td:first-child {
+        box-shadow: 2px 0 5px rgba(20,20,40,.035);
+    }
+
+    .policy-check:focus-visible, .policy-decision:focus-visible {
+        outline: 3px solid rgba(13,110,253,.35);
+        outline-offset: 2px;
+    }
+
+    .policy-table-wrap:has(tbody tr:nth-child(2)) {
+        scroll-behavior: smooth;
+    }
+
+    .policy-tabs {
+        border-bottom: 1px solid #ded9e8;
+        gap: .35rem;
+        flex-wrap: wrap;
+    }
+
+        .policy-tabs .nav-link {
+            color: #746783;
+            border: 0;
+            border-bottom: 3px solid transparent;
+            border-radius: 0;
+            padding: .8rem 1rem;
+            font-weight: 600;
+        }
+
+            .policy-tabs .nav-link.active {
+                color: #793ee0;
+                background: transparent;
+                border-bottom-color: #793ee0;
+            }
+
+    .policy-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .policy-search {
+        position: relative;
+        width: min(100%,380px);
+    }
+
+        .policy-search input {
+            padding-left: 2.5rem;
+        }
+
+        .policy-search span {
+            position: absolute;
+            left: .85rem;
+            top: .48rem;
+            color: #80778b;
+        }
+
+    .policy-table-wrap {
+        border: 1px solid #e2deea;
+        border-radius: .8rem;
+        overflow: auto;
+        max-height: calc(100vh - 360px);
+        min-height: 260px;
+    }
+
+    .policy-table {
+        margin: 0;
+        white-space: nowrap;
+    }
+
+        .policy-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            background: #f8f7fb;
+            vertical-align: middle;
+            border-bottom: 1px solid #ded9e8;
+        }
+
+        .policy-table th:first-child, .policy-table td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #fff;
+            min-width: 245px;
+            max-width: 340px;
+            white-space: normal;
+        }
+
+        .policy-table thead th:first-child {
+            z-index: 4;
+            background: #f8f7fb;
+        }
+
+        .policy-table th.policy-column {
+            min-width: 145px;
+            text-align: center;
+        }
+
+        .policy-table td.policy-cell {
+            text-align: center;
+            vertical-align: middle;
+            min-width: 145px;
+        }
+
+        .policy-table tr:hover td {
+            background: #fbf9ff;
+        }
+
+            .policy-table tr:hover td:first-child {
+                background: #fbf9ff;
+            }
+
+    .policy-role-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        border-radius: 999px;
+        padding: .45rem .75rem;
+        font-size: .85rem;
+        font-weight: 700;
+    }
+
+        .policy-role-chip.role {
+            background: #f1e7ff;
+            color: #7137c8;
+        }
+
+        .policy-role-chip.user {
+            background: #e4f4ed;
+            color: #177b4a;
+        }
+
+    .policy-check {
+        width: 1.25rem;
+        height: 1.25rem;
+        cursor: pointer;
+        accent-color: #8548e8;
+    }
+
+    .policy-menu-name {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+    }
+
+    .policy-menu-icon {
+        width: 1.4rem;
+        text-align: center;
+        color: #7b718b;
+        flex-shrink: 0;
+    }
+
+    .policy-code {
+        color: #8c8497;
+        font-size: .75rem;
+        overflow-wrap: anywhere;
+    }
+
+    .policy-decision {
+        min-width: 125px;
+        max-width: 160px;
+        margin: auto;
+    }
+
+    .policy-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        font-size: .8rem;
+        color: #746b80;
+    }
+
+        .policy-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+        }
+
+    .policy-dot {
+        width: .6rem;
+        height: .6rem;
+        display: inline-block;
+        border-radius: 50%;
+    }
+
+    .policy-status {
+        min-height: 0;
+    }
+
     @@media(max-width:767.98px) {
-        .policy-table-wrap { max-height:calc(100vh - 310px); }
-        .policy-table th:first-child,.policy-table td:first-child { min-width:185px; }
-        .policy-table th.policy-column,.policy-table td.policy-cell { min-width:125px; }
+        .policy-table-wrap {
+            max-height: calc(100vh - 310px);
+        }
+
+        .policy-table th:first-child, .policy-table td:first-child {
+            min-width: 185px;
+        }
+
+        .policy-table th.policy-column, .policy-table td.policy-cell {
+            min-width: 125px;
+        }
     }
 </style>
 
@@ -122,207 +326,238 @@
 </div>
 
 <script>
-(() => {
-    const project = document.getElementById('projectSelect');
-    const roleHead = document.getElementById('roleHead');
-    const userHead = document.getElementById('userHead');
-    const roleRows = document.getElementById('roleRows');
-    const userRows = document.getElementById('userRows');
-    const roleSearch = document.getElementById('roleSearch');
-    const userSearch = document.getElementById('userSearch');
-    const saveRoleButton = document.getElementById('saveRole');
-    const saveUserButton = document.getElementById('saveUser');
-    const baseUrl = '@Url.Action("Data", "MenuAccess", new { area = "PlatformAdmin" })';
-    const saveRoleUrl = '@Url.Action("SaveRole", "MenuAccess", new { area = "PlatformAdmin" })';
-    const saveUserUrl = '@Url.Action("SaveUser", "MenuAccess", new { area = "PlatformAdmin" })';
-    const csrf = '@Html.AntiForgeryToken()';
-    let menus = [], roles = [], users = [];
-    let roleState = new Map(), userState = new Map();
-    let dirtyRoles = new Set(), dirtyUsers = new Set();
+    // Wait until the page AND the layout scripts (jQuery / Select2) are loaded,
+    // so the project dropdown change event can be bound correctly.
+    document.addEventListener('DOMContentLoaded', () => {
+        const project = document.getElementById('projectSelect');
+        const roleHead = document.getElementById('roleHead');
+        const userHead = document.getElementById('userHead');
+        const roleRows = document.getElementById('roleRows');
+        const userRows = document.getElementById('userRows');
+        const roleSearch = document.getElementById('roleSearch');
+        const userSearch = document.getElementById('userSearch');
+        const saveRoleButton = document.getElementById('saveRole');
+        const saveUserButton = document.getElementById('saveUser');
+        const baseUrl = '@Url.Action("Data", "MenuAccess", new { area = "PlatformAdmin" })';
+        const saveRoleUrl = '@Url.Action("SaveRole", "MenuAccess", new { area = "PlatformAdmin" })';
+        const saveUserUrl = '@Url.Action("SaveUser", "MenuAccess", new { area = "PlatformAdmin" })';
+        const csrf = '@Html.AntiForgeryToken()';
+        let menus = [], roles = [], users = [];
+        let roleState = new Map(), userState = new Map();
+        let dirtyRoles = new Set(), dirtyUsers = new Set();
+        let loadToken = 0; // guards against an older project response overwriting a newer one
 
-    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    const requestUrl = (kind, projectId, selectionId = 0) => baseUrl + '?kind=' + encodeURIComponent(kind) + '&projectId=' + projectId + '&selectionId=' + selectionId;
-    const notice = (message, type = 'success') => {
-        const node = document.getElementById('notice');
-        node.textContent = message;
-        node.className = 'alert alert-' + type + ' policy-status py-2';
-    };
-    async function get(url) {
-        let response;
-        try {
-            response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
-        } catch {
-            throw new Error('Could not reach the MVC server. Check that PlatformHub.Mvc is running.');
-        }
-        const data = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-            window.location.replace('/PlatformAdmin/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
-            throw new Error('Your session expired. Redirecting to Platform Admin login…');
-        }
-        if (!response.ok) {
-            const endpoint = url.split('?')[0].split('/').pop();
-            throw new Error((data.message || 'Could not load menu permissions.') +
-                ' (HTTP ' + response.status + ', request: ' + endpoint + ')');
-        }
-        return data;
-    }
-    async function post(url, payload) {
-        const form = document.createElement('form');
-        form.innerHTML = csrf;
-        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
-        const response = await fetch(url, {
-            method: 'POST', credentials: 'same-origin',
-            headers: {'Content-Type':'application/json','RequestVerificationToken':token},
-            body: JSON.stringify(payload)
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.message || 'Could not save menu permissions.');
-        return data;
-    }
-    function options(select, items, label, placeholder) {
-        select.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
-            items.map(item => '<option value="' + item.id + '">' + esc(label(item)) + '</option>').join('');
-    }
-    function menuCell(menu) {
-        const depth = menu.parentMenuId ? 1 : 0;
-        return '<div class="policy-menu-name" style="padding-left:' + (depth * 1.2) + 'rem">' +
-            '<span class="policy-menu-icon" aria-hidden="true">' + esc(menu.icon || (menu.parentMenuId ? '↳' : '▤')) + '</span>' +
-            '<div><div class="fw-semibold">' + esc(menu.name) + '</div><div class="policy-code">' + esc(menu.code) +
-            (menu.moduleName ? ' · ' + esc(menu.moduleName) : ' · Standalone') + '</div></div></div>';
-    }
-    function filteredMenus(query) {
-        const q = query.trim().toLowerCase();
-        if (!q) return menus;
-        return menus.filter(m => [m.name,m.code,m.moduleName].some(v => String(v || '').toLowerCase().includes(q)));
-    }
-    function renderRoleMatrix() {
-        roleHead.innerHTML = '<th>Menu / resource</th>' + roles.map(r =>
-            '<th class="policy-column"><span class="policy-role-chip role">' + esc(r.name) + '</span><div class="policy-code mt-1">' + esc(r.code) + '</div></th>'
-        ).join('');
-        const rows = filteredMenus(roleSearch.value);
-        roleRows.innerHTML = rows.length ? rows.map(m => '<tr data-search="' + esc((m.name+' '+m.code+' '+(m.moduleName||'')).toLowerCase()) + '"><td>' + menuCell(m) + '</td>' +
-            roles.map(r => {
-                const key = r.id + ':' + m.id;
-                const checked = roleState.get(key) === true;
-                return '<td class="policy-cell"><input type="checkbox" class="policy-check role-check" data-role="' + r.id + '" data-menu="' + m.id + '" ' + (checked ? 'checked' : '') +
-                    ' aria-label="' + esc(r.name + ' allow ' + m.name) + '"></td>';
-            }).join('') + '</tr>').join('') :
-            '<tr><td colspan="' + (roles.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
-        saveRoleButton.disabled = !project.value || roles.length === 0 || dirtyRoles.size === 0;
-    }
-    function renderUserMatrix() {
-        userHead.innerHTML = '<th>Menu / resource</th>' + users.map(u =>
-            '<th class="policy-column"><span class="policy-role-chip user">' + esc(u.displayName) + '</span><div class="policy-code mt-1">' + esc(u.userName) + '</div></th>'
-        ).join('');
-        const rows = filteredMenus(userSearch.value);
-        userRows.innerHTML = rows.length ? rows.map(m => '<tr><td>' + menuCell(m) + '</td>' +
-            users.map(u => {
-                const key = u.id + ':' + m.id;
-                const decision = userState.get(key) || 'inherit';
-                return '<td class="policy-cell"><select class="form-select form-select-sm policy-decision user-decision" data-user="' + u.id + '" data-menu="' + m.id + '" aria-label="' + esc(u.displayName + ' decision for ' + m.name) + '">' +
-                    '<option value="inherit" ' + (decision === 'inherit' ? 'selected' : '') + '>Inherit</option>' +
-                    '<option value="allow" ' + (decision === 'allow' ? 'selected' : '') + '>✓ Allow</option>' +
-                    '<option value="deny" ' + (decision === 'deny' ? 'selected' : '') + '>✕ Deny</option></select></td>';
-            }).join('') + '</tr>').join('') :
-            '<tr><td colspan="' + (users.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
-        saveUserButton.disabled = !project.value || users.length === 0 || dirtyUsers.size === 0;
-    }
-    async function loadRoleMatrix() {
-        roleState = new Map(); dirtyRoles.clear();
-        const results = await Promise.all(roles.map(async r => {
-            const items = await get(requestUrl('role', project.value, r.id));
-            return {roleId:r.id, items};
-        }));
-        for (const result of results)
-            for (const item of result.items) roleState.set(result.roleId + ':' + item.menuItemId, !!item.isAllowed);
-        renderRoleMatrix();
-    }
-    async function loadUserMatrix() {
-        userState = new Map(); dirtyUsers.clear();
-        const results = await Promise.all(users.map(async u => {
-            const items = await get(requestUrl('user', project.value, u.id));
-            return {userId:u.id, items};
-        }));
-        for (const result of results)
-            for (const item of result.items) userState.set(result.userId + ':' + item.menuItemId, item.decision || 'inherit');
-        renderUserMatrix();
-    }
-    async function loadProject() {
-        menus=[]; roles=[]; users=[]; roleState=new Map(); userState=new Map();
-        dirtyRoles.clear(); dirtyUsers.clear();
-        renderRoleMatrix(); renderUserMatrix();
-        saveRoleButton.disabled = true; saveUserButton.disabled = true;
-        if (!project.value) {
-            notice('Select a project to load role-wise and user-wise menu access.', 'info');
-            return;
-        }
-
-        roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and role access…</td></tr>';
-        userRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and user access…</td></tr>';
-        notice('Loading project access data…', 'info');
-
-        const data = await get(requestUrl('lookups', project.value));
-        menus = data.menus || [];
-        roles = data.roles || [];
-        users = data.users || [];
-        renderRoleMatrix();
-        renderUserMatrix();
-
-        await Promise.all([loadRoleMatrix(), loadUserMatrix()]);
-        notice('Loaded ' + menus.length + ' menus, ' + roles.length + ' roles, and ' + users.length + ' users.' +
-            (users.length ? '' : ' No active users have a role assignment for this project or its tenant.'));
-    }
-
-    roleRows.addEventListener('change', event => {
-        const input = event.target.closest('.role-check');
-        if (!input) return;
-        const key = input.dataset.role + ':' + input.dataset.menu;
-        roleState.set(key, input.checked);
-        dirtyRoles.add(Number(input.dataset.role));
-        saveRoleButton.disabled = false;
-    });
-    userRows.addEventListener('change', event => {
-        const input = event.target.closest('.user-decision');
-        if (!input) return;
-        userState.set(input.dataset.user + ':' + input.dataset.menu, input.value);
-        dirtyUsers.add(Number(input.dataset.user));
-        saveUserButton.disabled = false;
-    });
-    roleSearch.addEventListener('input', renderRoleMatrix);
-    userSearch.addEventListener('input', renderUserMatrix);
-    project.addEventListener('change', () => {
-        loadProject().catch(error => {
-            roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
-            userRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
-            notice(error.message, 'danger');
-        });
-    });
-
-    saveRoleButton.addEventListener('click', async () => {
-        saveRoleButton.disabled = true;
-        try {
-            for (const roleId of dirtyRoles) {
-                const items = menus.map(m => ({menuItemId:m.id, isAllowed:roleState.get(roleId + ':' + m.id) === true}));
-                await post(saveRoleUrl, {projectId:Number(project.value), roleId, items});
+        // Bind a change handler that works with BOTH plain <select> and Select2.
+        // Select2 raises jQuery events, which addEventListener('change') may not receive.
+        function bindChange(el, handler) {
+            if (!el) return;
+            if (window.jQuery) {
+                window.jQuery(el).off('change.menuPolicy').on('change.menuPolicy', handler);
+            } else {
+                el.addEventListener('change', handler);
             }
-            dirtyRoles.clear(); renderRoleMatrix();
-            notice('Role-wise menu permissions saved successfully.');
-        } catch (error) { notice(error.message, 'danger'); renderRoleMatrix(); }
-    });
-    saveUserButton.addEventListener('click', async () => {
-        saveUserButton.disabled = true;
-        try {
-            for (const userId of dirtyUsers) {
-                const items = menus.map(m => ({menuItemId:m.id, decision:userState.get(userId + ':' + m.id) || 'inherit'}));
-                await post(saveUserUrl, {projectId:Number(project.value), userId, items});
-            }
-            dirtyUsers.clear(); renderUserMatrix();
-            notice('User-wise overrides saved successfully.');
-        } catch (error) { notice(error.message, 'danger'); renderUserMatrix(); }
-    });
+        }
 
-    get(requestUrl('projects', 0)).then(items => {
-        options(project, items, x => x.tenantName + ' / ' + x.name + ' (' + x.code + ')', 'Choose a project…');
-    }).catch(error => notice(error.message, 'danger'));
-})();
+        // After changing a select's options from code, refresh the Select2 display.
+        function refreshSelect2(el) {
+            if (el && window.jQuery && window.jQuery(el).hasClass('select2-hidden-accessible')) {
+                window.jQuery(el).trigger('change.select2');
+            }
+        }
+
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const requestUrl = (kind, projectId, selectionId = 0) => baseUrl + '?kind=' + encodeURIComponent(kind) + '&projectId=' + projectId + '&selectionId=' + selectionId;
+        const notice = (message, type = 'success') => {
+            const node = document.getElementById('notice');
+            node.textContent = message;
+            node.className = 'alert alert-' + type + ' policy-status py-2';
+        };
+        async function get(url) {
+            let response;
+            try {
+                response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+            } catch {
+                throw new Error('Could not reach the MVC server. Check that PlatformHub.Mvc is running.');
+            }
+            const data = await response.json().catch(() => ({}));
+            if (response.status === 401) {
+                window.location.replace('/PlatformAdmin/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
+                throw new Error('Your session expired. Redirecting to Platform Admin login…');
+            }
+            if (!response.ok) {
+                const endpoint = url.split('?')[0].split('/').pop();
+                throw new Error((data.message || 'Could not load menu permissions.') +
+                    ' (HTTP ' + response.status + ', request: ' + endpoint + ')');
+            }
+            return data;
+        }
+        async function post(url, payload) {
+            const form = document.createElement('form');
+            form.innerHTML = csrf;
+            const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+            const response = await fetch(url, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || 'Could not save menu permissions.');
+            return data;
+        }
+        function options(select, items, label, placeholder) {
+            select.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+                items.map(item => '<option value="' + item.id + '">' + esc(label(item)) + '</option>').join('');
+            refreshSelect2(select);
+        }
+        function menuCell(menu) {
+            const depth = menu.parentMenuId ? 1 : 0;
+            return '<div class="policy-menu-name" style="padding-left:' + (depth * 1.2) + 'rem">' +
+                '<span class="policy-menu-icon" aria-hidden="true">' + esc(menu.icon || (menu.parentMenuId ? '↳' : '▤')) + '</span>' +
+                '<div><div class="fw-semibold">' + esc(menu.name) + '</div><div class="policy-code">' + esc(menu.code) +
+                (menu.moduleName ? ' · ' + esc(menu.moduleName) : ' · Standalone') + '</div></div></div>';
+        }
+        function filteredMenus(query) {
+            const q = query.trim().toLowerCase();
+            if (!q) return menus;
+            return menus.filter(m => [m.name, m.code, m.moduleName].some(v => String(v || '').toLowerCase().includes(q)));
+        }
+        function renderRoleMatrix() {
+            roleHead.innerHTML = '<th>Menu / resource</th>' + roles.map(r =>
+                '<th class="policy-column"><span class="policy-role-chip role">' + esc(r.name) + '</span><div class="policy-code mt-1">' + esc(r.code) + '</div></th>'
+            ).join('');
+            const rows = filteredMenus(roleSearch.value);
+            roleRows.innerHTML = rows.length ? rows.map(m => '<tr data-search="' + esc((m.name + ' ' + m.code + ' ' + (m.moduleName || '')).toLowerCase()) + '"><td>' + menuCell(m) + '</td>' +
+                roles.map(r => {
+                    const key = r.id + ':' + m.id;
+                    const checked = roleState.get(key) === true;
+                    return '<td class="policy-cell"><input type="checkbox" class="policy-check role-check" data-role="' + r.id + '" data-menu="' + m.id + '" ' + (checked ? 'checked' : '') +
+                        ' aria-label="' + esc(r.name + ' allow ' + m.name) + '"></td>';
+                }).join('') + '</tr>').join('') :
+                '<tr><td colspan="' + (roles.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
+            saveRoleButton.disabled = !project.value || roles.length === 0 || dirtyRoles.size === 0;
+        }
+        function renderUserMatrix() {
+            userHead.innerHTML = '<th>Menu / resource</th>' + users.map(u =>
+                '<th class="policy-column"><span class="policy-role-chip user">' + esc(u.displayName) + '</span><div class="policy-code mt-1">' + esc(u.userName) + '</div></th>'
+            ).join('');
+            const rows = filteredMenus(userSearch.value);
+            userRows.innerHTML = rows.length ? rows.map(m => '<tr><td>' + menuCell(m) + '</td>' +
+                users.map(u => {
+                    const key = u.id + ':' + m.id;
+                    const decision = userState.get(key) || 'inherit';
+                    return '<td class="policy-cell"><select class="form-select form-select-sm policy-decision user-decision" data-user="' + u.id + '" data-menu="' + m.id + '" aria-label="' + esc(u.displayName + ' decision for ' + m.name) + '">' +
+                        '<option value="inherit" ' + (decision === 'inherit' ? 'selected' : '') + '>Inherit</option>' +
+                        '<option value="allow" ' + (decision === 'allow' ? 'selected' : '') + '>✓ Allow</option>' +
+                        '<option value="deny" ' + (decision === 'deny' ? 'selected' : '') + '>✕ Deny</option></select></td>';
+                }).join('') + '</tr>').join('') :
+                '<tr><td colspan="' + (users.length + 1) + '" class="text-center text-secondary py-5">No menus match your search.</td></tr>';
+            saveUserButton.disabled = !project.value || users.length === 0 || dirtyUsers.size === 0;
+        }
+        async function loadRoleMatrix(token) {
+            const nextState = new Map();
+            const results = await Promise.all(roles.map(async r => {
+                const items = await get(requestUrl('role', project.value, r.id));
+                return { roleId: r.id, items };
+            }));
+            if (token !== loadToken) return; // a newer project was selected meanwhile
+            for (const result of results)
+                for (const item of result.items) nextState.set(result.roleId + ':' + item.menuItemId, !!item.isAllowed);
+            roleState = nextState; dirtyRoles.clear();
+            renderRoleMatrix();
+        }
+        async function loadUserMatrix(token) {
+            const nextState = new Map();
+            const results = await Promise.all(users.map(async u => {
+                const items = await get(requestUrl('user', project.value, u.id));
+                return { userId: u.id, items };
+            }));
+            if (token !== loadToken) return; // a newer project was selected meanwhile
+            for (const result of results)
+                for (const item of result.items) nextState.set(result.userId + ':' + item.menuItemId, item.decision || 'inherit');
+            userState = nextState; dirtyUsers.clear();
+            renderUserMatrix();
+        }
+        async function loadProject() {
+            const token = ++loadToken;
+            menus = []; roles = []; users = []; roleState = new Map(); userState = new Map();
+            dirtyRoles.clear(); dirtyUsers.clear();
+            renderRoleMatrix(); renderUserMatrix();
+            saveRoleButton.disabled = true; saveUserButton.disabled = true;
+            if (!project.value) {
+                notice('Select a project to load role-wise and user-wise menu access.', 'info');
+                return;
+            }
+
+            roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and role access…</td></tr>';
+            userRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Loading project menus and user access…</td></tr>';
+            notice('Loading project access data…', 'info');
+
+            const data = await get(requestUrl('lookups', project.value));
+            if (token !== loadToken) return;
+            menus = data.menus || [];
+            roles = data.roles || [];
+            users = data.users || [];
+            renderRoleMatrix();
+            renderUserMatrix();
+
+            await Promise.all([loadRoleMatrix(token), loadUserMatrix(token)]);
+            if (token !== loadToken) return;
+            notice('Loaded ' + menus.length + ' menus, ' + roles.length + ' roles, and ' + users.length + ' users.' +
+                (users.length ? '' : ' No active users have a role assignment for this project or its tenant.'));
+        }
+
+        roleRows.addEventListener('change', event => {
+            const input = event.target.closest('.role-check');
+            if (!input) return;
+            const key = input.dataset.role + ':' + input.dataset.menu;
+            roleState.set(key, input.checked);
+            dirtyRoles.add(Number(input.dataset.role));
+            saveRoleButton.disabled = false;
+        });
+        userRows.addEventListener('change', event => {
+            const input = event.target.closest('.user-decision');
+            if (!input) return;
+            userState.set(input.dataset.user + ':' + input.dataset.menu, input.value);
+            dirtyUsers.add(Number(input.dataset.user));
+            saveUserButton.disabled = false;
+        });
+        roleSearch.addEventListener('input', renderRoleMatrix);
+        userSearch.addEventListener('input', renderUserMatrix);
+
+        // Project changed -> reload role-wise and user-wise menu access (Select2-safe)
+        bindChange(project, () => {
+            loadProject().catch(error => {
+                roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
+                userRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
+                notice(error.message, 'danger');
+            });
+        });
+
+        saveRoleButton.addEventListener('click', async () => {
+            saveRoleButton.disabled = true;
+            try {
+                for (const roleId of dirtyRoles) {
+                    const items = menus.map(m => ({ menuItemId: m.id, isAllowed: roleState.get(roleId + ':' + m.id) === true }));
+                    await post(saveRoleUrl, { projectId: Number(project.value), roleId, items });
+                }
+                dirtyRoles.clear(); renderRoleMatrix();
+                notice('Role-wise menu permissions saved successfully.');
+            } catch (error) { notice(error.message, 'danger'); renderRoleMatrix(); }
+        });
+        saveUserButton.addEventListener('click', async () => {
+            saveUserButton.disabled = true;
+            try {
+                for (const userId of dirtyUsers) {
+                    const items = menus.map(m => ({ menuItemId: m.id, decision: userState.get(userId + ':' + m.id) || 'inherit' }));
+                    await post(saveUserUrl, { projectId: Number(project.value), userId, items });
+                }
+                dirtyUsers.clear(); renderUserMatrix();
+                notice('User-wise overrides saved successfully.');
+            } catch (error) { notice(error.message, 'danger'); renderUserMatrix(); }
+        });
+
+        get(requestUrl('projects', 0)).then(items => {
+            options(project, items, x => x.tenantName + ' / ' + x.name + ' (' + x.code + ')', 'Choose a project…');
+        }).catch(error => notice(error.message, 'danger'));
+    });
 </script>
