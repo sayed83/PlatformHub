@@ -28,9 +28,20 @@ builder.Services.AddScoped<EffectiveMenuAccessService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var jwt = builder.Configuration.GetSection("Jwt");
-var signingKey = jwt["SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey is required.");
-if (builder.Environment.IsProduction() && signingKey.StartsWith("CHANGE-THIS", StringComparison.Ordinal))
-    throw new InvalidOperationException("Configure a strong Jwt:SigningKey in secret storage before production.");
+var signingKey = jwt["SigningKey"];
+if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:SigningKey must be configured through User Secrets or environment/secret storage and contain at least 32 UTF-8 bytes.");
+}
+
+var jwtIssuer = jwt["Issuer"];
+var jwtAudience = jwt["Audience"];
+if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException(
+        "Jwt:Issuer and Jwt:Audience must both be configured with non-empty values.");
+}
 
 builder.Services.AddAuthentication("PlatformBearer")
     .AddJwtBearer("PlatformBearer", options =>
@@ -38,9 +49,9 @@ builder.Services.AddAuthentication("PlatformBearer")
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = jwt["Issuer"],
+            ValidIssuer = jwtIssuer,
             ValidateAudience = true,
-            ValidAudience = jwt["Audience"],
+            ValidAudience = jwtAudience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
             ValidateLifetime = true,
@@ -151,6 +162,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         traceId = context.TraceIdentifier
     });
 }));
+
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
