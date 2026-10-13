@@ -703,7 +703,7 @@
             const r = await apiFetch('@Url.Action("Projects", "MenuManagement", new { area = "PlatformAdmin" })', NO_CACHE);
             if (!r.ok) throw Error(await readError(r, 'Unable to load projects.'));
             const ps = await r.json();
-            projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.tenantName || 'Standalone') + ' / ' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join('');
+            projectSelect.innerHTML = '<option value="">Choose a project…</option>' + ps.map(p => '<option value="' + p.id + '">' + esc(p.name) + ' (' + esc(p.code) + ')</option>').join('');
             refreshSelect2(projectSelect);
         }
 
