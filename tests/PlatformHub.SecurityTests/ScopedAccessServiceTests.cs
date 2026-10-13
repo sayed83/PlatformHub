@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
@@ -13,7 +14,7 @@ public sealed class ScopedAccessServiceTests
     {
         await using var db = CreateDb();
         await SeedBranchAssignmentAsync(db);
-        var service = new ScopedAccessService(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
 
         var allowed = await service.CanAccessAsync(10, "Project.View", 2, branchId: 201);
 
@@ -84,6 +85,48 @@ public sealed class ScopedAccessServiceTests
 
         // A shared project subscription is not a substitute for an explicit tenant-scoped assignment.
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+    }
+
+
+    [Fact]
+    public async Task Branch_id_from_another_tenant_is_denied_even_with_valid_tenant_assignment()
+    {
+        await using var db = CreateDb();
+        await SeedBranchAssignmentAsync(db);
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            Id = 101, UserId = 10, RoleId = 5, TenantId = 1
+        });
+        await db.SaveChangesAsync();
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, branchId: 201));
+    }
+
+    [Fact]
+    public async Task Non_positive_scope_ids_are_denied()
+    {
+        await using var db = CreateDb();
+        await SeedBranchAssignmentAsync(db);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, branchId: 0));
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: -1));
+    }
+
+    [Fact]
+    public async Task Tenant_wide_assignment_does_not_override_a_project_assignment_mismatch()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
+        db.Projects.Add(new Project
+        {
+            Id = 502, TenantId = 2, Code = "OTHER-APP", Name = "Other Tenant App", IsActive = true
+        });
+        await db.SaveChangesAsync();
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 502));
     }
 
     private static async Task SeedReusableProjectAssignmentAsync(
