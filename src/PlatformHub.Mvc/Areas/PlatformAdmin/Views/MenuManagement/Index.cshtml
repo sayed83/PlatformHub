@@ -743,6 +743,11 @@
                 } catch { /* keep local counts */ }
             }
             setStats(moduleCount, menuCount, activeCount);
+
+            // Reapply the selected module using the server-side endpoint after refresh/save.
+            if (document.getElementById('menuModuleFilter').value) {
+                await loadMenusForSelectedModule();
+            }
         }
 
         function makeMenuCode(displayName, currentId = 0) {
