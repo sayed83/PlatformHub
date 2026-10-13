@@ -76,9 +76,11 @@ public sealed class ActiveTenantContextMiddleware(RequestDelegate next)
         {
             var assignmentExists = await db.UserRoleAssignments.AsNoTracking()
                 .AnyAsync(a => a.UserId == userId && a.Role.IsActive &&
+                    // A role assignment must be anchored to this tenant, or to a branch
+                    // that belongs to it. A project-only assignment with no tenant anchor
+                    // must never act as a wildcard for a reusable/shared project.
                     (a.TenantId == tenantId ||
-                     (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value) ||
-                     (a.TenantId == null && projectId.HasValue && a.ProjectId == projectId.Value)) &&
+                     (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
                     (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
                     (a.ProjectId == null || (projectId.HasValue && a.ProjectId == projectId.Value)),
                     http.RequestAborted);
