@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace PlatformHub.Mvc.Pages;
 
 [IgnoreAntiforgeryToken]
-public sealed class ErrorModel(ILogger<ErrorModel> logger) : PageModel
+public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment environment) : PageModel
 {
     public int StatusCode { get; private set; } = 500;
     public string TraceId { get; private set; } = string.Empty;
