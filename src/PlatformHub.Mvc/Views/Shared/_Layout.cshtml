@@ -24,6 +24,10 @@
         .ph-admin-content > * { max-width:100%; }
         .ph-user-chip { border:1px solid rgba(255,255,255,.18); border-radius:2rem; padding:.35rem .75rem; color:#e7edf5; font-size:.85rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .ph-mobile-menu { display:none; }
+        .ph-user-shell .ph-sidebar { min-height:calc(100vh - 62px); }
+        .ph-user-sidebar-inner { position:sticky; top:1rem; }
+        .ph-user-shell .ph-admin-content { min-width:0; }
+
         @@media (max-width: 767.98px) {
             .ph-topbar .container-fluid { gap:.5rem; }
             .ph-brand-mark { width:30px; height:30px; }
@@ -32,6 +36,9 @@
             .ph-user-chip { display:none !important; }
             .ph-admin-shell { display:flex; flex-direction:column; min-height:calc(100vh - 58px); }
             .ph-sidebar { width:100%; flex:0 0 auto; padding:0; }
+            .ph-user-shell .ph-sidebar { min-height:0; }
+            .ph-user-sidebar-inner { position:static; }
+
             .ph-sidebar-inner.is-collapsed { display:none; }
             .ph-sidebar-inner { padding:.65rem .85rem .9rem; border-top:1px solid rgba(255,255,255,.08); }
             .ph-nav-label { padding:.55rem .7rem .35rem; }
@@ -138,6 +145,15 @@
                 </nav>
                 <div class="small mt-4 px-2" style="color:#8194ac">SECURE PLATFORM ADMINISTRATION</div>
             </div>
+        </aside>
+        <main class="ph-admin-content">@RenderBody()</main>
+    </div>
+}
+else if (User.Identity?.IsAuthenticated == true && !isPlatformAdmin)
+{
+    <div class="ph-admin-shell ph-user-shell">
+        <aside class="ph-sidebar" aria-label="Workspace sidebar">
+            @await Component.InvokeAsync("WorkspaceSidebar")
         </aside>
         <main class="ph-admin-content">@RenderBody()</main>
     </div>
