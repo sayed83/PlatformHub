@@ -59,8 +59,8 @@ BEGIN
     SET NOCOUNT ON;
     SELECT
         p.Id,
-        CASE WHEN @TenantId IS NOT NULL THEN @TenantId ELSE p.TenantId END AS TenantId,
-        CASE WHEN @TenantId IS NOT NULL THEN selectedTenant.Name ELSE legacyTenant.Name END AS TenantName,
+        CASE WHEN @TenantId IS NOT NULL THEN @TenantId ELSE NULL END AS TenantId,
+        CASE WHEN @TenantId IS NOT NULL THEN selectedTenant.Name ELSE N'Shared catalogue' END AS TenantName,
         p.Code, p.Name, p.BaseUrl, p.IsActive
     FROM dbo.Projects AS p
     LEFT JOIN dbo.Tenants AS legacyTenant ON legacyTenant.Id = p.TenantId
