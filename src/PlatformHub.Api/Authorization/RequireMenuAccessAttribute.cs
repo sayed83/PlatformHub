@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using PlatformHub.Api.Services;
+using PlatformHub.Api.Platform;
 
 namespace PlatformHub.Api.Authorization;
 
@@ -44,8 +45,16 @@ public sealed class RequireMenuAccessAttribute(string menuCode) : Attribute, IAs
             return;
         }
 
+        var activeTenant = context.HttpContext.RequestServices.GetRequiredService<IActiveTenantContext>();
+        if (!activeTenant.IsResolved || activeTenant.TenantId is not > 0 ||
+            (activeTenant.ProjectId.HasValue && activeTenant.ProjectId.Value != projectId))
+        {
+            context.Result = new ForbidResult();
+            return;
+        }
+
         var access = context.HttpContext.RequestServices.GetRequiredService<EffectiveMenuAccessService>();
-        if (!await access.HasAccessAsync(userId, projectId, MenuCode, context.HttpContext.RequestAborted))
+        if (!await access.HasAccessAsync(userId, projectId, activeTenant.TenantId.Value, MenuCode, context.HttpContext.RequestAborted))
             context.Result = new ForbidResult();
     }
 }
