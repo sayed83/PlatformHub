@@ -69,7 +69,10 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
         var (result, error) = await api.PostWithErrorAsync<object>("api/v1/project-menus/modules", model, ct, token);
-        return result is null ? BadRequest(new { message = error ?? "Unable to save module." }) : Json(result);
+        if (result is not null) return Json(result);
+        if (IsApiUnauthorized(error))
+            return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to save module." });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -79,8 +82,15 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
         var (result, error) = await api.PostWithErrorAsync<object>("api/v1/project-menus/items", model, ct, token);
-        return result is null ? BadRequest(new { message = error ?? "Unable to save menu." }) : Json(result);
+        if (result is not null) return Json(result);
+        if (IsApiUnauthorized(error))
+            return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to save menu." });
     }
+
+    private static bool IsApiUnauthorized(string? error) =>
+        error?.Contains("HTTP 401", StringComparison.OrdinalIgnoreCase) == true ||
+        error?.Contains("HTTP 403", StringComparison.OrdinalIgnoreCase) == true;
 
     public sealed record SaveModuleRequest(long? Id, long ProjectId, string Code, string Name, string? Description, string? Icon, int SortOrder, bool IsActive);
     public sealed record SaveMenuRequest(long? Id, long ProjectId, long? ModuleId, long? ParentMenuId, string Code, string Name, string? Area, string? Controller, string? Action, string? RouteUrl, string? Icon, int SortOrder, bool IsExternal, bool IsActive);
