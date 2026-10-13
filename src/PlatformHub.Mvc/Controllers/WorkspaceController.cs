@@ -19,8 +19,7 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
 
         var scopes = await api.GetAsync<List<WorkspaceScopeViewModel>>("api/v1/workspace/scopes", token, ct);
         if (scopes is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                "Could not load your workspace assignments. Check that the Platform API is running.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
         var selected = string.IsNullOrWhiteSpace(scopeKey)
             ? null
