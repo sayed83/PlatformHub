@@ -125,20 +125,33 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
         return new ProjectDto(project.Id, tenant?.Id, tenant?.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
     }
 
-    public async Task<ProjectDto> UpdateProjectAsync(long id, string code, string name, string? baseUrl, CancellationToken cancellationToken)
+    public async Task<ProjectDto> UpdateProjectAsync(long id, long? tenantId, string code, string name, string? baseUrl, CancellationToken cancellationToken)
     {
         code = code?.Trim().ToUpperInvariant() ?? "";
         name = name?.Trim() ?? "";
         baseUrl = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
-        if (id <= 0 || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("A valid project ID, code, and name are required.");
+        if (id <= 0 || tenantId is <= 0 || string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("A valid project ID, code, and name are required. Tenant is optional.");
         if (code.Length > 50 || name.Length > 200 || (baseUrl?.Length ?? 0) > 500)
             throw new ArgumentException("Project code must be at most 50 characters, name 200, and URL 500.");
 
         var project = await db.Projects.Include(x => x.Tenant).SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new ArgumentException("Project was not found.");
-        if (await db.Projects.AnyAsync(x => x.Id != id && x.TenantId == project.TenantId && x.Code == code, cancellationToken))
-            throw new InvalidOperationException("This project code already exists for the selected tenant.");
+
+        Tenant? tenant = null;
+        if (tenantId.HasValue)
+        {
+            tenant = await db.Tenants.SingleOrDefaultAsync(x => x.Id == tenantId.Value, cancellationToken);
+            if (tenant is null) throw new ArgumentException("The selected tenant does not exist.");
+            if (!tenant.IsActive) throw new InvalidOperationException("Projects cannot be assigned to an inactive tenant.");
+        }
+        if (await db.Projects.AnyAsync(x => x.Id != id && x.TenantId == tenantId && x.Code == code, cancellationToken))
+            throw new InvalidOperationException(tenantId.HasValue
+                ? "This project code already exists for the selected tenant."
+                : "This project code already exists for a standalone project.");
+
+        project.TenantId = tenant?.Id;
+        project.Tenant = tenant;
         project.Code = code;
         project.Name = name;
         project.BaseUrl = baseUrl;
