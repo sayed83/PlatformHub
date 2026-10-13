@@ -76,9 +76,9 @@ public sealed class WorkspaceController(
                 ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
 
             // Discard invalid or cross-tenant assignments rather than exposing them in the UI.
-            var projectAssignedToTenant = project is not null &&
-                (project.TenantId == tenant?.Id ||
-                 db.TenantProjects.Any(tp => tp.TenantId == tenant!.Id &&
+            var projectAssignedToTenant = project is not null && tenant is not null &&
+                (project.TenantId == tenant.Id ||
+                 db.TenantProjects.Any(tp => tp.TenantId == tenant.Id &&
                      tp.ProjectId == project.Id && tp.IsEnabled));
 
             if (tenant is null
