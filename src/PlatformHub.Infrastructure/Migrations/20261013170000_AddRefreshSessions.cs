@@ -21,6 +21,7 @@ public sealed class AddRefreshSessions : Migration
                 Id = table.Column<long>(type: "bigint", nullable: false)
                     .Annotation("SqlServer:Identity", "1, 1"),
                 UserId = table.Column<long>(type: "bigint", nullable: false),
+                FamilyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 TokenHash = table.Column<string>(type: "char(64)", maxLength: 64, nullable: false),
                 CreatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                 ExpiresUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -38,6 +39,12 @@ public sealed class AddRefreshSessions : Migration
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
             });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_RefreshSessions_FamilyId",
+            schema: "dbo",
+            table: "RefreshSessions",
+            column: "FamilyId");
 
         migrationBuilder.CreateIndex(
             name: "IX_RefreshSessions_TokenHash",
