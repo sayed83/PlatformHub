@@ -25,7 +25,7 @@ dotnet user-secrets set "Jwt:SigningKey" "GENERATE-A-RANDOM-SECRET-AT-LEAST-32-C
 dotnet user-secrets set "PlatformBootstrap:SetupKey" "GENERATE-A-DIFFERENT-RANDOM-SECRET-AT-LEAST-32-CHARACTERS" --project src/PlatformHub.Api
 ```
 
-Ensure the local API signing key is random and at least 32 characters. The bootstrap secret must be different from the JWT signing key.
+Ensure the API signing key is random and at least 32 characters. Startup now fails fast if the JWT signing key is missing/short or the issuer/audience are blank. The bootstrap secret must be different from the JWT signing key.
 
 Configure `Api:BaseUrl` in `src/PlatformHub.Mvc/appsettings.json` to match the API URL (default `https://localhost:7201/`).
 
@@ -60,7 +60,7 @@ The endpoint returns 404 outside Development, refuses initialization if any Plat
 - Platform Admin access must be checked server-side for every protected operation, not merely from a client-supplied claim.
 - Use environment variables or a secret manager in deployments. Do not commit credentials.
 - If credentials were ever committed, rotate them; replacing the file alone does not remove them from Git history.
-- This is a starter scaffold, not production-certified. Add rate limiting, lockout, CSRF protection where applicable, refresh-token rotation, logging redaction and automated security tests before deployment.
+- Production hardening includes startup validation for JWT key length/issuer/audience and HSTS outside Development. This is still a starter scaffold, not production-certified: add rate limiting, login lockout, refresh-token rotation, session/token invalidation, monitoring/alerting, deployment secret management, and production integration tests before deployment.
 
 
 ## Role-based access control (RBAC)
