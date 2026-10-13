@@ -38,11 +38,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             e.ToTable("RefreshSessions", "dbo");
             e.HasKey(x => x.Id);
+            e.Property(x => x.FamilyId).HasColumnType("uniqueidentifier");
             e.Property(x => x.TokenHash).HasColumnType("char(64)").HasMaxLength(64).IsRequired();
             e.Property(x => x.ReplacedByTokenHash).HasColumnType("char(64)").HasMaxLength(64);
             e.Property(x => x.CreatedUtc).HasColumnType("datetime2");
             e.Property(x => x.ExpiresUtc).HasColumnType("datetime2");
             e.Property(x => x.RevokedUtc).HasColumnType("datetime2");
+            e.HasIndex(x => x.FamilyId);
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => new { x.UserId, x.RevokedUtc, x.ExpiresUtc });
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
