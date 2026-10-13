@@ -36,7 +36,13 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
     [HttpGet("projects")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Code, x.Name, TenantName = x.Tenant.Name }).ToListAsync(ct));
+            .Select(x => new
+            {
+                x.Id,
+                x.Code,
+                x.Name,
+                TenantName = x.Tenant == null ? "Standalone" : x.Tenant.Name
+            }).ToListAsync(ct));
 
     [HttpGet("lookups")]
     public async Task<IActionResult> Lookups([FromQuery] long projectId, CancellationToken ct)
@@ -48,10 +54,20 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         var roles = await db.Roles.AsNoTracking().Where(x => x.IsActive &&
                 (isSuperAdmin || x.Code != "PLATFORM_SUPER_ADMIN")).OrderBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct);
+        var selectedProject = await db.Projects.AsNoTracking()
+            .Where(p => p.Id == projectId)
+            .Select(p => new { p.TenantId })
+            .SingleAsync(ct);
+
+        // Project assignments always apply. Tenant-wide assignments only apply to
+        // tenant-owned projects; standalone projects must not match null tenant IDs.
         var users = await db.Users.AsNoTracking().Where(u => u.IsActive &&
             (isSuperAdmin || !u.IsPlatformAdmin) &&
-            db.UserRoleAssignments.Any(a => a.UserId == u.Id && (a.ProjectId == projectId ||
-                (a.ProjectId == null && a.TenantId == db.Projects.Where(p => p.Id == projectId).Select(p => (long?)p.TenantId).FirstOrDefault()))))
+            db.UserRoleAssignments.Any(a => a.UserId == u.Id &&
+                (a.ProjectId == projectId ||
+                 (selectedProject.TenantId.HasValue &&
+                  a.ProjectId == null &&
+                  a.TenantId == selectedProject.TenantId))))
             .OrderBy(x => x.DisplayName).Select(x => new { x.Id, x.UserName, x.DisplayName }).ToListAsync(ct);
         var menus = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.IsActive)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
