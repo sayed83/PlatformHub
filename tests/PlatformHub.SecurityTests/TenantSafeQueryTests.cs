@@ -26,7 +26,7 @@ public sealed class TenantSafeQueryTests
             .Select(x => x.Id)
             .ToListAsync();
 
-        Assert.Equal(new[] { 1 }, result);
+        Assert.Equal(new long[] { 1 }, result);
     }
 
     [Fact]
