@@ -264,10 +264,12 @@
                 <span class="badge rounded-pill text-bg-light border text-dark">Project-specific</span>
             </div>
         </div>
-        <div class="policy-project-card">
-            <label class="form-label fw-semibold mb-1" for="projectSelect">Active project</label>
+        <div class="policy-project-card" style="min-width:min(100%,340px)">
+            <label class="form-label fw-semibold mb-1" for="projectSelect">Project</label>
             <select id="projectSelect" class="form-select"><option value="">Loading projects…</option></select>
-            <div class="small text-secondary mt-2">Choose a project to load its menus, roles, and users.</div>
+            <label class="form-label fw-semibold mt-3 mb-1" for="tenantSelect">Tenant using this project</label>
+            <select id="tenantSelect" class="form-select" disabled><option value="">Select a project first</option></select>
+            <div class="small text-secondary mt-2">Select a reusable project, then choose one of the tenants assigned to it.</div>
         </div>
     </section>
     <div class="policy-help small text-secondary mb-3"><strong class="text-body">How it works:</strong> Set role defaults in the first tab. Use the user override tab only for exceptions: <strong>Inherit</strong> uses role access, while <strong>Allow</strong> or <strong>Deny</strong> overrides it for that user.</div>
@@ -330,6 +332,7 @@
     // so the project dropdown change event can be bound correctly.
     document.addEventListener('DOMContentLoaded', () => {
         const project = document.getElementById('projectSelect');
+        const tenant = document.getElementById('tenantSelect');
         const roleHead = document.getElementById('roleHead');
         const userHead = document.getElementById('userHead');
         const roleRows = document.getElementById('roleRows');
@@ -366,7 +369,11 @@
         }
 
         const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        const requestUrl = (kind, projectId, selectionId = 0) => baseUrl + '?kind=' + encodeURIComponent(kind) + '&projectId=' + projectId + '&selectionId=' + selectionId;
+        const requestUrl = (kind, projectId, selectionId = 0) => {
+            let url = baseUrl + '?kind=' + encodeURIComponent(kind) + '&projectId=' + encodeURIComponent(projectId) + '&selectionId=' + encodeURIComponent(selectionId);
+            if (kind === 'lookups') url += '&tenantId=' + encodeURIComponent(tenant.value || 0);
+            return url;
+        };
         const notice = (message, type = 'success') => {
             const node = document.getElementById('notice');
             node.textContent = message;
@@ -484,7 +491,13 @@
             renderRoleMatrix(); renderUserMatrix();
             saveRoleButton.disabled = true; saveUserButton.disabled = true;
             if (!project.value) {
-                notice('Select a project to load role-wise and user-wise menu access.', 'info');
+                notice('Select a project, then select a tenant to load role-wise and user-wise menu access.', 'info');
+                return;
+            }
+            if (!tenant.value) {
+                notice('Select a tenant assigned to this project.', 'info');
+                roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Choose a tenant to load the role matrix.</td></tr>';
+                userRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Choose a tenant to load the user matrix.</td></tr>';
                 return;
             }
 
@@ -524,8 +537,32 @@
         roleSearch.addEventListener('input', renderRoleMatrix);
         userSearch.addEventListener('input', renderUserMatrix);
 
-        // Project changed -> reload role-wise and user-wise menu access (Select2-safe)
-        bindChange(project, () => {
+        // A project can be assigned to multiple tenants. Load that tenant list first.
+        async function loadTenants() {
+            ++loadToken;
+            menus = []; roles = []; users = []; roleState = new Map(); userState = new Map();
+            dirtyRoles.clear(); dirtyUsers.clear();
+            saveRoleButton.disabled = true; saveUserButton.disabled = true;
+            tenant.disabled = true;
+            options(tenant, [], x => x.name, project.value ? 'Loading assigned tenants…' : 'Select a project first');
+            roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Select a project and tenant to load access.</td></tr>';
+            userRows.innerHTML = '<tr><td colspan="2" class="text-center text-secondary py-5">Select a project and tenant to load access.</td></tr>';
+            if (!project.value) { notice('Select a project first.', 'info'); return; }
+            try {
+                const items = await get(requestUrl('tenants', project.value));
+                options(tenant, items, x => x.code + ' — ' + x.name, 'Select a tenant…');
+                tenant.disabled = items.length === 0;
+                if (items.length === 0) notice('No active tenants are assigned to this project.', 'warning');
+                else notice(items.length + ' tenant(s) use this project. Select one to load its access.', 'info');
+                refreshSelect2(tenant);
+            } catch (error) {
+                tenant.disabled = true;
+                notice(error.message, 'danger');
+            }
+        }
+
+        bindChange(project, () => loadTenants());
+        bindChange(tenant, () => {
             loadProject().catch(error => {
                 roleRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
                 userRows.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-5">' + esc(error.message) + '</td></tr>';
@@ -557,7 +594,8 @@
         });
 
         get(requestUrl('projects', 0)).then(items => {
-            options(project, items, x => x.tenantName + ' / ' + x.name + ' (' + x.code + ')', 'Choose a project…');
+            options(project, items, x => x.name + ' (' + x.code + ')', 'Choose a project…');
+            options(tenant, [], x => x.name, 'Select a project first');
         }).catch(error => notice(error.message, 'danger'));
     });
 </script>
