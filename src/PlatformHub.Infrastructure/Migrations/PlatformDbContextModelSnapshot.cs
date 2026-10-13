@@ -452,7 +452,7 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.HasIndex("ProjectId", "RoleId", "MenuItemId")
                         .IsUnique();
 
-                    b.ToTable("RoleWiseMenuAccess", "dbo");
+                    b.ToTable("RoleWiseMenuAccesses", "dbo");
                 });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Tenant", b =>
@@ -591,7 +591,7 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.HasIndex("ProjectId", "UserId", "MenuItemId")
                         .IsUnique();
 
-                    b.ToTable("UserWiseMenuAccess", "dbo");
+                    b.ToTable("UserWiseMenuAccesses", "dbo");
                 });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Branch", b =>
