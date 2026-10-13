@@ -7,7 +7,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 
 [Area("PlatformAdmin")]
 [Authorize]
-public sealed class UsersController(PlatformApiClient api) : Controller
+public sealed class UsersController(PlatformApiClient api, ILogger<UsersController> logger) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(string? search, bool? active, long? highlightAssignmentId, CancellationToken ct)
@@ -17,7 +17,10 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         if (token is null) return Challenge();
         var model = await LoadAsync(token, search, active, ct);
         if (model is null)
+        {
+            TempData["ErrorMessage"] = "Could not load core user access data. Check the MVC log for the failing Platform API endpoint and HTTP status.";
             return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
         ViewData["HighlightAssignmentId"] = highlightAssignmentId;
         return View(model);
     }
@@ -132,7 +135,14 @@ public sealed class UsersController(PlatformApiClient api) : Controller
         // filters by Projects.TenantId and does not represent the TenantProjects assignments.
         var catalogue = await api.GetAsync<List<ManagedProjectViewModel>>(
             "api/v1/platform/projects", token, ct);
-        if (catalogue is null) return null;
+        if (catalogue is null)
+        {
+            // Project.View may be unavailable for an administrator role or the catalogue API may
+            // be temporarily down. Keep the user directory usable; show no project choices and log it.
+            logger.LogWarning("User Access page: project catalogue could not be loaded from {Endpoint}. Project assignment options will be empty.",
+                "api/v1/platform/projects");
+            catalogue = [];
+        }
 
         foreach (var tenant in tenants.Where(t => t.IsActive))
         {
@@ -142,11 +152,19 @@ public sealed class UsersController(PlatformApiClient api) : Controller
                 branches.AddRange(tenantBranches
                     .Where(b => b.TenantId == tenant.Id && b.IsActive)
                     .DistinctBy(b => b.Id));
+            else
+                logger.LogWarning("User Access page: branches could not be loaded for tenant {TenantId}.",
+                    tenant.Id);
 
             // Use the same tenant-project assignment endpoint as Tenant Management.
             var assignment = await api.GetAsync<TenantProjectScopeResponse>(
                 $"api/v1/platform/tenants/{tenant.Id}/projects", token, ct);
-            if (assignment is null) continue;
+            if (assignment is null)
+            {
+                logger.LogWarning("User Access page: assigned projects could not be loaded for tenant {TenantId}.",
+                    tenant.Id);
+                continue;
+            }
 
             var assignedIds = assignment.AssignedProjectIds.ToHashSet();
             projects.AddRange(catalogue
