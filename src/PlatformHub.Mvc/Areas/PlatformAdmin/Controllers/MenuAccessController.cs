@@ -26,8 +26,17 @@ public sealed class MenuAccessController(PlatformApiClient api) : Controller
             _ => null
         };
         if (path is null) return BadRequest(new { message = "Unknown data request." });
-        var data = await api.GetAsync<object>(path, token, ct);
-        return data is null ? StatusCode(502, new { message = "Platform API request failed." }) : Json(data);
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>(path, token, ct);
+        if (result.Value is not null) return new JsonResult(result.Value);
+        var status = result.StatusCode ?? 502;
+        if (status == 401)
+            return Unauthorized(new { message = "Platform API rejected the access token. Sign out and sign in again." });
+        return StatusCode(status, new
+        {
+            message = result.Error ?? "Platform API request failed.",
+            endpoint = path,
+            statusCode = status
+        });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
