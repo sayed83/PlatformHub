@@ -73,6 +73,56 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.ToTable("AppUsers", "dbo");
                 });
 
+            modelBuilder.Entity("PlatformHub.Domain.Entities.RefreshSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTime?>("RevokedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "RevokedUtc", "ExpiresUtc");
+
+                    b.ToTable("RefreshSessions", "dbo");
+                });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.RefreshSession", b =>
+                {
+                    b.HasOne("PlatformHub.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PlatformHub.Domain.Entities.Branch", b =>
                 {
                     b.Property<long>("Id")
