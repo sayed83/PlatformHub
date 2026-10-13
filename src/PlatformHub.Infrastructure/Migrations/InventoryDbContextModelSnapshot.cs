@@ -45,30 +45,96 @@ partial class InventoryDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
             SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-            b.Property<string>("AccountType").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+            b.Property<string>("AccHeadName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+            b.Property<string>("AccHeadCode").HasMaxLength(20).HasColumnType("nvarchar(20)");
+            b.Property<string>("AccType").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+            b.Property<string>("AccCategory").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+            b.Property<int>("Level").HasColumnType("int");
+            b.Property<long?>("TransId").HasColumnType("bigint");
+            b.Property<string>("TransFrom").HasMaxLength(100).HasColumnType("nvarchar(100)");
+            b.Property<bool>("IsTaxable").HasColumnType("bit");
+            b.Property<decimal>("DefaultTaxRate").HasPrecision(5, 2).HasColumnType("decimal(5,2)");
+            b.Property<bool>("IsSystemAccount").HasColumnType("bit");
+            b.Property<bool>("IsTaxInclusive").HasColumnType("bit");
+            b.Property<bool>("IsGroup").HasColumnType("bit");
+            b.Property<bool>("IsEditable").HasColumnType("bit");
+            b.Property<bool>("IsDeletable").HasColumnType("bit");
+            b.Property<string>("PaymentType").HasMaxLength(30).HasColumnType("nvarchar(30)");
+            b.Property<string>("Description").HasMaxLength(500).HasColumnType("nvarchar(500)");
+            b.Property<string>("NatureOfGroup").HasMaxLength(20).HasColumnType("nvarchar(20)");
+            b.Property<string>("AccountPurpose").HasMaxLength(100).HasColumnType("nvarchar(100)");
+            b.Property<string>("CashFlowType").HasMaxLength(20).HasColumnType("nvarchar(20)");
+            b.Property<int?>("ReportSequence").HasColumnType("int");
+            b.Property<string>("TaxCategory").HasMaxLength(50).HasColumnType("nvarchar(50)");
+            b.Property<decimal?>("BudgetAmount").HasPrecision(18, 2).HasColumnType("decimal(18,2)");
+            b.Property<long?>("ParentAccHeadId").HasColumnType("bigint");
             b.Property<long?>("BranchId").HasColumnType("bigint");
-            b.Property<string>("Code").IsRequired().HasMaxLength(80).HasColumnType("nvarchar(80)");
             b.Property<DateTime>("CreatedUtc").HasColumnType("datetime2");
             b.Property<bool>("IsActive").HasColumnType("bit");
-            b.Property<bool>("IsControlAccount").HasColumnType("bit");
-            b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
-            b.Property<long?>("ParentAccountId").HasColumnType("bigint");
             b.Property<long?>("ProjectId").HasColumnType("bigint");
             b.Property<long>("TenantId").HasColumnType("bigint");
             b.Property<DateTime>("UpdatedUtc").HasColumnType("datetime2");
             b.HasKey("Id");
-            b.HasIndex("ParentAccountId");
+            b.HasIndex("ParentAccHeadId");
             b.HasIndex("TenantId", "BranchId", "ProjectId", "IsActive");
-            b.HasIndex("TenantId", "BranchId", "ProjectId", "Code").IsUnique();
-            b.ToTable("AccountHeads", "dbo");
+            b.HasIndex("TenantId", "BranchId", "ProjectId", "AccHeadCode")
+                .IsUnique().HasFilter("[AccHeadCode] IS NOT NULL");
+            b.ToTable("AccHeads", "dbo");
+        });
+
+        modelBuilder.Entity("PlatformHub.Domain.Entities.SystemAccHeadSetting", b =>
+        {
+            b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+            SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+            b.Property<long>("AccHeadId").HasColumnType("bigint");
+            b.Property<long?>("BranchId").HasColumnType("bigint");
+            b.Property<DateTime>("CreateDate").HasColumnType("datetime2");
+            b.Property<long>("CreatedBy").HasColumnType("bigint");
+            b.Property<string>("SystemName").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
+            b.Property<long>("TenantId").HasColumnType("bigint");
+            b.HasKey("Id");
+            b.HasIndex("AccHeadId");
+            b.HasIndex("BranchId");
+            b.HasIndex("CreatedBy");
+            b.HasIndex("TenantId", "BranchId", "SystemName").IsUnique();
+            b.ToTable("SystemAccHeadSettings", "dbo");
         });
 
         modelBuilder.Entity("PlatformHub.Domain.Entities.AccountHead", b =>
         {
-            b.HasOne("PlatformHub.Domain.Entities.AccountHead", null)
-                .WithMany()
-                .HasForeignKey("ParentAccountId")
+            b.HasOne("PlatformHub.Domain.Entities.AccountHead", "ParentAccHead")
+                .WithMany("Children")
+                .HasForeignKey("ParentAccHeadId")
                 .OnDelete(DeleteBehavior.Restrict);
+            b.Navigation("Children");
+            b.Navigation("ParentAccHead");
+        });
+
+        modelBuilder.Entity("PlatformHub.Domain.Entities.SystemAccHeadSetting", b =>
+        {
+            b.HasOne("PlatformHub.Domain.Entities.AccountHead", "AccHead")
+                .WithMany()
+                .HasForeignKey("AccHeadId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+            b.HasOne("PlatformHub.Domain.Entities.AppUser", "User")
+                .WithMany()
+                .HasForeignKey("CreatedBy")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+            b.HasOne("PlatformHub.Domain.Entities.Branch", "Branch")
+                .WithMany()
+                .HasForeignKey("BranchId")
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
+                .WithMany()
+                .HasForeignKey("TenantId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+            b.Navigation("AccHead");
+            b.Navigation("Branch");
+            b.Navigation("Tenant");
+            b.Navigation("User");
         });
 #pragma warning restore 612, 618
     }
