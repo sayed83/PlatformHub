@@ -38,6 +38,7 @@ public sealed class AuthController(
         var session = new RefreshSession
         {
             UserId = user.UserId,
+            FamilyId = Guid.NewGuid(),
             TokenHash = HashToken(refreshToken),
             CreatedUtc = DateTime.UtcNow,
             ExpiresUtc = DateTime.UtcNow.Add(RefreshLifetime)
@@ -69,7 +70,7 @@ public sealed class AuthController(
         if (session.RevokedUtc.HasValue)
         {
             // Reuse of a rotated token indicates possible theft: revoke every active session for this user.
-            await db.RefreshSessions.Where(x => x.UserId == session.UserId && x.RevokedUtc == null)
+            await db.RefreshSessions.Where(x => x.FamilyId == session.FamilyId && x.RevokedUtc == null)
                 .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, now), cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             logger.LogWarning("Revoked all refresh sessions after token reuse. UserId={UserId}", session.UserId);
@@ -92,6 +93,7 @@ public sealed class AuthController(
         var nextSession = new RefreshSession
         {
             UserId = userEntity.Id,
+            FamilyId = session.FamilyId,
             TokenHash = nextHash,
             CreatedUtc = now,
             ExpiresUtc = now.Add(RefreshLifetime)
