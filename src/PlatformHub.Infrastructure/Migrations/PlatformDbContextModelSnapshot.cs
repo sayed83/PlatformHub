@@ -49,11 +49,11 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("LockoutEndUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsPlatformAdmin")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LockoutEndUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -318,21 +318,6 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.ToTable("Projects", "dbo");
                 });
 
-            modelBuilder.Entity("PlatformHub.Domain.Entities.TenantProject", b =>
-                {
-                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<DateTime>("AssignedUtc").HasColumnType("datetime2");
-                    b.Property<bool>("IsEnabled").ValueGeneratedOnAdd().HasColumnType("bit").HasDefaultValue(true);
-                    b.Property<long>("ProjectId").HasColumnType("bigint");
-                    b.Property<long>("TenantId").HasColumnType("bigint");
-                    b.HasKey("Id");
-                    b.HasIndex("ProjectId");
-                    b.HasIndex("TenantId", "IsEnabled");
-                    b.HasIndex("TenantId", "ProjectId").IsUnique();
-                    b.ToTable("TenantProjects", "dbo");
-                });
-
             modelBuilder.Entity("PlatformHub.Domain.Entities.ProjectModule", b =>
                 {
                     b.Property<long>("Id")
@@ -443,6 +428,40 @@ namespace PlatformHub.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Tenants", "dbo");
+                });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.TenantProject", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AssignedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("TenantId", "IsEnabled");
+
+                    b.HasIndex("TenantId", "ProjectId")
+                        .IsUnique();
+
+                    b.ToTable("TenantProjects", "dbo");
                 });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.UserRoleAssignment", b =>
@@ -576,16 +595,6 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("PlatformHub.Domain.Entities.TenantProject", b =>
-                {
-                    b.HasOne("PlatformHub.Domain.Entities.Project", "Project")
-                        .WithMany().HasForeignKey("ProjectId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                    b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
-                        .WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                    b.Navigation("Project");
-                    b.Navigation("Tenant");
-                });
-
             modelBuilder.Entity("PlatformHub.Domain.Entities.Project", b =>
                 {
                     b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
@@ -632,6 +641,25 @@ namespace PlatformHub.Infrastructure.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("PlatformHub.Domain.Entities.TenantProject", b =>
+                {
+                    b.HasOne("PlatformHub.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PlatformHub.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.UserRoleAssignment", b =>
