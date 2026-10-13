@@ -17,7 +17,8 @@ public sealed class PlatformAccessControllerScopeTests
     {
         await using var db = CreateDb();
         await SeedBaseAsync(db);
-        db.Tenants.Add(new Tenant { Id = 10, Code = "TEN-10", Name = "Inactive Tenant", IsActive = false });
+        var tenant = await db.Tenants.SingleAsync(x => x.Id == 10);
+        tenant.IsActive = false;
         await db.SaveChangesAsync();
 
         var result = await CreateController(db).AssignRole(42,
