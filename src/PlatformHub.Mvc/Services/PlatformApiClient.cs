@@ -268,9 +268,12 @@ public sealed class PlatformApiClient(
             "api/v1/auth/refresh", new { RefreshToken = refreshToken }, ct);
         if (!refreshResponse.IsSuccessStatusCode)
         {
+            var refreshError = await refreshResponse.Content.ReadAsStringAsync(ct);
             logger.LogWarning("Platform API refresh failed with HTTP {StatusCode} for UserId={UserId}",
                 (int)refreshResponse.StatusCode, userId);
-            if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized)
+            var isConcurrentRotation = TryReadApiMessage(refreshError)?.Contains(
+                "already been rotated", StringComparison.OrdinalIgnoreCase) == true;
+            if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized && !isConcurrentRotation)
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         }
