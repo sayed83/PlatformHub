@@ -8,18 +8,51 @@ namespace PlatformHub.Infrastructure.Auth;
 
 public sealed class AuthService(PlatformDbContext db, IPasswordHasher<AppUser> hasher) : IAuthService
 {
+    public const int MaxFailedAttempts = 5;
+    public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleOrDefaultAsync(
-            x => x.UserName == request.UserName && x.IsActive, cancellationToken);
+            x => x.UserName == request.UserName, cancellationToken);
 
-        if (user is null || hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
-            == PasswordVerificationResult.Failed)
+        // Keep the response identical for unknown, inactive, locked, and incorrect-password accounts.
+        if (user is null || !user.IsActive)
             return null;
+
+        var now = DateTime.UtcNow;
+        if (user.LockoutEndUtc.HasValue)
+        {
+            if (user.LockoutEndUtc.Value > now)
+                return null;
+
+            // Expired lockout: start a fresh attempt window.
+            user.LockoutEndUtc = null;
+            user.FailedLoginAttempts = 0;
+        }
+
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
+            == PasswordVerificationResult.Failed)
+        {
+            user.FailedLoginAttempts = Math.Min(user.FailedLoginAttempts + 1, MaxFailedAttempts);
+            if (user.FailedLoginAttempts >= MaxFailedAttempts)
+                user.LockoutEndUtc = now.Add(LockoutDuration);
+
+            await db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
 
         var wantsAdmin = string.Equals(request.Panel, "platform-admin", StringComparison.OrdinalIgnoreCase);
         if (wantsAdmin != user.IsPlatformAdmin)
+        {
+            // The password is correct but the account is not allowed on this panel.
+            await db.SaveChangesAsync(cancellationToken);
             return null;
+        }
+
+        user.FailedLoginAttempts = 0;
+        user.LockoutEndUtc = null;
+        await db.SaveChangesAsync(cancellationToken);
 
         var assignments = await db.UserRoleAssignments
             .AsNoTracking()
