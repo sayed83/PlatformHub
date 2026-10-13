@@ -23,6 +23,10 @@ builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("PlatformDb"),
         sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo")));
+builder.Services.AddDbContext<InventoryDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("PlatformDb"),
+        sql => sql.MigrationsHistoryTable("__InventoryMigrationsHistory", "dbo")));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
 builder.Services.AddScoped<IDapperStoredProcedureExecutor, DapperStoredProcedureExecutor>();

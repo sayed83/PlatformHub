@@ -33,7 +33,11 @@ public static class PlatformRbacSeeder
         ("Role.Assign", "Assign roles to users", "Access"),
         ("Permission.View", "View permission catalog", "Access"),
         ("AuditLog.View", "View audit logs", "Operations"),
-        ("Platform.Settings.Manage", "Manage platform settings", "Operations")
+        ("Platform.Settings.Manage", "Manage platform settings", "Operations"),
+        ("Inventory.Item.View", "View inventory items", "Inventory"),
+        ("Inventory.Item.Create", "Create inventory items", "Inventory"),
+        ("Inventory.Item.Update", "Update inventory items", "Inventory"),
+        ("Inventory.Item.Deactivate", "Deactivate inventory items", "Inventory")
     ];
 
     private static readonly (string Code, string Name, string Description, string? Redirect)[] RoleCatalog =
@@ -129,7 +133,8 @@ public static class PlatformRbacSeeder
                 "Project.View", "Project.Create", "Project.Update", "Project.Deactivate",
                 "User.View", "User.Create", "User.Update", "User.Deactivate",
                 "Role.View", "Role.Create", "Role.Update", "Role.Assign", "Permission.View",
-                "AuditLog.View", "Platform.Settings.Manage"
+                "AuditLog.View", "Platform.Settings.Manage",
+                "Inventory.Item.View", "Inventory.Item.Create", "Inventory.Item.Update", "Inventory.Item.Deactivate"
             ],
             ["TENANT_ADMIN"] =
             [
@@ -138,16 +143,18 @@ public static class PlatformRbacSeeder
                 "Branch.View", "Branch.Create", "Branch.Update",
                 "Project.View", "Project.Create", "Project.Update",
                 "User.View", "User.Create", "User.Update",
-                "Role.View", "Role.Assign", "Permission.View"
+                "Role.View", "Role.Assign", "Permission.View",
+                "Inventory.Item.View", "Inventory.Item.Create", "Inventory.Item.Update", "Inventory.Item.Deactivate"
             ],
             ["BRANCH_ADMIN"] =
             [
                 "Platform.Dashboard.View",
                 "Tenant.View", "Branch.View", "Branch.Update",
                 "Project.View", "User.View", "User.Create", "User.Update",
-                "Role.View", "Permission.View"
+                "Role.View", "Permission.View",
+                "Inventory.Item.View", "Inventory.Item.Create", "Inventory.Item.Update"
             ],
-            ["PROJECT_USER"] = ["Project.View"]
+            ["PROJECT_USER"] = ["Project.View", "Inventory.Item.View"]
         };
 
         foreach (var (roleCode, permissionCodes) in rolePermissionCodes)
