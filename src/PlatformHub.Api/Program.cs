@@ -258,14 +258,14 @@ app.MapGet("/health/ready", async (PlatformDbContext db, CancellationToken ct) =
     try
     {
         if (await db.Database.CanConnectAsync(ct))
-            return Results.Ok(new { status = "Ready" });
+            return (IResult)Results.Ok(new { status = "Ready" });
     }
     catch (Exception)
     {
         // Do not expose connection strings or provider errors through the health endpoint.
     }
 
-    return Results.Json(new { status = "NotReady" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    return (IResult)Results.Json(new { status = "NotReady" }, statusCode: StatusCodes.Status503ServiceUnavailable);
 })
     .AllowAnonymous()
     .WithTags("Health");
