@@ -157,7 +157,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow rounded-4">
             <form asp-area="PlatformAdmin" asp-controller="Projects" asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
-                <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="createProjectTitle">Create project</h2><p class="small text-secondary mb-0">Select an active tenant or leave it unassigned to create a standalone project.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-header px-4 pt-4"><div><h2 class="modal-title h5 fw-bold" id="createProjectTitle">Create project</h2><p class="small text-secondary mb-0">Create a reusable project definition. You may optionally assign it to a tenant now, or assign it to multiple tenants later.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body px-4">
                     <div class="row g-3">
                         <div class="col-12"><label asp-for="TenantId" class="form-label fw-semibold">Tenant</label><select asp-for="TenantId" class="form-select"><option value="">No tenant (standalone project)</option>@foreach (var tenant in Model.Tenants.Where(t => t.IsActive)) { <option value="@tenant.Id">@tenant.Code — @tenant.Name</option> }</select><span asp-validation-for="TenantId" class="text-danger small"></span></div>
@@ -170,4 +170,3 @@
             </form>
         </div></div>
     </div>
-}
