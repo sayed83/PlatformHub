@@ -108,6 +108,50 @@ await using (var scope = app.Services.CreateAsyncScope())
     await PlatformRoleUserSeeder.SeedAsync(db, app.Configuration, passwordHasher, loggerFactory);
 }
 
+// Propagate the MVC correlation ID so API logs and MVC error pages share one reference.
+app.Use(async (context, next) =>
+{
+    var supplied = context.Request.Headers["X-Correlation-ID"].FirstOrDefault();
+    var isSafe = !string.IsNullOrWhiteSpace(supplied)
+        && supplied.Length <= 64
+        && supplied.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
+    var correlationId = isSafe ? supplied! : context.TraceIdentifier;
+
+    context.TraceIdentifier = correlationId;
+    context.Response.Headers["X-Correlation-ID"] = correlationId;
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("PlatformHub.Api.Requests");
+
+    using (logger.BeginScope(new Dictionary<string, object>
+    {
+        ["CorrelationId"] = correlationId,
+        ["RequestMethod"] = context.Request.Method,
+        ["RequestPath"] = context.Request.Path.Value ?? "/"
+    }))
+    {
+        await next();
+    }
+});
+
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>()?.Error;
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("PlatformHub.Api.Errors");
+    logger.LogError(exception, "Unhandled API exception. CorrelationId={CorrelationId}, Path={Path}",
+        context.TraceIdentifier, context.Request.Path);
+
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/problem+json";
+    await context.Response.WriteAsJsonAsync(new
+    {
+        type = "https://httpstatuses.com/500",
+        title = "An unexpected server error occurred.",
+        status = StatusCodes.Status500InternalServerError,
+        traceId = context.TraceIdentifier
+    });
+}));
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
