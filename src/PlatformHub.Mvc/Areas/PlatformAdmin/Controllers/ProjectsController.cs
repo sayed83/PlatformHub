@@ -68,16 +68,20 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(long id, long tenantId, string code, string name, string? baseUrl, CancellationToken ct)
+    public async Task<IActionResult> Edit(long id, long? tenantId, long? filterTenantId, string code, string name, string? baseUrl, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
-        var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/projects/{id}/update", new { code, name, baseUrl }, ct, token);
+
+        var (result, error) = await api.PostWithErrorAsync<object>(
+            $"api/v1/platform/projects/{id}/update",
+            new { tenantId, code, name, baseUrl }, ct, token);
+
         TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
             ? (error ?? "Project update failed.")
             : "Project updated successfully.";
-        return RedirectToAction(nameof(Index), new { tenantId = tenantId > 0 ? tenantId : (long?)null });
+        return RedirectToAction(nameof(Index), new { tenantId = filterTenantId });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
