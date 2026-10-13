@@ -20,7 +20,7 @@
         <div>
             <a asp-area="PlatformAdmin" asp-controller="Dashboard" asp-action="Index" class="text-decoration-none small"><span aria-hidden="true">←</span> Dashboard</a>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-2"><h1 class="h3 fw-bold mb-0">Tenant management</h1><span class="badge rounded-pill text-bg-light border text-dark">Platform administration</span></div>
-            <p class="text-secondary mb-0 mt-1">Manage tenant organizations and navigate to their branch administration.</p>
+            <p class="text-secondary mb-0 mt-1">Manage organizations, assign reusable applications, and administer tenant branches.</p>
         </div>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTenantModal"><span aria-hidden="true" class="tm-symbol">＋</span> Create tenant</button>
     </div>
@@ -51,7 +51,7 @@
                 <tbody>
                 @if (Model.Tenants.Count == 0)
                 {
-                    <tr><td colspan="4" class="text-center py-5"><div class="text-secondary fs-1 mb-2" aria-hidden="true">▦</div><div class="fw-semibold">No tenants yet</div><div class="small text-secondary mb-3">Create a tenant to start organizing branches and projects.</div><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createTenantModal">＋ Create tenant</button></td></tr>
+                    <tr><td colspan="4" class="text-center py-5"><div class="text-secondary fs-1 mb-2" aria-hidden="true">▦</div><div class="fw-semibold">No tenants yet</div><div class="small text-secondary mb-3">Create a tenant, then assign existing projects and configure its branches.</div><button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createTenantModal">＋ Create tenant</button></td></tr>
                 }
                 else
                 {
@@ -64,6 +64,7 @@
                             <td class="text-end pe-3 pe-lg-4">
                                 <div class="d-flex flex-wrap justify-content-end gap-1">
                                     <a asp-area="PlatformAdmin" asp-controller="Branches" asp-action="Index" asp-route-tenantId="@tenant.Id" class="btn btn-sm btn-outline-primary">Branches</a>
+                                    <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Projects" asp-route-id="@tenant.Id" class="btn btn-sm btn-outline-success">Assign projects</a>
                                     <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#tenantDetails-@tenant.Id">Details <span class="badge text-bg-info">@Model.Projects.Count(p => p.TenantId == tenant.Id)</span></button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editTenant-@tenant.Id">Edit</button>
                                     @if (!tenant.IsActive)
@@ -139,7 +140,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="card-footer bg-body small text-secondary d-flex flex-wrap justify-content-between gap-2"><span>Tenant directory</span><span>Each project and branch must belong to a tenant.</span></div>
+        <div class="card-footer bg-body small text-secondary d-flex flex-wrap justify-content-between gap-2"><span>Tenant directory</span><span>Projects are reusable application definitions; assign them to one or more tenants.</span></div>
     </section>
 </div>
 
