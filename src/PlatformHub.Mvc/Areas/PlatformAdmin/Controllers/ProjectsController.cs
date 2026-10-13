@@ -21,8 +21,7 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
 
         var model = await LoadModelAsync(token, tenantId, ct);
         if (model is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                "Platform API is unavailable. Please verify that the API is running and try again.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
         ViewData["HighlightProjectId"] = highlightProjectId;
         return View(model);
@@ -58,7 +57,7 @@ public sealed class ProjectsController(PlatformApiClient api) : Controller
 
         var current = await LoadModelAsync(token, model.TenantId, ct);
         if (current is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to reload project data from the Platform API.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
         current.TenantId = model.TenantId;
         current.Code = model.Code;
