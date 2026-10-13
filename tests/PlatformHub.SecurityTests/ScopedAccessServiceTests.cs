@@ -54,6 +54,72 @@ public sealed class ScopedAccessServiceTests
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, branchId: 101));
     }
 
+    [Fact]
+    public async Task Project_assignment_allows_access_only_for_tenant_with_active_subscription()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
+        var service = new ScopedAccessService(db);
+
+        Assert.True(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 2, projectId: 501));
+    }
+
+    [Fact]
+    public async Task Project_assignment_is_denied_when_tenant_subscription_is_disabled()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: false);
+        var service = new ScopedAccessService(db);
+
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+    }
+
+    [Fact]
+    public async Task Tenantless_assignment_to_reusable_project_does_not_grant_tenant_access()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: null, subscriptionEnabled: true);
+        var service = new ScopedAccessService(db);
+
+        // A shared project subscription is not a substitute for an explicit tenant-scoped assignment.
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+    }
+
+    private static async Task SeedReusableProjectAssignmentAsync(
+        PlatformDbContext db,
+        long? tenantId,
+        bool subscriptionEnabled)
+    {
+        db.Users.Add(new AppUser
+        {
+            Id = 10, UserName = "project-user", DisplayName = "Project User",
+            PasswordHash = "test-hash", IsActive = true
+        });
+        db.Tenants.AddRange(
+            new Tenant { Id = 1, Code = "TENANT-1", Name = "Tenant One", IsActive = true },
+            new Tenant { Id = 2, Code = "TENANT-2", Name = "Tenant Two", IsActive = true });
+        db.Projects.Add(new Project
+        {
+            Id = 501, TenantId = null, Code = "SHARED-APP", Name = "Shared Application", IsActive = true
+        });
+        db.TenantProjects.Add(new TenantProject
+        {
+            Id = 601, TenantId = 1, ProjectId = 501, IsEnabled = subscriptionEnabled
+        });
+        db.Roles.Add(new PlatformRole { Id = 5, Code = "PROJECT_USER", Name = "Project User", IsActive = true });
+        db.Permissions.Add(new PlatformPermission
+        {
+            Id = 1, Code = "Project.View", Name = "View Projects", Module = "Projects"
+        });
+        db.RolePermissions.Add(new PlatformRolePermission { RoleId = 5, PermissionId = 1 });
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            Id = 100, UserId = 10, RoleId = 5, TenantId = tenantId, ProjectId = 501
+        });
+        await db.SaveChangesAsync();
+    }
+
     private static PlatformDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
