@@ -13,7 +13,7 @@ public sealed class InitialInventoryCatalog : Migration
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
-            name: "InventoryItems",
+            name: "Products",
             schema: "dbo",
             columns: table => new
             {
@@ -29,24 +29,24 @@ public sealed class InitialInventoryCatalog : Migration
                 CreatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                 UpdatedUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
             },
-            constraints: table => table.PrimaryKey("PK_InventoryItems", x => x.Id));
+            constraints: table => table.PrimaryKey("PK_Products", x => x.Id));
 
         migrationBuilder.CreateIndex(
-            name: "IX_InventoryItems_TenantId_BranchId_ProjectId_Sku",
+            name: "IX_Products_TenantId_BranchId_ProjectId_Sku",
             schema: "dbo",
-            table: "InventoryItems",
+            table: "Products",
             columns: new[] { "TenantId", "BranchId", "ProjectId", "Sku" },
             unique: true);
 
         migrationBuilder.CreateIndex(
-            name: "IX_InventoryItems_TenantId_BranchId_ProjectId_IsActive",
+            name: "IX_Products_TenantId_BranchId_ProjectId_IsActive",
             schema: "dbo",
-            table: "InventoryItems",
+            table: "Products",
             columns: new[] { "TenantId", "BranchId", "ProjectId", "IsActive" });
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable(name: "InventoryItems", schema: "dbo");
+        migrationBuilder.DropTable(name: "Products", schema: "dbo");
     }
 }
