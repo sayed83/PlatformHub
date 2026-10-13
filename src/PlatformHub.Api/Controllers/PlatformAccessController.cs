@@ -346,8 +346,14 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         if (role.Code == PlatformRbacSeeder.SuperAdminCode && !isSuperAdmin)
             return Forbid();
 
-        if (role.Code == PlatformRbacSeeder.SuperAdminCode && !user.IsPlatformAdmin)
-            return BadRequest(new { message = "The protected Platform Super Admin role can only be assigned to a platform administrator account." });
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+        {
+            if (!user.IsPlatformAdmin)
+                return BadRequest(new { message = "The protected Platform Super Admin role can only be assigned to a platform administrator account." });
+
+            if (request.TenantId.HasValue || request.BranchId.HasValue || request.ProjectId.HasValue)
+                return BadRequest(new { message = "The protected Platform Super Admin role is global and cannot be assigned to a tenant, branch, or project scope." });
+        }
 
         // Normalize and validate scope from the database before persisting it.
         // Tenant/branch/project scopes must form one coherent active workspace.
