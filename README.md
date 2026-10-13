@@ -258,3 +258,18 @@ Security regression tests are in `tests/PlatformHub.SecurityTests/TenantSafeQuer
 
 ### Regression tests
 The security test project covers cross-tenant branch IDs, tenant/project mismatches, inactive users/tenants/projects, missing permissions, disabled shared-project subscriptions, tenantless shared-project assignments, and explicit user menu-deny overrides. Add an endpoint-level integration test whenever a new tenant-facing controller or business-data route is introduced.
+
+
+## Tenant-facing endpoint authorization (Phase 3)
+
+Use `[RequireScopedPermission("Permission.Code")]` on tenant-facing business-data API controllers/actions. The filter requires an authenticated user, a validated active tenant context, and a current database-backed permission check through `IScopedAccessService`. Optional `branchId`/`projectId` query parameters or `X-Branch-Id`/`X-Project-Id` headers can only confirm the selected workspace; they cannot switch the active scope.
+
+Do **not** add this filter globally or to platform-wide administration controllers. Platform administration endpoints intentionally operate across tenants and continue to use their existing `PlatformAdmin` policy. Workspace discovery/context endpoints have their own explicit scope validation and should not be forced through an already-selected workspace.
+
+For every new tenant business endpoint:
+- Add `[Authorize]` plus `[RequireScopedPermission("...")]` (or equivalent explicit service check).
+- Resolve the target resource within the active tenant/branch/project; authorization alone does not scope the data query.
+- For updates/deletes, fetch the target using tenant/workspace predicates before mutating it.
+- Validate parent/detail/foreign-key IDs belong to the same workspace.
+- Keep Dapper/raw SQL, exports, bulk operations and background jobs explicitly scoped; the attribute cannot automatically secure query predicates.
+- Add endpoint-level tests for cross-tenant IDs and denied writes/deletes.
