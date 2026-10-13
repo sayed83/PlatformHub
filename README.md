@@ -205,3 +205,28 @@ See [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) for deployment 
 - `GET /health/live` reports process liveness.
 - `GET /health/ready` verifies SQL Server connectivity and returns 503 when the database is unavailable.
 - These endpoints do not expose database errors or secrets. Configure your hosting platform to monitor them and alert on repeated failures.
+
+
+## Active tenant context and tenant-safe query access
+
+The MVC workspace selector now activates a selected scope with a CSRF-protected POST. The selected tenant, branch and project IDs are stored in the encrypted, HttpOnly MVC authentication ticket and forwarded server-to-server as `X-Platform-TenantId`, `X-Platform-BranchId`, and `X-Platform-ProjectId`. The browser does not set these API headers directly.
+
+The API middleware resolves these headers into a request-scoped `IActiveTenantContext` only after validating that the tenant, branch and project are active and consistent and that the user has a matching active role assignment. Scope headers are optional for requests made before a workspace is selected. A stale or invalid selected scope is rejected; MVC clears a stale selection when the current assignment list no longer contains it.
+
+**Important:** an active context is scope metadata, not an authorization grant. Every tenant-facing operation must still call `IScopedAccessService.CanAccessAsync` using the permission required by that operation and IDs resolved from the validated context/resource. For EF Core business queries, use `WhereInActiveTenant` or `WhereInActiveWorkspace` from `PlatformHub.Api.Platform` to apply tenant/branch/project filters. For update/delete, load the target row through the same scoped query and validate related foreign keys before saving. Do not rely on menu visibility or request IDs alone.
+
+Example:
+
+```csharp
+var products = await db.Set<Product>()
+    .WhereInActiveWorkspace(activeScope,
+        nameof(Product.TenantId),
+        nameof(Product.BranchId),
+        nameof(Product.ProjectId))
+    .AsNoTracking()
+    .ToListAsync(ct);
+```
+
+The query helper fails closed when no active context is resolved. It filters only mapped ownership keys named by the caller; it does not automatically secure arbitrary raw SQL/Dapper, exports, background jobs, or entities without these ownership columns. Those paths need explicit scope predicates and authorization tests. No database migration is required for the active-context change.
+
+Security regression tests are in `tests/PlatformHub.SecurityTests/TenantSafeQueryTests.cs`.
