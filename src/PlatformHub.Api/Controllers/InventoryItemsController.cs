@@ -70,7 +70,7 @@ public sealed class InventoryItemsController(
             return Conflict(new { message = "An item with this SKU already exists in the active workspace." });
 
         var now = DateTime.UtcNow;
-        var item = new InventoryItem
+        var item = new InventoryItemModel
         {
             TenantId = tenantId,
             BranchId = branchId,
@@ -82,7 +82,7 @@ public sealed class InventoryItemsController(
             UpdatedUtc = now,
             IsActive = true
         };
-        db.InventoryItems.Add(item);
+        db.InventoryItemModels.Add(item);
         await db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = item.Id },
             new InventoryItemDto(item.Id, item.Sku, item.Name, item.Unit, item.IsActive, item.CreatedUtc, item.UpdatedUtc));
@@ -132,9 +132,9 @@ public sealed class InventoryItemsController(
         return NoContent();
     }
 
-    private IQueryable<InventoryItem> ScopedQuery(long tenantId, long? branchId, long? projectId)
+    private IQueryable<InventoryItemModel> ScopedQuery(long tenantId, long? branchId, long? projectId)
     {
-        var query = db.InventoryItems.Where(x => x.TenantId == tenantId);
+        var query = db.InventoryItemModels.Where(x => x.TenantId == tenantId);
         if (branchId.HasValue) query = query.Where(x => x.BranchId == branchId.Value);
         else query = query.Where(x => x.BranchId == null);
         if (projectId.HasValue) query = query.Where(x => x.ProjectId == projectId.Value);
