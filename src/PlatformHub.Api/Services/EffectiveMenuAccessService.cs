@@ -57,10 +57,10 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
 
     public async Task<bool> HasAccessAsync(long userId, long projectId, long tenantId, string menuCode, CancellationToken ct = default)
     {
-        if (userId <= 0 || projectId <= 0 || string.IsNullOrWhiteSpace(menuCode))
+        if (userId <= 0 || projectId <= 0 || tenantId <= 0 || string.IsNullOrWhiteSpace(menuCode))
             return false;
 
-        var roleIds = await GetApplicableRoleIdsAsync(userId, projectId, ct);
+        var roleIds = await GetApplicableRoleIdsAsync(userId, projectId, tenantId, ct);
         if (roleIds.Count == 0)
             return false;
 
