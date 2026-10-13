@@ -538,9 +538,8 @@
                 <label for="projectSelect" class="pm-project-label mb-2">Active project workspace</label>
                 <select id="projectSelect" class="form-select form-select-lg"><option value="">Loading projects…</option></select>
             </div>
-            <div class="col-12 col-lg-4 d-flex gap-2">
-                <button id="refreshBtn" class="btn btn-outline-secondary flex-grow-1" type="button"><span aria-hidden="true">↻</span> Refresh</button>
-                <button id="quickAddMenu" class="btn btn-primary flex-grow-1" type="button">＋ Add menu</button>
+            <div class="col-12 col-lg-4 d-flex">
+                <button id="quickAddMenu" class="btn btn-primary w-100" type="button">＋ Add menu</button>
             </div>
         </div>
     </section>
@@ -932,19 +931,6 @@
             }
         }
         projectSelect.addEventListener('change', onProjectChanged);
-
-        document.getElementById('refreshBtn').addEventListener('click', async () => {
-            try {
-                await refresh();
-                // Explicitly reload the active server-side filter, including Standalone.
-                if (document.getElementById('menuModuleFilter').value) {
-                    await loadMenusForSelectedModule();
-                }
-                notice('Project navigation refreshed.');
-            } catch (e) {
-                notice(e.message, 'danger');
-            }
-        });
 
         document.getElementById('editForm').addEventListener('submit', async e => {
             e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
