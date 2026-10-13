@@ -127,15 +127,45 @@ public sealed class UsersController(PlatformApiClient api) : Controller
 
         var branches = new List<ManagedBranchViewModel>();
         var projects = new List<ManagedProjectViewModel>();
-        foreach (var tenant in tenants)
+
+        // Load the shared project catalogue once. The legacy projects?tenantId endpoint
+        // filters by Projects.TenantId and does not represent the TenantProjects assignments.
+        var catalogue = await api.GetAsync<List<ManagedProjectViewModel>>(
+            "api/v1/platform/projects", token, ct);
+        if (catalogue is null) return null;
+
+        foreach (var tenant in tenants.Where(t => t.IsActive))
         {
             var tenantBranches = await api.GetAsync<List<ManagedBranchViewModel>>(
                 $"api/v1/platform/branches?tenantId={tenant.Id}", token, ct);
-            var tenantProjects = await api.GetAsync<List<ManagedProjectViewModel>>(
-                $"api/v1/platform/projects?tenantId={tenant.Id}", token, ct);
-            if (tenantBranches is not null) branches.AddRange(tenantBranches);
-            if (tenantProjects is not null) projects.AddRange(tenantProjects);
+            if (tenantBranches is not null)
+                branches.AddRange(tenantBranches
+                    .Where(b => b.TenantId == tenant.Id && b.IsActive)
+                    .DistinctBy(b => b.Id));
+
+            // Use the same tenant-project assignment endpoint as Tenant Management.
+            var assignment = await api.GetAsync<TenantProjectScopeResponse>(
+                $"api/v1/platform/tenants/{tenant.Id}/projects", token, ct);
+            if (assignment is null) continue;
+
+            var assignedIds = assignment.AssignedProjectIds.ToHashSet();
+            projects.AddRange(catalogue
+                .Where(p => assignedIds.Contains(p.Id) && p.IsActive)
+                .Select(p => new ManagedProjectViewModel
+                {
+                    Id = p.Id,
+                    TenantId = tenant.Id,
+                    Code = p.Code,
+                    Name = p.Name,
+                    IsActive = p.IsActive
+                }));
         }
+
+        // A shared catalogue project can be assigned to multiple tenants, but must only
+        // appear once per tenant in the dependent dropdown.
+        projects = projects
+            .DistinctBy(p => new { p.TenantId, p.Id })
+            .ToList();
 
         return new UserAccessViewModel
         {
@@ -146,4 +176,10 @@ public sealed class UsersController(PlatformApiClient api) : Controller
 
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
     private string? AccessToken() => User.FindFirst("ph_api_access_token")?.Value;
+}
+
+
+public sealed class TenantProjectScopeResponse
+{
+    public List<long> AssignedProjectIds { get; set; } = [];
 }
