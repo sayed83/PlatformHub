@@ -238,3 +238,23 @@ var products = await db.Set<Product>()
 The query helper fails closed when no active context is resolved. It filters only mapped ownership keys named by the caller; it does not automatically secure arbitrary raw SQL/Dapper, exports, background jobs, or entities without these ownership columns. Those paths need explicit scope predicates and authorization tests. No database migration is required for the active-context change.
 
 Security regression tests are in `tests/PlatformHub.SecurityTests/TenantSafeQueryTests.cs`.
+
+
+## Tenant API security audit and regression coverage
+
+### Scope boundaries
+- Platform-wide administration routes (including `/api/v1/platform`, `/api/v1/platform/access`, `/api/v1/platform/tenants/{tenantId}/projects`, and `/api/v1/project-menus`) remain protected by the `PlatformAdmin` policy. They intentionally operate across tenants for platform administration and must not be forced through the selected tenant context.
+- Tenant workspace endpoints (including `/api/v1/workspace/scopes` and `/api/v1/workspace/context`) validate the authenticated active user and resolve tenant, branch, project and subscription scope before exposing workspace details.
+- Navigation and menu endpoint authorization require a validated active tenant context and tenant-aware effective role resolution. Menu visibility is not a substitute for endpoint authorization.
+- Bootstrap endpoints are a separate one-time provisioning boundary and must remain protected by setup-key/rate-limit controls; disable the endpoint after initial provisioning in deployed environments.
+
+### Required checks for each business-data endpoint
+1. Resolve the tenant from the target resource or a validated active workspace; never trust a tenant ID supplied only by the caller.
+2. Call `IScopedAccessService.CanAccessAsync` with the endpoint's permission and the resolved tenant/branch/project IDs before reading or mutating business data.
+3. For reads, include tenant and workspace predicates in the database query. For updates/deletes, load the target row through that scoped query first.
+4. Validate every related/child ID (for example, a detail row, parent, or foreign key) belongs to the same tenant/workspace before saving.
+5. Include explicit predicates in Dapper, raw SQL, stored procedures, bulk operations, exports and background jobs; EF helper methods are opt-in and do not automatically secure every query.
+6. Preserve reusable/shared projects: require an active `TenantProjects` subscription and an assignment explicitly anchored to the selected tenant. A tenantless project assignment is not a wildcard.
+
+### Regression tests
+The security test project covers cross-tenant branch IDs, tenant/project mismatches, inactive users/tenants/projects, missing permissions, disabled shared-project subscriptions, tenantless shared-project assignments, and explicit user menu-deny overrides. Add an endpoint-level integration test whenever a new tenant-facing controller or business-data route is introduced.
