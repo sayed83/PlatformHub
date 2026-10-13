@@ -1,30 +1,32 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Domain.Entities;
-
 namespace PlatformHub.Infrastructure.Persistence;
-
-/// <summary>
-/// Business-data context kept separate from platform identity/administration tables.
-/// Uses the same SQL Server connection but an independent migrations history table.
-/// </summary>
 public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : DbContext(options)
 {
-    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.HasDefaultSchema("dbo");
-        modelBuilder.Entity<InventoryItem>(e =>
-        {
-            e.ToTable("Products", "dbo");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Sku).HasMaxLength(80).IsRequired();
-            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            e.Property(x => x.Unit).HasMaxLength(30).IsRequired();
-            e.Property(x => x.CreatedUtc).HasColumnType("datetime2");
-            e.Property(x => x.UpdatedUtc).HasColumnType("datetime2");
-            e.HasIndex(x => new { x.TenantId, x.BranchId, x.ProjectId, x.Sku }).IsUnique();
-            e.HasIndex(x => new { x.TenantId, x.BranchId, x.ProjectId, x.IsActive });
-        });
-    }
+ public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+ public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>(); public DbSet<ProductBrand> ProductBrands => Set<ProductBrand>(); public DbSet<ProductUnit> ProductUnits => Set<ProductUnit>(); public DbSet<ProductModel> ProductModels => Set<ProductModel>(); public DbSet<ProductBarcode> ProductBarcodes => Set<ProductBarcode>();
+ public DbSet<InventoryStore> Stores => Set<InventoryStore>(); public DbSet<StockMovement> StockMovements => Set<StockMovement>(); public DbSet<StockSnapshot> StockSnapshots => Set<StockSnapshot>(); public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
+ public DbSet<AccountHead> AccountHeads => Set<AccountHead>(); public DbSet<AccountingVoucher> AccountingVouchers => Set<AccountingVoucher>(); public DbSet<AccountingVoucherLine> AccountingVoucherLines => Set<AccountingVoucherLine>(); public DbSet<BusinessDocument> BusinessDocuments => Set<BusinessDocument>(); public DbSet<BusinessDocumentLine> BusinessDocumentLines => Set<BusinessDocumentLine>();
+ protected override void OnModelCreating(ModelBuilder b)
+ {
+  b.HasDefaultSchema("dbo");
+  b.Entity<InventoryItem>(e=>{e.ToTable("Products","dbo");e.HasKey(x=>x.Id);e.Property(x=>x.Sku).HasMaxLength(80).IsRequired();e.Property(x=>x.Name).HasMaxLength(200).IsRequired();e.Property(x=>x.Unit).HasMaxLength(30).IsRequired();e.Property(x=>x.CreatedUtc).HasColumnType("datetime2");e.Property(x=>x.UpdatedUtc).HasColumnType("datetime2");e.HasIndex(x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Sku}).IsUnique();e.HasIndex(x=>new{x.TenantId,x.BranchId,x.ProjectId,x.IsActive});});
+  Ref<ProductCategory>(b,"ProductCategories"); Ref<ProductBrand>(b,"ProductBrands"); Ref<ProductUnit>(b,"ProductUnits"); Ref<ProductModel>(b,"ProductModels"); Ref<ProductBarcode>(b,"ProductBarcodes"); Ref<InventoryStore>(b,"Stores"); Ref<StockMovement>(b,"StockMovements"); Ref<StockSnapshot>(b,"StockSnapshots"); Ref<StockTransfer>(b,"StockTransfers"); Ref<AccountHead>(b,"AccountHeads"); Ref<AccountingVoucher>(b,"AccountingVouchers"); Ref<BusinessDocument>(b,"BusinessDocuments");
+  b.Entity<ProductCategory>(e=>{e.Property(x=>x.Code).HasMaxLength(50).IsRequired();e.Property(x=>x.Name).HasMaxLength(150).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<ProductBrand>(e=>{e.Property(x=>x.Code).HasMaxLength(50).IsRequired();e.Property(x=>x.Name).HasMaxLength(150).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<ProductUnit>(e=>{e.Property(x=>x.Code).HasMaxLength(30).IsRequired();e.Property(x=>x.Name).HasMaxLength(100).IsRequired();e.Property(x=>x.ConversionFactor).HasPrecision(18,6);Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<ProductModel>(e=>{e.Property(x=>x.Code).HasMaxLength(50).IsRequired();e.Property(x=>x.Name).HasMaxLength(150).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<ProductBarcode>(e=>{e.Property(x=>x.Barcode).HasMaxLength(100).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Barcode});});
+  b.Entity<InventoryStore>(e=>{e.Property(x=>x.Code).HasMaxLength(50).IsRequired();e.Property(x=>x.Name).HasMaxLength(150).IsRequired();e.Property(x=>x.Address).HasMaxLength(500);Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<StockMovement>(e=>{e.Property(x=>x.MovementType).HasMaxLength(30).IsRequired();e.Property(x=>x.ReferenceType).HasMaxLength(40).IsRequired();e.Property(x=>x.QuantityIn).HasPrecision(18,4);e.Property(x=>x.QuantityOut).HasPrecision(18,4);e.Property(x=>x.UnitCost).HasPrecision(18,4);e.Property(x=>x.TransactionUtc).HasColumnType("datetime2");e.HasIndex(x=>new{x.TenantId,x.BranchId,x.ProjectId,x.ProductId,x.StoreId,x.TransactionUtc});});
+  b.Entity<StockSnapshot>(e=>{e.Property(x=>x.Quantity).HasPrecision(18,4);e.Property(x=>x.AverageUnitCost).HasPrecision(18,4);Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.ProductId,x.StoreId,x.SnapshotDate});});
+  b.Entity<StockTransfer>(e=>{e.Property(x=>x.TransferNo).HasMaxLength(50).IsRequired();e.Property(x=>x.Status).HasMaxLength(20).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.TransferNo});});
+  b.Entity<AccountHead>(e=>{e.Property(x=>x.Code).HasMaxLength(50).IsRequired();e.Property(x=>x.Name).HasMaxLength(200).IsRequired();e.Property(x=>x.AccountType).HasMaxLength(30).IsRequired();Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.Code});});
+  b.Entity<AccountingVoucher>(e=>{e.Property(x=>x.VoucherNo).HasMaxLength(50).IsRequired();e.Property(x=>x.VoucherType).HasMaxLength(30).IsRequired();e.Property(x=>x.Status).HasMaxLength(20).IsRequired();e.Property(x=>x.TotalDebit).HasPrecision(18,4);e.Property(x=>x.TotalCredit).HasPrecision(18,4);e.Property(x=>x.PostedUtc).HasColumnType("datetime2");Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.VoucherNo});e.HasMany<AccountingVoucherLine>().WithOne().HasForeignKey(x=>x.VoucherId).OnDelete(DeleteBehavior.Cascade);});
+  b.Entity<AccountingVoucherLine>(e=>{e.ToTable("AccountingVoucherLines","dbo");e.HasKey(x=>x.Id);e.Property(x=>x.Debit).HasPrecision(18,4);e.Property(x=>x.Credit).HasPrecision(18,4);e.Property(x=>x.Description).HasMaxLength(300);});
+  b.Entity<BusinessDocument>(e=>{e.Property(x=>x.DocumentType).HasMaxLength(30).IsRequired();e.Property(x=>x.DocumentNo).HasMaxLength(50).IsRequired();e.Property(x=>x.PartyName).HasMaxLength(200).IsRequired();e.Property(x=>x.Status).HasMaxLength(20).IsRequired();e.Property(x=>x.Subtotal).HasPrecision(18,4);e.Property(x=>x.Discount).HasPrecision(18,4);e.Property(x=>x.TaxAmount).HasPrecision(18,4);e.Property(x=>x.TotalAmount).HasPrecision(18,4);Unique(e,x=>new{x.TenantId,x.BranchId,x.ProjectId,x.DocumentType,x.DocumentNo});e.HasMany<BusinessDocumentLine>().WithOne().HasForeignKey(x=>x.DocumentId).OnDelete(DeleteBehavior.Cascade);});
+  b.Entity<BusinessDocumentLine>(e=>{e.ToTable("BusinessDocumentLines","dbo");e.HasKey(x=>x.Id);e.Property(x=>x.Quantity).HasPrecision(18,4);e.Property(x=>x.UnitPrice).HasPrecision(18,4);e.Property(x=>x.Discount).HasPrecision(18,4);e.Property(x=>x.TaxAmount).HasPrecision(18,4);e.Property(x=>x.LineTotal).HasPrecision(18,4);});
+ }
+ private static void Ref<T>(ModelBuilder b,string table) where T:ScopedBusinessEntity => b.Entity<T>(e=>{e.ToTable(table,"dbo");e.HasKey(x=>x.Id);e.Property(x=>x.CreatedUtc).HasColumnType("datetime2");e.Property(x=>x.UpdatedUtc).HasColumnType("datetime2");e.HasIndex(x=>new{x.TenantId,x.BranchId,x.ProjectId,x.IsActive});});
+ private static void Unique<T,TKey>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e,System.Linq.Expressions.Expression<Func<T,TKey>> key) where T:class => e.HasIndex(key).IsUnique();
 }

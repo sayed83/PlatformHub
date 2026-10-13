@@ -37,7 +37,14 @@ public static class PlatformRbacSeeder
         ("Inventory.Item.View", "View inventory items", "Inventory"),
         ("Inventory.Item.Create", "Create inventory items", "Inventory"),
         ("Inventory.Item.Update", "Update inventory items", "Inventory"),
-        ("Inventory.Item.Deactivate", "Deactivate inventory items", "Inventory")
+        ("Inventory.Item.Deactivate", "Deactivate inventory items", "Inventory"),
+        ("Stock.Ledger.View", "View stock ledger", "Stock"),
+        ("Stock.Movement.Create", "Create stock movement", "Stock"),
+        ("Stock.Store.View", "View stores", "Stock"),
+        ("Stock.Store.Create", "Create stores", "Stock"),
+        ("Accounting.Account.View", "View chart of accounts", "Accounting"),
+        ("Accounting.Voucher.View", "View accounting vouchers", "Accounting"),
+        ("BusinessDocument.View", "View sales and purchase documents", "Business")
     ];
 
     private static readonly (string Code, string Name, string Description, string? Redirect)[] RoleCatalog =
