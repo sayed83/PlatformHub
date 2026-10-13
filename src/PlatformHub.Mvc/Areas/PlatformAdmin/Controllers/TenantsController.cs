@@ -19,12 +19,20 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         if (string.IsNullOrWhiteSpace(token))
             return Challenge();
 
-        var tenants = await api.GetAsync<List<TenantViewModel>>("api/v1/platform/tenants", token, ct);
-        if (tenants is null)
+        var tenantResult = await api.GetWithStatusAsync<List<TenantViewModel>>(
+            "api/v1/platform/tenants", token, ct);
+        if (tenantResult.Value is null)
         {
-            ModelState.AddModelError(string.Empty, "Unable to load tenants from the Platform API.");
-            tenants = new List<TenantViewModel>();
+            // Do not disguise an API outage as an empty tenant directory.
+            // An empty HTTP response lets UseStatusCodePagesWithReExecute render /Error/{statusCode}.
+            var statusCode = tenantResult.StatusCode is >= 400 and <= 599
+                ? tenantResult.StatusCode.Value
+                : StatusCodes.Status503ServiceUnavailable;
+            TempData["ErrorMessage"] = tenantResult.Error
+                ?? "The Platform API did not return tenant data. Check the API logs and Api:BaseUrl setting.";
+            return StatusCode(statusCode);
         }
+        var tenants = tenantResult.Value;
 
         // Load the project catalogue for the directory, then tenant-specific assignments
         // so the counts/details reflect TenantProjects rather than legacy Projects.TenantId.
