@@ -24,7 +24,7 @@ public sealed class BranchesController(PlatformApiClient api) : Controller
         var branches = await api.GetAsync<List<BranchRowViewModel>>(
             $"api/v1/platform/branches?tenantId={tenantId}", token, ct);
         if (branches is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to load branches from the Platform API.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
         var assignments = new List<BranchRoleAssignmentViewModel>();
         foreach (var branch in branches)
