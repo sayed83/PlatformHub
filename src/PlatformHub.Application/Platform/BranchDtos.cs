@@ -16,4 +16,4 @@ public sealed record CreateBranchRequest(
     string Name,
     string? Address);
 
-public sealed record ProjectUpdateRequest(string Code, string Name, string? BaseUrl);
+public sealed record ProjectUpdateRequest(long? TenantId, string Code, string Name, string? BaseUrl);
