@@ -129,6 +129,42 @@ public sealed class ScopedAccessServiceTests
         Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 502));
     }
 
+    [Fact]
+    public async Task Inactive_tenant_is_denied_even_when_user_has_role_assignment()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
+        var tenant = await db.Tenants.SingleAsync(x => x.Id == 1);
+        tenant.IsActive = false;
+        await db.SaveChangesAsync();
+
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+    }
+
+    [Fact]
+    public async Task Inactive_project_is_denied_even_when_tenant_subscription_exists()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
+        var project = await db.Projects.SingleAsync(x => x.Id == 501);
+        project.IsActive = false;
+        await db.SaveChangesAsync();
+
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+        Assert.False(await service.CanAccessAsync(10, "Project.View", 1, projectId: 501));
+    }
+
+    [Fact]
+    public async Task Missing_permission_is_denied_even_with_valid_tenant_project_assignment()
+    {
+        await using var db = CreateDb();
+        await SeedReusableProjectAssignmentAsync(db, tenantId: 1, subscriptionEnabled: true);
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+
+        Assert.False(await service.CanAccessAsync(10, "User.Delete", 1, projectId: 501));
+    }
+
     private static async Task SeedReusableProjectAssignmentAsync(
         PlatformDbContext db,
         long? tenantId,
