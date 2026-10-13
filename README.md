@@ -235,7 +235,7 @@ var products = await db.Set<Product>()
     .ToListAsync(ct);
 ```
 
-The query helper fails closed when no active context is resolved. It filters only mapped ownership keys named by the caller; it does not automatically secure arbitrary raw SQL/Dapper, exports, background jobs, or entities without these ownership columns. Those paths need explicit scope predicates and authorization tests. No database migration is required for the active-context change.
+The query helper fails closed when no active context is resolved. When a branch or project is selected, `WhereInActiveWorkspace` also fails closed if the caller omits that selected dimension's ownership property; this prevents an accidentally tenant-only query from leaking rows across branches/projects. Use `WhereInActiveTenant` explicitly for entities that are tenant-owned only. It filters only mapped ownership keys named by the caller; it does not automatically secure arbitrary raw SQL/Dapper, exports, background jobs, or entities without these ownership columns. Those paths need explicit scope predicates and authorization tests. No database migration is required for this query-helper hardening.
 
 Security regression tests are in `tests/PlatformHub.SecurityTests/TenantSafeQueryTests.cs`.
 
