@@ -88,12 +88,10 @@ public sealed class PlatformApiClient(
             using var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync(ct);
                 logger.LogWarning(
                     "Platform API POST {Path} failed with HTTP {StatusCode}. Response body omitted",
                     path,
-                    (int)response.StatusCode,
-                    "[omitted]");
+                    (int)response.StatusCode);
                 return default;
             }
 
@@ -130,7 +128,6 @@ public sealed class PlatformApiClient(
             using var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync(ct);
                 logger.LogWarning("Platform API PUT {Path} failed with HTTP {StatusCode}. Response body omitted",
                     path, (int)response.StatusCode);
                 return default;
@@ -222,7 +219,6 @@ public sealed class PlatformApiClient(
         {
             using var response = await client.SendAsync(request, ct);
             if (response.IsSuccessStatusCode) return true;
-            var responseBody = await response.Content.ReadAsStringAsync(ct);
             logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response body omitted",
                 path, (int)response.StatusCode);
             return false;
