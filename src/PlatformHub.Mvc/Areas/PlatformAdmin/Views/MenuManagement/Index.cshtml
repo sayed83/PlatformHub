@@ -640,7 +640,7 @@
             document.querySelectorAll('.tab-pane').forEach(pane => { const active = '#' + pane.id === button.dataset.bsTarget; pane.classList.toggle('show', active); pane.classList.toggle('active', active); });
         }));
 
-        let modules = [], menus = [], kind = 'modules', codeAuto = false, routeAuto = false;
+        let modules = [], menus = [], displayedMenus = null, kind = 'modules', codeAuto = false, routeAuto = false;
         let refreshSeq = 0;   // ignores outdated refresh responses
 
         const url = (action) => '@Url.Action("__ACTION__", "MenuManagement", new { area = "PlatformAdmin" })'.replace('__ACTION__', action);
@@ -706,7 +706,7 @@
             }
 
             // Direct effect: clear old project values immediately
-            modules = []; menus = [];
+            modules = []; menus = []; displayedMenus = null;
             setStats('—', '—', '—');
             showLoadingRows();
 
@@ -723,7 +723,7 @@
             const [m, i] = await Promise.all([mr.json(), ir.json()]);
             if (seq !== refreshSeq) return;
 
-            modules = m; menus = i;
+            modules = m; menus = i; displayedMenus = null;
             loadMenuModuleFilter();
             render();
 
@@ -814,14 +814,23 @@
         function moduleMatches(x) { const q = document.getElementById('moduleSearch').value.trim().toLowerCase(); return !q || [x.code, x.name, x.description].some(v => String(v || '').toLowerCase().includes(q)); }
         function menuMatches(x) {
             const q = document.getElementById('menuSearch').value.trim().toLowerCase();
-            const selectedModule = document.getElementById('menuModuleFilter').value;
-            const isStandalone = x.moduleId == null || Number(x.moduleId) === 0;
-            if (selectedModule === '__standalone' && !isStandalone) return false;
-            if (selectedModule && selectedModule !== '__standalone' && Number(x.moduleId) !== Number(selectedModule)) return false;
             const moduleName = modules.find(m => Number(m.id) === Number(x.moduleId))?.name || 'Standalone';
             const parentName = menus.find(m => Number(m.id) === Number(x.parentMenuId))?.name || '';
             return !q || [x.code, x.name, x.routeUrl, x.controller, x.action, x.area, moduleName, parentName]
                 .some(v => String(v || '').toLowerCase().includes(q));
+        }
+        async function loadMenusForSelectedModule() {
+            const projectId = selectedProject();
+            if (!projectId) { displayedMenus = []; render(); return; }
+            const filterValue = document.getElementById('menuModuleFilter').value;
+            const query = new URLSearchParams({ kind: 'items', projectId: String(projectId) });
+            if (filterValue === '__standalone') query.set('standaloneOnly', 'true');
+            else if (filterValue) query.set('moduleId', filterValue);
+
+            const response = await apiFetch(url('Data') + '?' + query.toString(), NO_CACHE);
+            if (!response.ok) throw Error(await readError(response, 'Unable to filter menu entries.'));
+            displayedMenus = await response.json();
+            render();
         }
         function loadMenuModuleFilter() {
             const filter = document.getElementById('menuModuleFilter');
@@ -833,7 +842,7 @@
 
         // render() only draws the tables/footers. Cards are handled by setStats().
         function render() {
-            const filteredModules = modules.filter(moduleMatches), filteredMenus = menus.filter(menuMatches);
+            const filteredModules = modules.filter(moduleMatches), filteredMenus = (displayedMenus ?? menus).filter(menuMatches);
             moduleRows.innerHTML = filteredModules.length ? filteredModules.map(x => '<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-mod-icon">' + iconHtml(x.icon, '▦') + '</span><div><div class="pm-primary">' + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></div></div></td><td><span class="text-secondary">' + esc(x.description || 'No description') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">' + (modules.length ? 'No matching modules' : 'No modules created yet') + '</div><div class="small mb-3">' + (modules.length ? 'Try another search term.' : 'Create a module to group related navigation entries.') + '</div>' + (modules.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>') + '</div></td></tr>';
             menuRows.innerHTML = filteredMenus.length ? filteredMenus.map(x => '<tr><td><div class="pm-primary">' + (x.parentMenuId ? '<span class="text-secondary me-1">↳</span>' : '') + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></td><td>' + esc(modules.find(m => m.id === x.moduleId)?.name || 'Standalone') + '</td><td>' + esc(menus.find(m => m.id === x.parentMenuId)?.name || '—') + '</td><td><span class="pm-route" title="' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join('/') || 'No route configured') + '">' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join(' / ') || 'No route configured') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="7"><div class="pm-empty"><div class="pm-empty-icon">☷</div><div class="fw-semibold text-dark mb-1">' + (menus.length ? 'No matching menu entries' : 'No menu entries created yet') + '</div><div class="small mb-3">' + (menus.length ? 'Try another search term.' : 'Add your first menu entry to connect the project to a page or route.') + '</div>' + (menus.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-menu>＋ Create first menu</button>') + '</div></td></tr>';
             document.getElementById('moduleSummary').textContent = filteredModules.length + ' of ' + modules.length + ' modules'; document.getElementById('menuSummary').textContent = filteredMenus.length + ' of ' + menus.length + ' menu entries';
@@ -883,7 +892,18 @@
 
         document.getElementById('moduleSearch').addEventListener('input', render);
         document.getElementById('menuSearch').addEventListener('input', render);
-        document.getElementById('menuModuleFilter').addEventListener('change', render);
+        // Select2 dropdown; menu rows are reloaded from the API for the selected module.
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery('#menuModuleFilter').select2({
+                theme: 'bootstrap-5',
+                width: 'style',
+                placeholder: 'All modules',
+                minimumResultsForSearch: 0
+            });
+        }
+        document.getElementById('menuModuleFilter').addEventListener('change', () => {
+            loadMenusForSelectedModule().catch(error => notice(error.message, 'danger'));
+        });
 
         // Project change -> direct effect (no need to click Refresh)
         async function onProjectChanged() {
