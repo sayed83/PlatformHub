@@ -11,11 +11,17 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class AccountController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public IActionResult Login() => View(new LoginViewModel());
+    public IActionResult Login(string? returnUrl = null)
+    {
+        // Preserve only local return URLs to prevent open-redirect vulnerabilities.
+        ViewData["ReturnUrl"] = Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        return View(new LoginViewModel());
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(LoginViewModel model, CancellationToken ct)
+    public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl, CancellationToken ct)
     {
+        ViewData["ReturnUrl"] = Url.IsLocalUrl(returnUrl) ? returnUrl : null;
         if (!ModelState.IsValid) return View(model);
         var result = await api.PostAsync<ApiLoginResponse>("api/v1/auth/login",
             new { model.UserName, model.Password, Panel = "platform-admin" }, ct);
@@ -29,6 +35,11 @@ public sealed class AccountController(PlatformApiClient api) : Controller
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false, AllowRefresh = true });
+
+        // An explicitly requested local page takes priority over configured landing pages.
+        // This lets an admin return to Menu Management (or another protected page) after login.
+        if (Url.IsLocalUrl(returnUrl))
+            return LocalRedirect(returnUrl!);
 
         var redirect = !string.IsNullOrWhiteSpace(result.User.BaseRedirectUrl)
             ? result.User.BaseRedirectUrl
