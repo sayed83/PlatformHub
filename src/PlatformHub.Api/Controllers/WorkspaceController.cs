@@ -76,9 +76,14 @@ public sealed class WorkspaceController(
                 ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
 
             // Discard invalid or cross-tenant assignments rather than exposing them in the UI.
+            var projectAssignedToTenant = project is not null &&
+                (project.TenantId == tenant?.Id ||
+                 db.TenantProjects.Any(tp => tp.TenantId == tenant!.Id &&
+                     tp.ProjectId == project.Id && tp.IsEnabled));
+
             if (tenant is null
                 || (branch is not null && branch.TenantId != tenant.Id)
-                || (project is not null && project.TenantId != tenant.Id)
+                || (project is not null && !projectAssignedToTenant)
                 || (a.BranchId.HasValue && branch is null)
                 || (a.ProjectId.HasValue && project is null))
                 return null;
@@ -144,7 +149,10 @@ public sealed class WorkspaceController(
         if (projectId.HasValue)
         {
             project = await db.Projects.AsNoTracking()
-                .Where(x => x.Id == projectId.Value && x.TenantId == tenantId && x.IsActive)
+                .Where(x => x.Id == projectId.Value && x.IsActive &&
+                    (x.TenantId == tenantId ||
+                     db.TenantProjects.Any(tp => tp.TenantId == tenantId &&
+                         tp.ProjectId == x.Id && tp.IsEnabled)))
                 .Select(x => new { x.Id, x.Code, x.Name })
                 .SingleOrDefaultAsync(cancellationToken);
             if (project is null) return NotFound(new { message = "Active project not found in this tenant." });
