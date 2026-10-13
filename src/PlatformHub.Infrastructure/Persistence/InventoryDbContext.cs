@@ -28,5 +28,5 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
   b.Entity<BusinessDocumentLine>(e=>{e.ToTable("BusinessDocumentLines","dbo");e.HasKey(x=>x.Id);e.Property(x=>x.Quantity).HasPrecision(18,4);e.Property(x=>x.UnitPrice).HasPrecision(18,4);e.Property(x=>x.Discount).HasPrecision(18,4);e.Property(x=>x.TaxAmount).HasPrecision(18,4);e.Property(x=>x.LineTotal).HasPrecision(18,4);});
  }
  private static void Ref<T>(ModelBuilder b,string table) where T:ScopedBusinessEntity => b.Entity<T>(e=>{e.ToTable(table,"dbo");e.HasKey(x=>x.Id);e.Property(x=>x.CreatedUtc).HasColumnType("datetime2");e.Property(x=>x.UpdatedUtc).HasColumnType("datetime2");e.HasIndex(x=>new{x.TenantId,x.BranchId,x.ProjectId,x.IsActive});});
- private static void Unique<T,TKey>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e,System.Linq.Expressions.Expression<Func<T,TKey>> key) where T:class => e.HasIndex(key).IsUnique();
+ private static void Unique<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e,System.Linq.Expressions.Expression<Func<T,object?>> key) where T:class => e.HasIndex(key).IsUnique();
 }
