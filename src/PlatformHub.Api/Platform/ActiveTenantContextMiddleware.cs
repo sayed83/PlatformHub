@@ -45,6 +45,17 @@ public sealed class ActiveTenantContextMiddleware(RequestDelegate next)
             return;
         }
 
+        // A still-valid JWT must not keep workspace access after the account is deactivated.
+        var activeUser = await db.Users.AsNoTracking()
+            .AnyAsync(u => u.Id == userId && u.IsActive, http.RequestAborted);
+        if (!activeUser)
+        {
+            logger.LogWarning("Active workspace rejected for inactive or missing user. UserId={UserId}", userId);
+            http.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await http.Response.WriteAsJsonAsync(new { message = "The user account is inactive or no longer exists." });
+            return;
+        }
+
         var isPlatformAdmin = await db.Users.AsNoTracking()
             .AnyAsync(u => u.Id == userId && u.IsActive && u.IsPlatformAdmin, http.RequestAborted);
         if (isPlatformAdmin)

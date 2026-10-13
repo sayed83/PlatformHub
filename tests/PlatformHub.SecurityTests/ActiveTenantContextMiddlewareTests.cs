@@ -88,4 +88,51 @@ public sealed class ActiveTenantContextMiddlewareTests
         Assert.Equal(StatusCodes.Status403Forbidden, http.Response.StatusCode);
         Assert.False(contextResolved);
     }
+
+    [Fact]
+    public async Task Inactive_user_cannot_resolve_workspace_with_existing_role_assignment()
+    {
+        await using var db = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase($"inactive-workspace-user-{Guid.NewGuid():N}")
+            .Options);
+
+        var user = new AppUser
+        {
+            Id = 42,
+            UserName = "inactive-user",
+            DisplayName = "Inactive User",
+            PasswordHash = "test-hash",
+            IsActive = false
+        };
+        var tenant = new Tenant { Id = 10, Code = "TEN-10", Name = "Tenant 10", IsActive = true };
+        var role = new PlatformRole { Id = 5, Code = "TENANT_USER", Name = "Tenant User", IsActive = true };
+
+        db.Users.Add(user);
+        db.Tenants.Add(tenant);
+        db.Roles.Add(role);
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            Id = 1, UserId = user.Id, RoleId = role.Id, TenantId = tenant.Id
+        });
+        await db.SaveChangesAsync();
+
+        var nextCalled = false;
+        var middleware = new ActiveTenantContextMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+        var http = new DefaultHttpContext();
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim("ph_user_id", user.Id.ToString()) },
+            authenticationType: "test"));
+        http.Request.Headers["X-Platform-TenantId"] = tenant.Id.ToString();
+
+        await middleware.InvokeAsync(
+            http, db, new ActiveTenantContext(),
+            NullLogger<ActiveTenantContextMiddleware>.Instance);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, http.Response.StatusCode);
+        Assert.False(nextCalled);
+    }
 }
