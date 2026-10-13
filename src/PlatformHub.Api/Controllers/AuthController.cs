@@ -69,12 +69,21 @@ public sealed class AuthController(
         var userEntity = await db.Users.SingleOrDefaultAsync(x => x.Id == session.UserId, cancellationToken);
         if (session.RevokedUtc.HasValue)
         {
-            // Reuse of a rotated token indicates possible theft: revoke every active session for this user.
-            await db.RefreshSessions.Where(x => x.FamilyId == session.FamilyId && x.RevokedUtc == null)
-                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, now), cancellationToken);
+            // Allow a brief overlap for concurrent MVC requests carrying the previous cookie.
+            // Reuse outside this window is treated as possible token theft and revokes this family.
+            var rotatedRecently = session.ReplacedByTokenHash is not null &&
+                await db.RefreshSessions.AnyAsync(x => x.TokenHash == session.ReplacedByTokenHash
+                    && x.CreatedUtc >= now.AddMinutes(-1), cancellationToken);
+            if (!rotatedRecently)
+            {
+                await db.RefreshSessions.Where(x => x.FamilyId == session.FamilyId && x.RevokedUtc == null)
+                    .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, now), cancellationToken);
+                logger.LogWarning("Revoked refresh token family after suspected token reuse. UserId={UserId}", session.UserId);
+            }
             await transaction.CommitAsync(cancellationToken);
-            logger.LogWarning("Revoked all refresh sessions after token reuse. UserId={UserId}", session.UserId);
-            return Unauthorized(new { message = "Refresh token reuse detected. Sign in again." });
+            return Unauthorized(new { message = rotatedRecently
+                ? "Refresh token has already been rotated. Retry with the latest token."
+                : "Refresh token reuse detected. Sign in again." });
         }
 
         if (session.ExpiresUtc <= now || userEntity is null || !userEntity.IsActive)
