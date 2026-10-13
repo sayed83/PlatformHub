@@ -14,11 +14,11 @@ public sealed class EffectiveMenuAccessServiceTests
         await using var db = await CreateDbAsync();
         var service = new EffectiveMenuAccessService(db);
 
-        var menus = await service.GetForUserAsync(10, 100);
+        var menus = await service.GetForUserAsync(10, 100, 1);
         Assert.Contains(menus, x => x.Code == "PARENT");
         Assert.Contains(menus, x => x.Code == "CHILD");
-        Assert.False(await service.HasAccessAsync(10, 100, "PARENT"));
-        Assert.True(await service.HasAccessAsync(10, 100, "CHILD"));
+        Assert.False(await service.HasAccessAsync(10, 100, 1, "PARENT"));
+        Assert.True(await service.HasAccessAsync(10, 100, 1, "CHILD"));
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class EffectiveMenuAccessServiceTests
         await db.SaveChangesAsync();
 
         var service = new EffectiveMenuAccessService(db);
-        Assert.False(await service.HasAccessAsync(10, 100, "CHILD"));
+        Assert.False(await service.HasAccessAsync(10, 100, 1, "CHILD"));
     }
 
     [Fact]
@@ -44,8 +44,8 @@ public sealed class EffectiveMenuAccessServiceTests
         await db.SaveChangesAsync();
 
         var service = new EffectiveMenuAccessService(db);
-        Assert.Empty(await service.GetForUserAsync(10, 100));
-        Assert.False(await service.HasAccessAsync(10, 100, "CHILD"));
+        Assert.Empty(await service.GetForUserAsync(10, 100, 1));
+        Assert.False(await service.HasAccessAsync(10, 100, 1, "CHILD"));
     }
 
     [Fact]
@@ -62,8 +62,8 @@ public sealed class EffectiveMenuAccessServiceTests
         await db.SaveChangesAsync();
 
         var service = new EffectiveMenuAccessService(db);
-        Assert.Empty(await service.GetForUserAsync(10, 200));
-        Assert.False(await service.HasAccessAsync(10, 200, "OTHER"));
+        Assert.Empty(await service.GetForUserAsync(10, 200, 1));
+        Assert.False(await service.HasAccessAsync(10, 200, 1, "OTHER"));
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public sealed class EffectiveMenuAccessServiceTests
         await db.SaveChangesAsync();
 
         var service = new EffectiveMenuAccessService(db);
-        Assert.Empty(await service.GetForUserAsync(10, 300));
-        Assert.False(await service.HasAccessAsync(10, 300, "SHARED_MENU"));
+        Assert.Empty(await service.GetForUserAsync(10, 300, 1));
+        Assert.False(await service.HasAccessAsync(10, 300, 1, "SHARED_MENU"));
     }
 
     private static async Task<PlatformDbContext> CreateDbAsync()
