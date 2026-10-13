@@ -193,10 +193,10 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
 
     public async Task ActivateProjectAsync(long id, CancellationToken cancellationToken)
     {
-        var project = await db.Projects.Include(x => x.Tenant).SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var project = await db.Projects.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new ArgumentException("Project was not found.");
-        if (project.Tenant is not null && !project.Tenant.IsActive)
-            throw new InvalidOperationException("This project cannot be activated because its tenant is inactive.");
+        // A project is a global catalogue entry. Tenant activation is checked when
+        // assigning/accessing it, not by coupling catalogue availability to one tenant.
         project.IsActive = true;
         await db.SaveChangesAsync(cancellationToken);
     }
