@@ -697,6 +697,8 @@
         async function refresh() {
             const seq = ++refreshSeq;
             const p = selectedProject();
+            // Preserve the active module filter while reloading the project data.
+            const activeMenuFilter = document.getElementById('menuModuleFilter').value;
 
             if (!p) {
                 modules = []; menus = [];
@@ -725,6 +727,11 @@
 
             modules = m; menus = i; displayedMenus = null;
             loadMenuModuleFilter();
+            const moduleFilter = document.getElementById('menuModuleFilter');
+            if ([...moduleFilter.options].some(option => option.value === activeMenuFilter)) {
+                moduleFilter.value = activeMenuFilter;
+                if (window.jQuery && jQuery.fn.select2) jQuery(moduleFilter).trigger('change.select2');
+            }
             render();
 
             // Default: counts calculated from the loaded data
@@ -745,7 +752,7 @@
             setStats(moduleCount, menuCount, activeCount);
 
             // Reapply the selected module using the server-side endpoint after refresh/save.
-            if (document.getElementById('menuModuleFilter').value) {
+            if (activeMenuFilter) {
                 await loadMenusForSelectedModule();
             }
         }
@@ -926,7 +933,18 @@
         }
         projectSelect.addEventListener('change', onProjectChanged);
 
-        document.getElementById('refreshBtn').addEventListener('click', () => refresh().then(() => notice('Project navigation refreshed.')).catch(e => notice(e.message, 'danger')));
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            try {
+                await refresh();
+                // Explicitly reload the active server-side filter, including Standalone.
+                if (document.getElementById('menuModuleFilter').value) {
+                    await loadMenusForSelectedModule();
+                }
+                notice('Project navigation refreshed.');
+            } catch (e) {
+                notice(e.message, 'danger');
+            }
+        });
 
         document.getElementById('editForm').addEventListener('submit', async e => {
             e.preventDefault(); if (!selectedProject()) { fail('Choose a project first.'); return; }
