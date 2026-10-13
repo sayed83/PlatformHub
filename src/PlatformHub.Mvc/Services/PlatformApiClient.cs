@@ -27,7 +27,7 @@ public sealed class PlatformApiClient(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Platform API POST {Path} failed with HTTP {StatusCode}. Response body omitted",
-                    path, (int)response.StatusCode, "[omitted]");
+                    path, (int)response.StatusCode);
                 var message = TryReadApiMessage(responseBody) ?? $"Platform API returned HTTP {(int)response.StatusCode}.";
                 return (default, message);
             }
@@ -132,7 +132,7 @@ public sealed class PlatformApiClient(
             {
                 var responseBody = await response.Content.ReadAsStringAsync(ct);
                 logger.LogWarning("Platform API PUT {Path} failed with HTTP {StatusCode}. Response body omitted",
-                    path, (int)response.StatusCode, "[omitted]");
+                    path, (int)response.StatusCode);
                 return default;
             }
             if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
@@ -167,7 +167,7 @@ public sealed class PlatformApiClient(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Response body omitted",
-                    path, (int)response.StatusCode, "[omitted]");
+                    path, (int)response.StatusCode);
                 return (default, (int)response.StatusCode,
                     TryReadApiMessage(body) ?? $"Platform API returned HTTP {(int)response.StatusCode}.");
             }
@@ -224,7 +224,7 @@ public sealed class PlatformApiClient(
             if (response.IsSuccessStatusCode) return true;
             var responseBody = await response.Content.ReadAsStringAsync(ct);
             logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response body omitted",
-                path, (int)response.StatusCode, "[omitted]");
+                path, (int)response.StatusCode);
             return false;
         }
         catch (HttpRequestException ex)
