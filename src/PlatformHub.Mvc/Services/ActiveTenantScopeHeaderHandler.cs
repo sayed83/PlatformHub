@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace PlatformHub.Mvc.Services;
 
 /// <summary>Adds the server-authenticated active workspace to eligible API calls.</summary>
