@@ -65,6 +65,16 @@ public sealed class WorkspaceController(
             .Select(x => new { x.Id, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
+        // Resolve reusable-project subscriptions in one query instead of issuing a synchronous
+        // database query for every assignment while building the response.
+        var activeTenantProjectPairs = await db.TenantProjects.AsNoTracking()
+            .Where(tp => projectIds.Contains(tp.ProjectId) && tp.IsEnabled)
+            .Select(tp => new { tp.TenantId, tp.ProjectId })
+            .ToListAsync(cancellationToken);
+        var activeTenantProjectKeys = activeTenantProjectPairs
+            .Select(tp => (tp.TenantId, tp.ProjectId))
+            .ToHashSet();
+
         var scopes = assignments.Select(a =>
         {
             var branch = a.BranchId.HasValue
@@ -78,8 +88,7 @@ public sealed class WorkspaceController(
             // Discard invalid or cross-tenant assignments rather than exposing them in the UI.
             var projectAssignedToTenant = project is not null && tenant is not null &&
                 (project.TenantId == tenant.Id ||
-                 db.TenantProjects.Any(tp => tp.TenantId == tenant.Id &&
-                     tp.ProjectId == project.Id && tp.IsEnabled));
+                 activeTenantProjectKeys.Contains((tenant.Id, project.Id)));
 
             if (tenant is null
                 || (branch is not null && branch.TenantId != tenant.Id)
