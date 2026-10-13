@@ -1,0 +1,46 @@
+@page "/Error/{statusCode:int?}"
+@model PlatformHub.Mvc.Pages.ErrorModel
+@{
+    Layout = "/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Something went wrong";
+}
+<div class="container py-5">
+    <div class="mx-auto" style="max-width:900px">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="p-4 p-md-5 text-white" style="background:linear-gradient(120deg,#182433,#294779)">
+                <div class="text-uppercase fw-bold small mb-3" style="letter-spacing:.14em;color:#b9d0ff">PlatformHub · Error Center</div>
+                <h1 class="display-6 fw-bold mb-3">@Model.Title</h1>
+                <p class="lead mb-0">@Model.Description</p>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+                    <span class="badge text-bg-danger fs-6">HTTP @Model.StatusCode</span>
+                    <span class="text-secondary small">Reference: <code>@Model.TraceId</code></span>
+                </div>
+                <h2 class="h5 fw-bold">What happened?</h2>
+                <p class="text-secondary">@Model.Explanation</p>
+                <h2 class="h5 fw-bold mt-4">What can you do?</h2>
+                <ul class="text-secondary">
+                    @foreach (var action in Model.SuggestedActions)
+                    {
+                        <li class="mb-2">@action</li>
+                    }
+                </ul>
+                @if (!string.IsNullOrWhiteSpace(Model.RequestPath))
+                {
+                    <div class="alert alert-light border mt-4 mb-0">
+                        <div class="small text-secondary mb-1">Request path</div>
+                        <code class="text-break">@Model.RequestPath</code>
+                    </div>
+                }
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button>
+                    <a class="btn btn-outline-secondary" href="javascript:history.back()">Go back</a>
+                    <a class="btn btn-outline-secondary" href="/PlatformAdmin/Account/Login">Platform Admin login</a>
+                    <a class="btn btn-outline-secondary" href="/">Home</a>
+                </div>
+                <p class="small text-secondary mt-4 mb-0">If the problem continues, share the reference ID with your administrator. Sensitive exception details are not displayed on this page.</p>
+            </div>
+        </div>
+    </div>
+</div>
