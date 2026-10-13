@@ -94,8 +94,8 @@ partial class InventoryDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("AccType").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
             b.Property<string>("AccCategory").IsRequired().HasMaxLength(50).HasColumnType("nvarchar(50)");
             b.Property<int>("Level").HasColumnType("int");
-            b.Property<long?>("TransId").HasColumnType("bigint");
-            b.Property<string>("TransFrom").HasMaxLength(100).HasColumnType("nvarchar(100)");
+            b.Property<int?>("TransId").HasColumnType("int");
+            b.Property<string>("TransFrom").HasColumnType("nvarchar(max)");
             b.Property<bool>("IsTaxable").HasColumnType("bit");
             b.Property<decimal>("DefaultTaxRate").HasPrecision(5, 2).HasColumnType("decimal(5,2)");
             b.Property<bool>("IsSystemAccount").HasColumnType("bit");
@@ -106,7 +106,7 @@ partial class InventoryDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("PaymentType").HasMaxLength(30).HasColumnType("nvarchar(30)");
             b.Property<string>("Description").HasMaxLength(500).HasColumnType("nvarchar(500)");
             b.Property<string>("NatureOfGroup").HasMaxLength(20).HasColumnType("nvarchar(20)");
-            b.Property<string>("AccountPurpose").HasMaxLength(100).HasColumnType("nvarchar(100)");
+            b.Property<string>("AccountPurpose").HasColumnType("nvarchar(max)");
             b.Property<string>("CashFlowType").HasMaxLength(20).HasColumnType("nvarchar(20)");
             b.Property<int?>("ReportSequence").HasColumnType("int");
             b.Property<string>("TaxCategory").HasMaxLength(50).HasColumnType("nvarchar(50)");
