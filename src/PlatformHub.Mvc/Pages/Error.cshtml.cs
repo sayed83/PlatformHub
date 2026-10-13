@@ -10,6 +10,10 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     public int StatusCode { get; private set; } = 500;
     public string TraceId { get; private set; } = string.Empty;
     public string RequestPath { get; private set; } = string.Empty;
+    public string RequestMethod { get; private set; } = string.Empty;
+    public string QueryString { get; private set; } = string.Empty;
+    public string EnvironmentName { get; private set; } = string.Empty;
+    public string? TechnicalDetails { get; private set; }
     public string Title { get; private set; } = "Something went wrong";
     public string Description { get; private set; } = "PlatformHub could not complete this request.";
     public string Explanation { get; private set; } = "An unexpected error occurred while processing your request.";
@@ -22,6 +26,12 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         RequestPath = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Path
             ?? HttpContext.Request.Path.Value
             ?? string.Empty;
+        RequestMethod = HttpContext.Request.Method;
+        QueryString = HttpContext.Request.QueryString.HasValue ? HttpContext.Request.QueryString.Value! : string.Empty;
+        EnvironmentName = environment.EnvironmentName;
+        var exception = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Error;
+        if (environment.IsDevelopment() && exception is not null)
+            TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n{exception.StackTrace}";
 
         if (StatusCode is < 400 or > 599) StatusCode = 500;
         Response.StatusCode = StatusCode;
