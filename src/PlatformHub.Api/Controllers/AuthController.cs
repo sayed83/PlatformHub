@@ -123,7 +123,7 @@ public sealed class AuthController(
         }
 
         // Idempotent by design: logout succeeds even if the token was already expired/revoked.
-        return NoContent();
+        return Ok(new { message = "Session revoked." });
     }
 
     private async Task<LoginResponse> BuildLoginResponseAsync(AppUser user, CancellationToken ct)
