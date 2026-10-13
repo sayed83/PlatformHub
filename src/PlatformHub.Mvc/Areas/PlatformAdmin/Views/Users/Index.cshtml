@@ -238,51 +238,48 @@
 @section Scripts {
 <script>
 (() => {
-    function initAssignmentScope(form) {
+    function setupScopeForm(form) {
         const tenant = form.querySelector('.js-tenant-scope');
         const branch = form.querySelector('.js-branch-scope');
         const project = form.querySelector('.js-project-scope');
         if (!tenant || !branch || !project) return;
 
-        // Keep a copy of the original options, then rebuild each list for the chosen tenant.
-        // Rebuilding is more reliable than hiding <option> elements when Select2 is active.
-        const allBranches = Array.from(branch.options)
-            .filter(option => option.value)
-            .map(option => ({ value: option.value, text: option.textContent, tenantId: option.dataset.tenantId }));
-        const allProjects = Array.from(project.options)
-            .filter(option => option.value)
-            .map(option => ({ value: option.value, text: option.textContent, tenantId: option.dataset.tenantId }));
+        const branches = Array.from(branch.options)
+            .filter(o => o.value)
+            .map(o => ({ value: o.value, text: o.textContent.trim(), tenantId: o.getAttribute('data-tenant-id') }));
+        const projects = Array.from(project.options)
+            .filter(o => o.value)
+            .map(o => ({ value: o.value, text: o.textContent.trim(), tenantId: o.getAttribute('data-tenant-id') }));
 
-        function refill(select, items, emptyText, selectedValue) {
-            const previousValue = selectedValue || select.value;
-            select.replaceChildren(new Option(emptyText, ''));
-            const filtered = items.filter(item => !tenant.value || item.tenantId === tenant.value);
-            filtered.forEach(item => select.add(new Option(item.text, item.value)));
-            if (filtered.some(item => item.value === previousValue)) {
-                select.value = previousValue;
-            } else {
-                select.value = '';
-            }
-            if (window.jQuery && jQuery.fn.select2 && jQuery(select).hasClass('select2-hidden-accessible')) {
-                jQuery(select).trigger('change.select2');
-            } else {
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+        function refreshSelect(select, items, placeholder, selected) {
+            const current = selected ?? select.value;
+            select.replaceChildren(new Option(placeholder, ''));
+            const matches = items.filter(item => item.tenantId === tenant.value);
+            matches.forEach(item => select.add(new Option(item.text, item.value)));
+            select.value = matches.some(item => item.value === current) ? current : '';
+
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 &&
+                window.jQuery(select).hasClass('select2-hidden-accessible')) {
+                window.jQuery(select).trigger('change');
             }
         }
 
-        function applyTenantScope() {
-            const previousBranch = branch.value;
-            const previousProject = project.value;
-            refill(branch, allBranches, 'No branch', previousBranch);
-            refill(project, allProjects, 'No project', previousProject);
+        function refreshScope() {
+            const selectedBranch = branch.value;
+            const selectedProject = project.value;
+            refreshSelect(branch, branches, 'No branch available for this tenant', selectedBranch);
+            refreshSelect(project, projects, 'No assigned project for this tenant', selectedProject);
         }
 
-        tenant.addEventListener('change', applyTenantScope);
-        // Populate the dependent dropdowns immediately on initial render as well.
-        applyTenantScope();
+        tenant.addEventListener('change', refreshScope);
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2 &&
+            window.jQuery(tenant).hasClass('select2-hidden-accessible')) {
+            window.jQuery(tenant).on('select2:select select2:clear', refreshScope);
+        }
+        refreshScope();
     }
 
-    document.querySelectorAll('form[action*="AssignRole"]').forEach(initAssignmentScope);
+    document.querySelectorAll('form[action*="AssignRole"]').forEach(setupScopeForm);
 })();
 </script>
 }
