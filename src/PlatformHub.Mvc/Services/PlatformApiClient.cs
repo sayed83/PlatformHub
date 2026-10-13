@@ -26,8 +26,8 @@ public sealed class PlatformApiClient(
             var responseBody = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Platform API POST {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
-                    path, (int)response.StatusCode, Truncate(responseBody));
+                logger.LogWarning("Platform API POST {Path} failed with HTTP {StatusCode}. Response body omitted",
+                    path, (int)response.StatusCode);
                 var message = TryReadApiMessage(responseBody) ?? $"Platform API returned HTTP {(int)response.StatusCode}.";
                 return (default, message);
             }
@@ -56,12 +56,16 @@ public sealed class PlatformApiClient(
         try
         {
             using var document = JsonDocument.Parse(body);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+
             foreach (var name in new[] { "message", "detail", "title", "error" })
                 if (document.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
                     return value.GetString();
         }
         catch (JsonException) { }
-        return string.IsNullOrWhiteSpace(body) ? null : Truncate(body);
+        // Do not surface arbitrary API payloads, which may contain stack traces or sensitive data.
+        return null;
     }
 
     public async Task<T?> PostAsync<T>(
@@ -87,12 +91,10 @@ public sealed class PlatformApiClient(
             using var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync(ct);
                 logger.LogWarning(
-                    "Platform API POST {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
+                    "Platform API POST {Path} failed with HTTP {StatusCode}. Response body omitted",
                     path,
-                    (int)response.StatusCode,
-                    Truncate(responseBody));
+                    (int)response.StatusCode);
                 return default;
             }
 
@@ -129,9 +131,8 @@ public sealed class PlatformApiClient(
             using var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync(ct);
-                logger.LogWarning("Platform API PUT {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
-                    path, (int)response.StatusCode, Truncate(responseBody));
+                logger.LogWarning("Platform API PUT {Path} failed with HTTP {StatusCode}. Response body omitted",
+                    path, (int)response.StatusCode);
                 return default;
             }
             if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
@@ -165,8 +166,8 @@ public sealed class PlatformApiClient(
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
-                    path, (int)response.StatusCode, Truncate(body));
+                logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Response body omitted",
+                    path, (int)response.StatusCode);
                 return (default, (int)response.StatusCode,
                     TryReadApiMessage(body) ?? $"Platform API returned HTTP {(int)response.StatusCode}.");
             }
@@ -198,43 +199,17 @@ public sealed class PlatformApiClient(
         string? token = null,
         CancellationToken ct = default)
     {
-        var client = factory.CreateClient("PlatformApi");
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        // Keep a single GET implementation so status codes, timeouts, invalid JSON,
+        // and API outage diagnostics are handled consistently.
+        var result = await GetWithStatusAsync<T>(path, token, ct);
+        if (result.Value is null && result.Error is not null)
+        {
+            logger.LogWarning(
+                "Platform API GET failed. Path={Path}, StatusCode={StatusCode}, Error={Error}",
+                path, result.StatusCode, result.Error);
+        }
 
-        if (!string.IsNullOrWhiteSpace(token))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        try
-        {
-            using var response = await client.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                var responseBody = await response.Content.ReadAsStringAsync(ct);
-                logger.LogWarning(
-                    "Platform API GET {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
-                    path,
-                    (int)response.StatusCode,
-                    Truncate(responseBody));
-                return default;
-            }
-
-            return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex, "Could not connect to Platform API for GET {Path}", path);
-            return default;
-        }
-        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-        {
-            logger.LogError(ex, "Platform API GET {Path} timed out", path);
-            return default;
-        }
-        catch (JsonException ex)
-        {
-            logger.LogError(ex, "Platform API returned invalid JSON for GET {Path}", path);
-            return default;
-        }
+        return result.Value;
     }
 
     public async Task<bool> DeleteAsync(string path, CancellationToken ct = default, string? token = null)
@@ -247,9 +222,8 @@ public sealed class PlatformApiClient(
         {
             using var response = await client.SendAsync(request, ct);
             if (response.IsSuccessStatusCode) return true;
-            var responseBody = await response.Content.ReadAsStringAsync(ct);
-            logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response: {ResponseBody}",
-                path, (int)response.StatusCode, Truncate(responseBody));
+            logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response body omitted",
+                path, (int)response.StatusCode);
             return false;
         }
         catch (HttpRequestException ex)
@@ -264,6 +238,4 @@ public sealed class PlatformApiClient(
         }
     }
 
-    private static string Truncate(string value) =>
-        value.Length <= 2000 ? value : value[..2000];
 }
