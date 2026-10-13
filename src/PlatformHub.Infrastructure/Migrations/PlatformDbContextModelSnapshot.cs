@@ -120,7 +120,6 @@ namespace PlatformHub.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("PlatformHub.Domain.Entities.Branch", b =>
