@@ -53,7 +53,7 @@
                         <h2 class="h5 mb-1">Choose your workspace</h2>
                         <p class="text-secondary mb-0 small">Only active scopes assigned to your account are listed.</p>
                     </div>
-                    <form method="get" asp-controller="Workspace" asp-action="Index" class="d-flex flex-column flex-sm-row gap-2" style="min-width:min(100%,520px)">
+                    <form method="post" asp-controller="Workspace" asp-action="Activate" class="d-flex flex-column flex-sm-row gap-2" style="min-width:min(100%,520px)">\n                        @Html.AntiForgeryToken()
                         <label class="visually-hidden" for="scopeIndex">Workspace assignment</label>
                         <select class="form-select" id="scopeKey" name="scopeKey" required>
                             @for (var i = 0; i < Model.Scopes.Count; i++)
@@ -70,7 +70,7 @@
                                 }
                             }
                         </select>
-                        <button class="btn btn-primary text-nowrap" type="submit">Open workspace</button>
+                        <button class="btn btn-primary text-nowrap" type="submit">Set active workspace</button>
                     </form>
                 </div>
             </div>
