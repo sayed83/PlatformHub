@@ -7,6 +7,8 @@ public sealed class AppUser
     public string DisplayName { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public bool IsActive { get; set; } = true;
+    public int FailedLoginAttempts { get; set; }
+    public DateTime? LockoutEndUtc { get; set; }
     public bool IsPlatformAdmin { get; set; }
     public string? BaseRedirectUrl { get; set; }
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
