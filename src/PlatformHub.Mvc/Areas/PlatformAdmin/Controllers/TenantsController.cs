@@ -26,15 +26,28 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
             tenants = new List<TenantViewModel>();
         }
 
+        // Load the project catalogue for the directory, then tenant-specific assignments
+        // so the counts/details reflect TenantProjects rather than legacy Projects.TenantId.
         var projects = await api.GetAsync<List<ProjectRowViewModel>>("api/v1/platform/projects", token, ct) ?? new();
+        var tenantProjects = new List<ProjectRowViewModel>();
         var eligible = new HashSet<long>();
         foreach (var tenant in tenants)
         {
+            var assigned = await api.GetAsync<List<ProjectRowViewModel>>(
+                $"api/v1/platform/projects?tenantId={tenant.Id}", token, ct) ?? new();
+            tenantProjects.AddRange(assigned);
+
             var branches = await api.GetAsync<List<BranchRowViewModel>>($"api/v1/platform/branches?tenantId={tenant.Id}", token, ct);
-            if ((branches?.Count ?? 0) == 0 && !projects.Any(p => p.TenantId == tenant.Id))
+            if ((branches?.Count ?? 0) == 0 && assigned.Count == 0)
                 eligible.Add(tenant.Id);
         }
-        return View(new TenantManagementViewModel { Tenants = tenants, Projects = projects, CanHardDeleteTenantIds = eligible });
+        // Keep the global catalogue plus any tenant-specific projections for tenant detail cards.
+        return View(new TenantManagementViewModel
+        {
+            Tenants = tenants,
+            Projects = projects.Concat(tenantProjects).DistinctBy(p => (p.Id, p.TenantId)).ToList(),
+            CanHardDeleteTenantIds = eligible
+        });
     }
 
 
