@@ -50,7 +50,30 @@ WHERE p.TenantId IS NOT NULL
   AND NOT EXISTS (
       SELECT 1 FROM dbo.TenantProjects AS tp
       WHERE tp.TenantId = p.TenantId AND tp.ProjectId = p.Id
-  );");
+  );
+
+CREATE OR ALTER PROCEDURE dbo.usp_Platform_GetProjects
+    @TenantId BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        p.Id,
+        CASE WHEN @TenantId IS NOT NULL THEN @TenantId ELSE p.TenantId END AS TenantId,
+        CASE WHEN @TenantId IS NOT NULL THEN selectedTenant.Name ELSE legacyTenant.Name END AS TenantName,
+        p.Code, p.Name, p.BaseUrl, p.IsActive
+    FROM dbo.Projects AS p
+    LEFT JOIN dbo.Tenants AS legacyTenant ON legacyTenant.Id = p.TenantId
+    LEFT JOIN dbo.Tenants AS selectedTenant ON selectedTenant.Id = @TenantId
+    WHERE @TenantId IS NULL
+       OR p.TenantId = @TenantId
+       OR EXISTS (
+            SELECT 1 FROM dbo.TenantProjects AS tp
+            WHERE tp.TenantId = @TenantId AND tp.ProjectId = p.Id AND tp.IsEnabled = 1
+       )
+    ORDER BY p.Name;
+END;
+");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
