@@ -8,6 +8,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Project> Projects => Set<Project>();
+    public DbSet<TenantProject> TenantProjects => Set<TenantProject>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<PlatformRole> Roles => Set<PlatformRole>();
     public DbSet<PlatformPermission> Permissions => Set<PlatformPermission>();
@@ -50,6 +51,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique().HasFilter("[TenantId] IS NOT NULL");
             e.HasIndex(x => x.Code).IsUnique().HasFilter("[TenantId] IS NULL");
+        });
+        modelBuilder.Entity<TenantProject>(e =>
+        {
+            e.ToTable("TenantProjects", "dbo");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.IsEnabled).HasDefaultValue(true);
+            e.Property(x => x.AssignedUtc).HasColumnType("datetime2");
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TenantId, x.ProjectId }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.IsEnabled });
         });
         modelBuilder.Entity<Branch>(e =>
         {
