@@ -13,6 +13,7 @@ using PlatformHub.Infrastructure.Auth;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
 using PlatformHub.Api.Services;
+using PlatformHub.Api.Platform;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
