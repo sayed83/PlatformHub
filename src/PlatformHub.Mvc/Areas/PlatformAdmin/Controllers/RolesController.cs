@@ -17,8 +17,7 @@ public sealed class RolesController(PlatformApiClient api) : Controller
         if (token is null) return Challenge();
         var model = await LoadAsync(token, ct);
         if (model is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                "Unable to load roles and permissions from the Platform API.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
         return View(model);
     }
 
@@ -46,7 +45,7 @@ public sealed class RolesController(PlatformApiClient api) : Controller
 
         var current = await LoadAsync(token, ct);
         if (current is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to reload role data.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
         current.Code = model.Code;
         current.Name = model.Name;
         current.Description = model.Description;
