@@ -77,6 +77,9 @@ app.Use(async (context, next) =>
 
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
