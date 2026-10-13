@@ -82,7 +82,7 @@ public sealed class InventoryItemsController(
             UpdatedUtc = now,
             IsActive = true
         };
-        db.InventoryItems.Add(item);
+        db.Products.Add(item);
         await db.SaveChangesAsync(ct);
         return CreatedAtAction(nameof(Get), new { id = item.Id },
             new InventoryItemDto(item.Id, item.Sku, item.Name, item.Unit, item.IsActive, item.CreatedUtc, item.UpdatedUtc));
@@ -134,7 +134,7 @@ public sealed class InventoryItemsController(
 
     private IQueryable<InventoryItem> ScopedQuery(long tenantId, long? branchId, long? projectId)
     {
-        var query = db.InventoryItems.Where(x => x.TenantId == tenantId);
+        var query = db.Products.Where(x => x.TenantId == tenantId);
         if (branchId.HasValue) query = query.Where(x => x.BranchId == branchId.Value);
         else query = query.Where(x => x.BranchId == null);
         if (projectId.HasValue) query = query.Where(x => x.ProjectId == projectId.Value);
