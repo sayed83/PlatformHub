@@ -1,17 +1,29 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using PlatformHub.Mvc.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var configuredApiBaseUrl = builder.Configuration["Api:BaseUrl"];
+if (!Uri.TryCreate(configuredApiBaseUrl, UriKind.Absolute, out var apiBaseAddress) ||
+    (apiBaseAddress.Scheme != Uri.UriSchemeHttp && apiBaseAddress.Scheme != Uri.UriSchemeHttps))
+{
+    throw new InvalidOperationException(
+        "Configuration 'Api:BaseUrl' must be an absolute HTTP/HTTPS URL, for example https://localhost:7201/.");
+}
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
-builder.Services.AddScoped<PlatformHub.Mvc.Services.PlatformApiClient>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<PlatformApiClient>();
+builder.Services.AddTransient<PlatformApiResilienceHandler>();
 builder.Services.AddHttpClient("PlatformApi", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]!);
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
+    client.BaseAddress = apiBaseAddress;
+    // Fail quickly enough to render the MVC Error Center instead of leaving a page hanging.
+    client.Timeout = TimeSpan.FromSeconds(12);
+})
+.AddHttpMessageHandler<PlatformApiResilienceHandler>();
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -27,6 +39,42 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Establish a safe correlation ID before exception/status handlers so the same reference
+// is shown to the user and included in MVC/API logs.
+app.Use(async (context, next) =>
+{
+    var supplied = context.Request.Headers["X-Correlation-ID"].FirstOrDefault();
+    var isSafe = !string.IsNullOrWhiteSpace(supplied)
+        && supplied.Length <= 64
+        && supplied.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
+    var correlationId = isSafe ? supplied! : context.TraceIdentifier;
+
+    context.TraceIdentifier = correlationId;
+    context.Items["CorrelationId"] = correlationId;
+    context.Response.Headers["X-Correlation-ID"] = correlationId;
+
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("PlatformHub.Requests");
+    using (logger.BeginScope(new Dictionary<string, object>
+    {
+        ["CorrelationId"] = correlationId,
+        ["RequestMethod"] = context.Request.Method,
+        ["RequestPath"] = context.Request.Path.Value ?? "/"
+    }))
+    {
+        try
+        {
+            await next();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unhandled request exception. CorrelationId={CorrelationId}", correlationId);
+            throw;
+        }
+    }
+});
+
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
 app.UseHttpsRedirection();
