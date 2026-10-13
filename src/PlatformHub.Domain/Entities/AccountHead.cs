@@ -16,7 +16,7 @@ public sealed class AccountHead : ScopedBusinessEntity
     public string AccCategory { get; set; } = null!;
     public int Level { get; set; }
 
-    public long? TransId { get; set; }
+    public int? TransId { get; set; }
     public string? TransFrom { get; set; }
 
     public bool IsTaxable { get; set; }
