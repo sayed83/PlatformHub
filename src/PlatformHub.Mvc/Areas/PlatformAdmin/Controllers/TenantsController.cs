@@ -39,6 +39,50 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
 
 
     [HttpGet]
+    public async Task<IActionResult> Projects(long id, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+
+        var data = await api.GetAsync<TenantProjectAssignmentResponse>(
+            $"api/v1/platform/tenants/{id}/projects", token, ct);
+        if (data is null)
+        {
+            TempData["ErrorMessage"] = "Unable to load tenant project assignments. Check the Platform API and permissions.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View("Projects", new TenantProjectAssignmentViewModel
+        {
+            TenantId = data.Tenant.Id,
+            TenantCode = data.Tenant.Code,
+            TenantName = data.Tenant.Name,
+            SelectedProjectIds = data.AssignedProjectIds,
+            Projects = data.Projects
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignProjects(long id, List<long> projectIds, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+
+        var (result, error) = await api.PutAsync<AssignTenantProjectsResult>(
+            $"api/v1/platform/tenants/{id}/projects",
+            new { projectIds = projectIds.Distinct().ToArray() }, ct, token) is var response
+            ? (response, (string?)null)
+            : (default(AssignTenantProjectsResult), (string?)null);
+
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
+            ? (error ?? "Project assignments could not be saved. Check the API logs and selected projects.")
+            : $"Project assignments saved successfully ({result.AssignedCount} project(s)).";
+        return RedirectToAction(nameof(Projects), new { id });
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Dependencies(long id, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
@@ -140,3 +184,5 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         return RedirectToAction(nameof(Index));
     }
 }
+
+public sealed class AssignTenantProjectsResult { public string Message { get; set; } = string.Empty; public long TenantId { get; set; } public int AssignedCount { get; set; } }
