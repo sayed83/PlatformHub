@@ -279,11 +279,14 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
 
         var branches = await db.Branches.AsNoTracking().Where(x => x.TenantId == tenantId)
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).ToListAsync(cancellationToken);
-        var projects = await db.Projects.AsNoTracking().Where(x => x.TenantId == tenantId)
+        var projects = await db.Projects.AsNoTracking()
+            .Where(p => p.TenantId == tenantId ||
+                db.TenantProjects.Any(tp => tp.TenantId == tenantId && tp.ProjectId == p.Id && tp.IsEnabled))
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).ToListAsync(cancellationToken);
         var assignments = await db.UserRoleAssignments.AsNoTracking()
             .Where(x => x.TenantId == tenantId || (x.BranchId != null && db.Branches.Any(b => b.Id == x.BranchId && b.TenantId == tenantId))
-                || (x.ProjectId != null && db.Projects.Any(p => p.Id == x.ProjectId && p.TenantId == tenantId)))
+                || (x.ProjectId != null && db.Projects.Any(p => p.Id == x.ProjectId &&
+                    (p.TenantId == tenantId || db.TenantProjects.Any(tp => tp.TenantId == tenantId && tp.ProjectId == p.Id && tp.IsEnabled)))))
             .OrderBy(x => x.Role.Name).ThenBy(x => x.User.DisplayName)
             .Select(x => new {
                 x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, IsUserActive = x.User.IsActive,
