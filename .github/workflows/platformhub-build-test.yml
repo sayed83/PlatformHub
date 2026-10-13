@@ -3,11 +3,11 @@ name: PlatformHub build and security tests
 on:
   push:
     branches:
-      - main
+      - master
       - feature/first-platform-admin-bootstrap
   pull_request:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
