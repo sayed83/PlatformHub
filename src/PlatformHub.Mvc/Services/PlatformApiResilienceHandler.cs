@@ -33,7 +33,15 @@ public sealed class PlatformApiResilienceHandler(
             {
                 // The first attempt can use the original request. A retry gets a fresh GET message.
                 var currentRequest = attempt == 0 ? request : CloneGetRequest(request);
-                response = await base.SendAsync(currentRequest, cancellationToken);
+                try
+                {
+                    response = await base.SendAsync(currentRequest, cancellationToken);
+                }
+                finally
+                {
+                    if (!ReferenceEquals(currentRequest, request))
+                        currentRequest.Dispose();
+                }
 
                 if (attempt >= MaxRetries || !IsTransient(response.StatusCode))
                     return response;
