@@ -20,7 +20,8 @@ public sealed class MenuAccessController(PlatformApiClient api) : Controller
         var path = kind switch
         {
             "projects" => "api/v1/menu-access/projects",
-            "lookups" => $"api/v1/menu-access/lookups?projectId={projectId}",
+            "tenants" => $"api/v1/menu-access/tenants?projectId={projectId}",
+            "lookups" => $"api/v1/menu-access/lookups?projectId={projectId}&tenantId={Request.Query["tenantId"]}",
             "role" => $"api/v1/menu-access/role?projectId={projectId}&roleId={selectionId}",
             "user" => $"api/v1/menu-access/user?projectId={projectId}&userId={selectionId}",
             _ => null
