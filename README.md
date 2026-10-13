@@ -60,7 +60,7 @@ The endpoint returns 404 outside Development, refuses initialization if any Plat
 - Platform Admin access must be checked server-side for every protected operation, not merely from a client-supplied claim.
 - Use environment variables or a secret manager in deployments. Do not commit credentials.
 - If credentials were ever committed, rotate them; replacing the file alone does not remove them from Git history.
-- Production hardening includes startup validation for JWT key length/issuer/audience and HSTS outside Development. This is still a starter scaffold, not production-certified: add rate limiting, login lockout, refresh-token rotation, session/token invalidation, monitoring/alerting, deployment secret management, and production integration tests before deployment.
+- Production hardening includes startup validation for JWT key length/issuer/audience, HSTS outside Development, and IP-based fixed-window limits on login (10 requests/minute) and bootstrap (3 requests/5 minutes). When deployed behind a reverse proxy, configure trusted forwarded headers before relying on client IP-based limits. This is still a starter scaffold, not production-certified: add account-level login lockout, refresh-token rotation, session/token invalidation, monitoring/alerting, deployment secret management, and production integration tests before deployment.
 
 
 ## Role-based access control (RBAC)
