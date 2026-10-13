@@ -70,7 +70,8 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
             return;
         }
         var hasBranches = await db.Branches.AnyAsync(x => x.TenantId == id, cancellationToken);
-        var hasProjects = await db.Projects.AnyAsync(x => x.TenantId == id, cancellationToken);
+        var hasProjects = await db.Projects.AnyAsync(x => x.TenantId == id, cancellationToken) ||
+            await db.TenantProjects.AnyAsync(x => x.TenantId == id, cancellationToken);
         var hasAssignments = await db.UserRoleAssignments.AnyAsync(x => x.TenantId == id, cancellationToken);
         if (hasBranches || hasProjects || hasAssignments)
             throw new InvalidOperationException("Hard delete is unavailable because this tenant has branches, projects, or role assignments. Deactivate it instead.");
@@ -114,14 +115,24 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
             if (tenant is null) throw new ArgumentException("The selected tenant does not exist.");
             if (!tenant.IsActive) throw new InvalidOperationException("Projects cannot be created for an inactive tenant.");
         }
-        if (await db.Projects.AnyAsync(x => x.TenantId == request.TenantId && x.Code == code, cancellationToken))
-            throw new InvalidOperationException(request.TenantId.HasValue
-                ? "This project code already exists for the selected tenant."
-                : "This project code already exists for a project without a tenant.");
+        // Projects are catalogue definitions. A tenant selection at creation time
+        // creates an assignment; it does not make the project owned by that tenant.
+        if (await db.Projects.AnyAsync(x => x.Code == code, cancellationToken))
+            throw new InvalidOperationException("Project code already exists in the global project catalogue.");
 
-        var project = new Project { TenantId = tenant?.Id, Tenant = tenant, Code = code, Name = name, BaseUrl = baseUrl };
+        var project = new Project { TenantId = null, Tenant = null, Code = code, Name = name, BaseUrl = baseUrl };
         db.Projects.Add(project);
         await db.SaveChangesAsync(cancellationToken);
+
+        if (tenant is not null)
+        {
+            db.TenantProjects.Add(new TenantProject
+            {
+                TenantId = tenant.Id, ProjectId = project.Id, IsEnabled = true, AssignedUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return new ProjectDto(project.Id, tenant?.Id, tenant?.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
     }
 
@@ -145,18 +156,27 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
             if (tenant is null) throw new ArgumentException("The selected tenant does not exist.");
             if (!tenant.IsActive) throw new InvalidOperationException("Projects cannot be assigned to an inactive tenant.");
         }
-        if (await db.Projects.AnyAsync(x => x.Id != id && x.TenantId == tenantId && x.Code == code, cancellationToken))
-            throw new InvalidOperationException(tenantId.HasValue
-                ? "This project code already exists for the selected tenant."
-                : "This project code already exists for a standalone project.");
+        if (await db.Projects.AnyAsync(x => x.Id != id && x.Code == code, cancellationToken))
+            throw new InvalidOperationException("Project code already exists in the global project catalogue.");
 
-        project.TenantId = tenant?.Id;
-        project.Tenant = tenant;
         project.Code = code;
         project.Name = name;
         project.BaseUrl = baseUrl;
+        // Legacy TenantId is retained for existing rows during migration. New assignments
+        // are managed through TenantProjects, allowing one project to serve many tenants.
         await db.SaveChangesAsync(cancellationToken);
-        return new ProjectDto(project.Id, project.TenantId, project.Tenant?.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
+
+        if (tenant is not null && !await db.TenantProjects.AnyAsync(
+                x => x.TenantId == tenant.Id && x.ProjectId == project.Id, cancellationToken))
+        {
+            db.TenantProjects.Add(new TenantProject
+            {
+                TenantId = tenant.Id, ProjectId = project.Id, IsEnabled = true, AssignedUtc = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return new ProjectDto(project.Id, tenant?.Id, tenant?.Name, project.Code, project.Name, project.BaseUrl, project.IsActive);
     }
 
     public async Task DeleteProjectAsync(long id, bool hardDelete, CancellationToken cancellationToken)
@@ -164,8 +184,9 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
         var project = await db.Projects.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new ArgumentException("Project was not found.");
         if (!hardDelete) { project.IsActive = false; await db.SaveChangesAsync(cancellationToken); return; }
-        if (await db.UserRoleAssignments.AnyAsync(x => x.ProjectId == id, cancellationToken))
-            throw new InvalidOperationException("Hard delete is unavailable because this project has role assignments. Deactivate it instead.");
+        if (await db.UserRoleAssignments.AnyAsync(x => x.ProjectId == id, cancellationToken) ||
+            await db.TenantProjects.AnyAsync(x => x.ProjectId == id, cancellationToken))
+            throw new InvalidOperationException("Hard delete is unavailable because this project has tenant assignments or role assignments. Remove tenant assignments first, or deactivate it.");
         db.Projects.Remove(project);
         await db.SaveChangesAsync(cancellationToken);
     }
