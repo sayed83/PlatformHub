@@ -9,12 +9,12 @@ namespace PlatformHub.Infrastructure.Persistence;
 /// </summary>
 public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : DbContext(options)
 {
-    public DbSet<InventoryItemModel> Products => Set<InventoryItemModel>();
+    public DbSet<InventoryItem> Products => Set<InventoryItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("dbo");
-        modelBuilder.Entity<InventoryItemModel>(e =>
+        modelBuilder.Entity<InventoryItem>(e =>
         {
             e.ToTable("Products", "dbo");
             e.HasKey(x => x.Id);
