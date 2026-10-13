@@ -70,14 +70,12 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
 
-        var (result, error) = await api.PutAsync<AssignTenantProjectsResult>(
+        var result = await api.PutAsync<AssignTenantProjectsResult>(
             $"api/v1/platform/tenants/{id}/projects",
-            new { projectIds = projectIds.Distinct().ToArray() }, ct, token) is var response
-            ? (response, (string?)null)
-            : (default(AssignTenantProjectsResult), (string?)null);
+            new { projectIds = projectIds.Distinct().ToArray() }, ct, token);
 
         TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null
-            ? (error ?? "Project assignments could not be saved. Check the API logs and selected projects.")
+            ? "Project assignments could not be saved. Check the API logs and selected projects."
             : $"Project assignments saved successfully ({result.AssignedCount} project(s)).";
         return RedirectToAction(nameof(Projects), new { id });
     }
