@@ -312,7 +312,7 @@ Remaining release rule (not a current-code defect): when tenant-facing business 
 
 ## Tenant-scoped Inventory Catalog API
 
-The first business-data vertical slice is the Inventory Item catalog. It is deliberately separate from platform administration data and uses the validated active workspace from `ActiveTenantContext`.
+The first business-data vertical slice is the Inventory Item catalog, stored in the `dbo.Products` table. It is deliberately separate from platform administration data and uses the validated active workspace from `ActiveTenantContext`.
 
 - Routes: `GET/POST /api/inventory/items`, `GET/PUT/DELETE /api/inventory/items/{id}`.
 - Authorization uses database-backed `Inventory.Item.View`, `Inventory.Item.Create`, `Inventory.Item.Update`, and `Inventory.Item.Deactivate` permissions.
