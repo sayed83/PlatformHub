@@ -74,12 +74,12 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
             e.Property(x => x.AccHeadCode).HasMaxLength(20);
             e.Property(x => x.AccType).HasMaxLength(50).IsRequired();
             e.Property(x => x.AccCategory).HasMaxLength(50).IsRequired();
-            e.Property(x => x.TransFrom).HasMaxLength(100);
+            
             e.Property(x => x.DefaultTaxRate).HasPrecision(5, 2);
             e.Property(x => x.PaymentType).HasMaxLength(30);
             e.Property(x => x.Description).HasMaxLength(500);
             e.Property(x => x.NatureOfGroup).HasMaxLength(20);
-            e.Property(x => x.AccountPurpose).HasMaxLength(100);
+            
             e.Property(x => x.CashFlowType).HasMaxLength(20);
             e.Property(x => x.TaxCategory).HasMaxLength(50);
             e.Property(x => x.BudgetAmount).HasPrecision(18, 2);
