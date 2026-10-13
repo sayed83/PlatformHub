@@ -99,11 +99,25 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("items")]
-    public async Task<IActionResult> Items([FromQuery] long projectId, CancellationToken ct)
+    public async Task<IActionResult> Items(
+        [FromQuery] long projectId,
+        [FromQuery] long? moduleId,
+        [FromQuery] bool standaloneOnly = false,
+        CancellationToken ct = default)
     {
         if (projectId <= 0) return BadRequest(new { message = "Select a valid project." });
-        return Ok(await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId)
-            .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+
+        var query = db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId);
+        if (standaloneOnly)
+            query = query.Where(x => x.ModuleId == null);
+        else if (moduleId.HasValue)
+        {
+            if (!await db.ProjectModules.AnyAsync(x => x.Id == moduleId.Value && x.ProjectId == projectId, ct))
+                return BadRequest(new { message = "Selected module does not belong to this project." });
+            query = query.Where(x => x.ModuleId == moduleId.Value);
+        }
+
+        return Ok(await query.OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new { x.Id, x.ProjectId, x.ModuleId, x.ParentMenuId, x.Code, x.Name, x.Area, x.Controller, x.Action, x.RouteUrl, x.Icon, x.SortOrder, x.IsExternal, x.IsActive })
             .ToListAsync(ct));
     }
