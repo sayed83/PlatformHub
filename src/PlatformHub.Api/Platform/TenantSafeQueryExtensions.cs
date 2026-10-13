@@ -37,6 +37,12 @@ public static class TenantSafeQueryExtensions
         if (!scope.IsResolved || scope.TenantId is not > 0)
             return query;
 
+        // Fail closed if a selected workspace dimension is not represented in the query.
+        // Call WhereInActiveTenant explicitly for entities that are tenant-owned only.
+        if ((scope.BranchId.HasValue && string.IsNullOrWhiteSpace(branchIdProperty)) ||
+            (scope.ProjectId.HasValue && string.IsNullOrWhiteSpace(projectIdProperty)))
+            return query.Where(_ => false);
+
         var parameter = Expression.Parameter(typeof(TEntity), "entity");
         Expression body = Expression.Equal(
             Expression.Call(typeof(EF), nameof(EF.Property), new[] { typeof(long) },
