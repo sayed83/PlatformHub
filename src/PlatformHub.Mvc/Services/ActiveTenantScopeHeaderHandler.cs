@@ -6,13 +6,13 @@ public sealed class ActiveTenantScopeHeaderHandler(IHttpContextAccessor accessor
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var context = accessor.HttpContext;
-        var path = request.RequestUri?.OriginalString ?? string.Empty;
+        var path = request.RequestUri?.AbsolutePath ?? request.RequestUri?.OriginalString ?? string.Empty;
 
         // Scope discovery and authentication must work before a workspace is selected.
-        var excluded = path.Contains("/api/v1/auth/", StringComparison.OrdinalIgnoreCase)
-            || path.Contains("/api/v1/platform-bootstrap/", StringComparison.OrdinalIgnoreCase)
-            || path.Contains("/api/v1/platform/", StringComparison.OrdinalIgnoreCase)
-            || path.Contains("/api/v1/workspace/scopes", StringComparison.OrdinalIgnoreCase);
+        var excluded = path.Contains("api/v1/auth/", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("api/v1/platform-bootstrap/", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("api/v1/platform/", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("api/v1/workspace/scopes", StringComparison.OrdinalIgnoreCase);
 
         if (!excluded && context?.User.Identity?.IsAuthenticated == true)
         {
