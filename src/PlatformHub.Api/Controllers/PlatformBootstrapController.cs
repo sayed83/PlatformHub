@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Application.Auth;
 using PlatformHub.Domain.Entities;
@@ -23,6 +24,7 @@ public sealed class PlatformBootstrapController(
     IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost("first-admin")]
+    [EnableRateLimiting("platform-bootstrap")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
