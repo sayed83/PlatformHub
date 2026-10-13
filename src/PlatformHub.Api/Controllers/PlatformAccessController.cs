@@ -335,11 +335,25 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         if (request.ProjectId.HasValue)
         {
             var project = await db.Projects.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == request.ProjectId.Value, cancellationToken);
-            if (project is null) return BadRequest(new { message = "Project scope does not exist." });
-            if (request.TenantId.HasValue && request.TenantId != project.TenantId)
-                return BadRequest(new { message = "Project and tenant scope do not match." });
-            if (request.TenantId is null) request = request with { TenantId = project.TenantId };
+                .SingleOrDefaultAsync(x => x.Id == request.ProjectId.Value && x.IsActive, cancellationToken);
+            if (project is null) return BadRequest(new { message = "Project scope does not exist or is inactive." });
+
+            if (request.TenantId.HasValue)
+            {
+                var assigned = project.TenantId == request.TenantId ||
+                    await db.TenantProjects.AnyAsync(tp => tp.TenantId == request.TenantId.Value &&
+                        tp.ProjectId == project.Id && tp.IsEnabled, cancellationToken);
+                if (!assigned)
+                    return BadRequest(new { message = "This project is not assigned to the selected tenant. Assign it from Tenant Management first." });
+            }
+            else if (project.TenantId.HasValue)
+            {
+                request = request with { TenantId = project.TenantId };
+            }
+            else
+            {
+                return BadRequest(new { message = "Select a tenant when assigning a role to a reusable project." });
+            }
         }
 
         if (request.BranchId.HasValue)
