@@ -101,12 +101,21 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         if (project is null)
             return [];
 
+        var tenantIds = await db.TenantProjects.AsNoTracking()
+            .Where(tp => tp.ProjectId == projectId && tp.IsEnabled && tp.Tenant.IsActive)
+            .Select(tp => tp.TenantId)
+            .ToListAsync(ct);
+        if (project.TenantId.HasValue && !tenantIds.Contains(project.TenantId.Value))
+            tenantIds.Add(project.TenantId.Value); // compatibility for pre-migration project ownership
+
         return await db.UserRoleAssignments.AsNoTracking()
-            .Where(a => a.UserId == userId &&
+            .Where(a => a.UserId == userId && a.Role.IsActive &&
                 (a.ProjectId == projectId ||
-                 (a.ProjectId == null && a.BranchId == null && a.TenantId == project.TenantId) ||
+                 (a.ProjectId == null && a.BranchId == null &&
+                    a.TenantId.HasValue && tenantIds.Contains(a.TenantId.Value)) ||
                  (a.ProjectId == null && a.BranchId != null &&
-                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive && b.TenantId == project.TenantId))))
+                    db.Branches.Any(b => b.Id == a.BranchId && b.IsActive &&
+                        tenantIds.Contains(b.TenantId)))))
             .Select(a => a.RoleId)
             .Distinct()
             .ToListAsync(ct);
