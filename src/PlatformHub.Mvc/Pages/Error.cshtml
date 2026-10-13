@@ -26,12 +26,25 @@
                         <li class="mb-2">@action</li>
                     }
                 </ul>
-                @if (!string.IsNullOrWhiteSpace(Model.RequestPath))
+                <div class="alert alert-light border mt-4">
+                    <h2 class="h6 fw-bold">Diagnostic information</h2>
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-3 text-secondary">Request</dt>
+                        <dd class="col-sm-9"><code class="text-break">@Model.RequestMethod @Model.RequestPath@Model.QueryString</code></dd>
+                        <dt class="col-sm-3 text-secondary">HTTP status</dt>
+                        <dd class="col-sm-9">@Model.StatusCode</dd>
+                        <dt class="col-sm-3 text-secondary">Environment</dt>
+                        <dd class="col-sm-9">@Model.EnvironmentName</dd>
+                        <dt class="col-sm-3 text-secondary">Reference ID</dt>
+                        <dd class="col-sm-9"><code class="text-break">@Model.TraceId</code></dd>
+                    </dl>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails))
                 {
-                    <div class="alert alert-light border mt-4 mb-0">
-                        <div class="small text-secondary mb-1">Request path</div>
-                        <code class="text-break">@Model.RequestPath</code>
-                    </div>
+                    <details class="border rounded-3 p-3 mt-3">
+                        <summary class="fw-semibold">Technical details (Development only)</summary>
+                        <pre class="small text-break text-wrap mt-3 mb-0">@Model.TechnicalDetails</pre>
+                    </details>
                 }
                 <div class="d-flex flex-wrap gap-2 mt-4">
                     <button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button>
