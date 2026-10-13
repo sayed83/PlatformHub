@@ -142,6 +142,14 @@ Authorization: Bearer <access-token>
 
 **Required for each future tenant-facing endpoint:** call `IScopedAccessService.CanAccessAsync(userId, requiredPermissionCode, tenantId, branchId, projectId, cancellationToken)` before querying or returning tenant data. Use the tenant/branch/project IDs resolved from the requested resource on the server, not IDs supplied only by the UI. Platform management endpoints are global administration endpoints and remain protected by Platform Admin policies.
 
+**Tenant API enforcement checklist**
+- Navigation and endpoint-level menu checks require a validated active tenant context; when a project is selected in the context, a different requested project is denied.
+- Effective menu access is evaluated for the selected tenant only. A reusable/shared project is not authorization by itself: that tenant must have an active TenantProjects subscription and the user's role assignment must be explicitly anchored to that tenant (or to a branch belonging to it).
+- Keep platform-wide administration endpoints under their existing PlatformAdmin policies. Do not apply tenant-context requirements to platform catalog/tenant management endpoints.
+- Every tenant data endpoint must resolve the tenant/branch/project from the target resource and call IScopedAccessService.CanAccessAsync before returning or mutating data. For writes, validate that every referenced child record belongs to the same tenant/workspace before saving.
+- EF Core query helpers are opt-in, not global filters. Dapper, raw SQL, stored procedures, exports, background jobs and bulk updates must include explicit tenant/workspace predicates and must fail closed when scope is missing. Do not pass an untrusted client-provided tenant ID straight into a query.
+- Security regression tests must cover cross-tenant resource IDs, inactive tenants/users/branches/projects, missing permissions, user-specific deny overrides, and shared projects with and without tenant subscriptions.
+
 
 ## Optional default users for built-in roles
 
