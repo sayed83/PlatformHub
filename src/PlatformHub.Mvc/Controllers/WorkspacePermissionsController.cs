@@ -13,7 +13,8 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
     public async Task<IActionResult> Index(string targetType = "role", long? targetId = null, CancellationToken ct = default)
     {
         if (User.FindFirst("ph_platform_admin")?.Value == "true")
-            return RedirectToAction("Index", "Roles", new { area = "PlatformAdmin" });
+            return RedirectToAction("Index", "MenuAccess", new { area = "PlatformAdmin" });
+        return Forbid();
         if (targetType is not ("role" or "user")) targetType = "role";
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
