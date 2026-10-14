@@ -69,33 +69,34 @@
         <section class="rp-panel" id="createRole">
             <div class="rp-panel-head">
                 <div class="rp-eyebrow text-primary mb-1">Role builder</div>
-                <h2 class="h5 fw-bold mb-1">Create custom role</h2>
-                <p class="small text-secondary mb-0">Start with a clear name and purpose. Assign permissions after creation.</p>
+                <h2 class="h5 fw-bold mb-1" id="roleFormTitle">Create custom role</h2>
+                <p class="small text-secondary mb-0" id="roleFormHelp">Start with a clear name and purpose. Assign permissions after creation.</p>
             </div>
             <div class="p-3 p-lg-4">
-                <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Create" method="post">
+                <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SaveRole" method="post" id="roleEditorForm">
                     @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="EditingRoleId" id="EditingRoleId" value="0" />
                     <div class="mb-3">
                         <label asp-for="Code" class="form-label fw-semibold">Role code <span class="text-danger">*</span></label>
-                        <input asp-for="Code" class="form-control" placeholder="SUPPORT_MANAGER" autocomplete="off" />
+                        <input asp-for="Code" id="roleCode" class="form-control" placeholder="SUPPORT_MANAGER" autocomplete="off" />
                         <span asp-validation-for="Code" class="text-danger small"></span>
                         <div class="form-text">Unique identifier; use uppercase letters and underscores.</div>
                     </div>
                     <div class="mb-3">
                         <label asp-for="Name" class="form-label fw-semibold">Role name <span class="text-danger">*</span></label>
-                        <input asp-for="Name" class="form-control" placeholder="Support Manager" />
+                        <input asp-for="Name" id="roleName" class="form-control" placeholder="Support Manager" />
                         <span asp-validation-for="Name" class="text-danger small"></span>
                     </div>
                     <div class="mb-3">
                         <label asp-for="Description" class="form-label fw-semibold">Description</label>
-                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Describe what this role is responsible for."></textarea>
+                        <textarea asp-for="Description" id="roleDescription" class="form-control" rows="3" placeholder="Describe what this role is responsible for."></textarea>
                     </div>
                     <div class="mb-4">
                         <label asp-for="BaseRedirectUrl" class="form-label fw-semibold">Default redirect URL <span class="text-secondary fw-normal">(optional)</span></label>
-                        <input asp-for="BaseRedirectUrl" class="form-control" placeholder="/Workspace" />
+                        <input asp-for="BaseRedirectUrl" id="roleBaseRedirectUrl" class="form-control" placeholder="/Workspace" />
                         <div class="form-text">A user-specific redirect takes precedence over this role default.</div>
                     </div>
-                    <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit">＋ Create role</button>
+                    <div class="d-grid gap-2"><button id="roleSubmitButton" class="btn btn-primary py-2 fw-semibold" type="submit">＋ Create role</button><button id="roleCancelEdit" class="btn btn-outline-secondary d-none" type="button">Cancel edit</button></div>
                 </form>
             </div>
         </section>
@@ -194,6 +195,10 @@
                                     else if (canConfigure)
                                     {
                                         <div class="d-flex gap-2 flex-wrap justify-content-end">
+                                            @if (!isSuperRole && (!role.IsSystemRole || isSuperAdmin))
+                                            {
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" data-edit-role data-id="@role.Id" data-code="@role.Code" data-name="@role.Name" data-description="@role.Description" data-redirect="@role.BaseRedirectUrl">Edit details</button>
+                                            }
                                             <button type="button" class="btn btn-outline-primary btn-sm" data-role-toggle="@role.Id" aria-expanded="false" aria-controls="role-permissions-@role.Id">Configure <span aria-hidden="true">⌄</span></button>
                                             <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post" class="d-inline">
                                                 @Html.AntiForgeryToken()
@@ -308,6 +313,44 @@
         });
         roleEmpty?.classList.toggle('d-none', visible !== 0);
     }
+    const editor = document.getElementById('roleEditorForm');
+    const editId = document.getElementById('EditingRoleId');
+    const codeInput = document.getElementById('roleCode');
+    const nameInput = document.getElementById('roleName');
+    const descriptionInput = document.getElementById('roleDescription');
+    const redirectInput = document.getElementById('roleBaseRedirectUrl');
+    const formTitle = document.getElementById('roleFormTitle');
+    const formHelp = document.getElementById('roleFormHelp');
+    const submitButton = document.getElementById('roleSubmitButton');
+    const cancelEdit = document.getElementById('roleCancelEdit');
+
+    function resetRoleEditor() {
+        editor?.reset();
+        if (editId) editId.value = '0';
+        if (codeInput) { codeInput.readOnly = false; codeInput.disabled = false; }
+        if (formTitle) formTitle.textContent = 'Create custom role';
+        if (formHelp) formHelp.textContent = 'Start with a clear name and purpose. Assign permissions after creation.';
+        if (submitButton) submitButton.textContent = '＋ Create role';
+        cancelEdit?.classList.add('d-none');
+    }
+    document.querySelectorAll('[data-edit-role]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            if (editId) editId.value = button.dataset.id || '0';
+            if (codeInput) { codeInput.value = button.dataset.code || ''; codeInput.readOnly = true; }
+            if (nameInput) nameInput.value = button.dataset.name || '';
+            if (descriptionInput) descriptionInput.value = button.dataset.description || '';
+            if (redirectInput) redirectInput.value = button.dataset.redirect || '';
+            if (formTitle) formTitle.textContent = 'Update role';
+            if (formHelp) formHelp.textContent = 'Modify the selected role details. The role code cannot be changed.';
+            if (submitButton) submitButton.textContent = 'Save role changes';
+            cancelEdit?.classList.remove('d-none');
+            document.getElementById('createRole')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            nameInput?.focus({ preventScroll: true });
+        });
+    });
+    cancelEdit?.addEventListener('click', resetRoleEditor);
+
     document.querySelectorAll('form button[data-confirm]').forEach(button => button.addEventListener('click', event => { if (!confirm(button.dataset.confirm)) event.preventDefault(); }));
     roleSearch?.addEventListener('input', filterRoles);
     roleTypeFilter?.addEventListener('change', filterRoles);
