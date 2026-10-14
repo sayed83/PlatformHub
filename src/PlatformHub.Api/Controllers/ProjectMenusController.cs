@@ -182,6 +182,49 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
+    [HttpGet("modules/{moduleId:long}/hard-delete-details")]
+    public async Task<IActionResult> ModuleHardDeleteDetails(long moduleId, [FromQuery] long projectId, CancellationToken ct)
+    {
+        var module = await db.ProjectModules.AsNoTracking()
+            .Where(x => x.Id == moduleId && x.ProjectId == projectId)
+            .Select(x => new { x.Id, x.ProjectId, x.Code, x.Name, x.IsActive })
+            .SingleOrDefaultAsync(ct);
+        if (module is null) return NotFound(new { message = "Module was not found in the selected project." });
+        var menus = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.ModuleId == moduleId)
+            .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.Name, x.IsActive,
+                RoleAccessCount = db.RoleWiseMenuAccesses.Count(a => a.MenuItemId == x.Id),
+                UserAccessCount = db.UserWiseMenuAccesses.Count(a => a.MenuItemId == x.Id),
+                ChildMenuCount = db.MenuItems.Count(m => m.ParentMenuId == x.Id && m.ProjectId == projectId) }).ToListAsync(ct);
+        return Ok(new { itemType = "module", module, relatedMenus = menus,
+            canHardDelete = menus.Count == 0,
+            reason = menus.Count == 0 ? null : "Delete or reassign all menu entries before permanently deleting this module." });
+    }
+
+    [HttpGet("items/{menuItemId:long}/hard-delete-details")]
+    public async Task<IActionResult> MenuHardDeleteDetails(long menuItemId, [FromQuery] long projectId, CancellationToken ct)
+    {
+        var menu = await db.MenuItems.AsNoTracking().Where(x => x.Id == menuItemId && x.ProjectId == projectId)
+            .Select(x => new { x.Id, x.ProjectId, x.ModuleId, ModuleName = x.Module == null ? "Standalone" : x.Module.Name,
+                x.ParentMenuId, ParentMenuName = x.ParentMenu == null ? null : x.ParentMenu.Name,
+                x.Code, x.Name, x.RouteUrl, x.IsActive })
+            .SingleOrDefaultAsync(ct);
+        if (menu is null) return NotFound(new { message = "Menu was not found in the selected project." });
+        var children = await db.MenuItems.AsNoTracking().Where(x => x.ProjectId == projectId && x.ParentMenuId == menuItemId)
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsActive }).ToListAsync(ct);
+        var roleAccess = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.MenuItemId == menuItemId)
+            .Select(x => new { x.Id, RoleName = x.Role.Name, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
+        var userAccess = await db.UserWiseMenuAccesses.AsNoTracking().Where(x => x.MenuItemId == menuItemId)
+            .Select(x => new { x.Id, UserName = x.User.UserName, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
+        var seeded = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST", "USER_LIST",
+            "ROLE_LIST", "PERMISSION_CATALOG", "MENU_PERMISSION", "MENU_PERMISSIONS", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" }
+            .Contains(menu.Code, StringComparer.OrdinalIgnoreCase);
+        var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0;
+        return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess, isSeededSystemMenu = seeded,
+            canHardDelete, reason = seeded ? "This is a seeded system menu; use soft delete." :
+                children.Count > 0 ? "Reassign or delete child menus first." :
+                roleAccess.Count > 0 || userAccess.Count > 0 ? "This menu has role/user access history. Use soft delete to preserve it." : null });
+    }
+
     [HttpPost("modules/{moduleId:long}/delete")]
     public async Task<IActionResult> DeleteModule(long moduleId, [FromBody] DeleteModuleRequest request, CancellationToken ct)
     {
