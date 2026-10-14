@@ -537,6 +537,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
 public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? BranchId, long? ProjectId);
 public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
 public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
+public sealed record SetRoleStatusRequest(bool IsActive);
 
 public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl, bool IsPlatformAdmin = false);
 public sealed record UpdatePlatformUserRequest(string DisplayName, bool IsActive, string? BaseRedirectUrl);
