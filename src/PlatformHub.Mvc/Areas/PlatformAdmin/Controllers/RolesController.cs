@@ -152,9 +152,13 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
         if (!IsPlatformAdmin()) return Forbid();
         var token = AccessToken();
         if (token is null) return Challenge();
-        var result = await api.PutAsync<ApiOperationResult>($"api/v1/platform/access/roles/{id}/status", new { IsActive = isActive }, ct, token);
-        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result?.Message
-            ?? "Role status could not be changed. The role may be protected or your account may lack Role.Update.";
+        var result = await api.PutAsync<RoleStatusResult>($"api/v1/platform/access/roles/{id}/status", new { IsActive = isActive }, ct, token);
+        if (result is null)
+            TempData["ErrorMessage"] = "The API did not confirm the role status change. Check API logs and refresh the page before retrying.";
+        else if (result.IsActive != isActive)
+            TempData["ErrorMessage"] = $"The API returned a different status for role '{result.Name}'. Expected {(isActive ? "Active" : "Inactive")}, received {(result.IsActive ? "Active" : "Inactive")}.";
+        else
+            TempData["SuccessMessage"] = result.Message;
         return RedirectToAction(nameof(Index));
     }
 
@@ -196,5 +200,5 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
 
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
     private string? AccessToken() => User.FindFirst("ph_api_access_token")?.Value;
-    public sealed record ApiOperationResult(string Message, long RoleId, int PermissionCount);
+    public sealed record ApiOperationResult(string Message, long RoleId, int PermissionCount);\n    public sealed record RoleStatusResult(string Message, long Id, string Code, string Name, bool IsActive);
 }
