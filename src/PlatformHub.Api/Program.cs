@@ -157,6 +157,8 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.Permission, "Role.Create"));
     options.AddPolicy("Role.Update", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Role.Update"));
+    options.AddPolicy("Role.Deactivate", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "Role.Deactivate"));
     options.AddPolicy("Role.Assign", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Role.Assign"));
     options.AddPolicy("Role.View", policy => policy.RequireAuthenticatedUser()

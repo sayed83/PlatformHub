@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
 
@@ -34,9 +35,7 @@ public sealed class WorkspaceController(
             userId, "Role.View", tenantId, branchId, projectId, cancellationToken);
         if (!allowed) return Forbid();
 
-        // Show only active roles actually assigned within this exact workspace scope.
-        // Role definitions are shared platform catalog entries; workspace admins do not
-        // get the global role editor from this read-only page.
+        // Show global system roles and custom roles owned by this tenant only.
         var assignments = db.UserRoleAssignments.AsNoTracking()
             .Where(a => a.TenantId == tenantId ||
                 (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value));
@@ -51,11 +50,11 @@ public sealed class WorkspaceController(
 
         var roleIds = assignments.Select(a => a.RoleId).Distinct();
         var roles = await db.Roles.AsNoTracking()
-            .Where(r => roleIds.Contains(r.Id) && r.IsActive)
+            .Where(r => (r.TenantId == null && r.IsSystemRole || r.TenantId == tenantId) && (r.IsActive || r.TenantId == tenantId))
             .OrderBy(r => r.Name)
             .Select(r => new
             {
-                r.Id, r.Code, r.Name, r.Description, r.BaseRedirectUrl,
+                r.Id, r.TenantId, r.Code, r.Name, r.Description, r.BaseRedirectUrl, r.IsActive, r.IsSystemRole,
                 UserCount = assignments.Where(a => a.RoleId == r.Id)
                     .Select(a => a.UserId).Distinct().Count(),
                 Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id)
@@ -63,6 +62,55 @@ public sealed class WorkspaceController(
             }).ToListAsync(cancellationToken);
         return Ok(roles);
     }
+
+
+    [HttpPost("roles")]
+    public async Task<IActionResult> CreateWorkspaceRole([FromQuery] long tenantId, [FromQuery] long? branchId, [FromQuery] long? projectId, [FromBody] WorkspaceRoleCreateRequest request, CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) return Unauthorized();
+        if (tenantId <= 0 || !await scopedAccess.CanAccessAsync(userId, "Role.Create", tenantId, branchId, projectId, cancellationToken)) return Forbid();
+        if (!await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive, cancellationToken)) return NotFound(new { message = "Tenant was not found or is inactive." });
+        var code = request.Code?.Trim().ToUpperInvariant(); var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name) || code.Length > 100 || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500 || code.Contains(' ') || code == PlatformRbacSeeder.SuperAdminCode) return BadRequest(new { message = "Provide a valid role code and name. Protected role codes are reserved." });
+        if (await db.Roles.AnyAsync(r => r.TenantId == tenantId && r.Code == code, cancellationToken)) return Conflict(new { message = "This role code already exists in the selected tenant." });
+        var role = new PlatformRole { TenantId = tenantId, Code = code, Name = name, Description = request.Description?.Trim(), BaseRedirectUrl = request.BaseRedirectUrl?.Trim(), IsSystemRole = false, IsActive = true };
+        db.Roles.Add(role); await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { role.Id, role.TenantId, role.Code, role.Name, role.Description, role.BaseRedirectUrl, role.IsActive, role.IsSystemRole, UserCount = 0, Permissions = Array.Empty<string>() });
+    }
+
+    [HttpPut("roles/{roleId:long}")]
+    public async Task<IActionResult> UpdateWorkspaceRole(long roleId, [FromQuery] long tenantId, [FromQuery] long? branchId, [FromQuery] long? projectId, [FromBody] WorkspaceRoleUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) return Unauthorized();
+        if (!await scopedAccess.CanAccessAsync(userId, "Role.Update", tenantId, branchId, projectId, cancellationToken)) return Forbid();
+        var role = await db.Roles.SingleOrDefaultAsync(r => r.Id == roleId && r.TenantId == tenantId && !r.IsSystemRole, cancellationToken);
+        if (role is null) return NotFound(new { message = "Tenant custom role not found." });
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500) return BadRequest(new { message = "Role name is required (max 150 characters); description and redirect URL must not exceed 500 characters." });
+        role.Name = name; role.Description = request.Description?.Trim(); role.BaseRedirectUrl = request.BaseRedirectUrl?.Trim(); await db.SaveChangesAsync(cancellationToken); await RevokeRoleSessionsAsync(roleId, cancellationToken);
+        return Ok(new { message = "Tenant role updated.", role.Id, role.Name, role.Description, role.BaseRedirectUrl, role.IsActive });
+    }
+
+    [HttpPut("roles/{roleId:long}/status")]
+    public async Task<IActionResult> SetWorkspaceRoleStatus(long roleId, [FromQuery] long tenantId, [FromQuery] long? branchId, [FromQuery] long? projectId, [FromBody] WorkspaceRoleStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) return Unauthorized();
+        var permission = request.IsActive ? "Role.Update" : "Role.Deactivate";
+        if (!await scopedAccess.CanAccessAsync(userId, permission, tenantId, branchId, projectId, cancellationToken)) return Forbid();
+        var role = await db.Roles.SingleOrDefaultAsync(r => r.Id == roleId && r.TenantId == tenantId && !r.IsSystemRole, cancellationToken);
+        if (role is null) return NotFound(new { message = "Tenant custom role not found." });
+        role.IsActive = request.IsActive; await db.SaveChangesAsync(cancellationToken); await RevokeRoleSessionsAsync(roleId, cancellationToken);
+        return Ok(new { message = $"Role {(role.IsActive ? "activated" : "deactivated")} successfully.", role.Id, role.Name, role.IsActive });
+    }
+
+    private async Task RevokeRoleSessionsAsync(long roleId, CancellationToken cancellationToken)
+    {
+        var userIds = await db.UserRoleAssignments.Where(a => a.RoleId == roleId).Select(a => a.UserId).Distinct().ToArrayAsync(cancellationToken);
+        if (userIds.Length > 0) await db.RefreshSessions.Where(s => userIds.Contains(s.UserId) && s.RevokedUtc == null).ExecuteUpdateAsync(update => update.SetProperty(s => s.RevokedUtc, DateTime.UtcNow), cancellationToken);
+    }
+    public sealed record WorkspaceRoleCreateRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
+    public sealed record WorkspaceRoleUpdateRequest(string Name, string? Description, string? BaseRedirectUrl);
+    public sealed record WorkspaceRoleStatusRequest(bool IsActive);
 
     [HttpGet("users")]
     public async Task<IActionResult> GetWorkspaceUsers(

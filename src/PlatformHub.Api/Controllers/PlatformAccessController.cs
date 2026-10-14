@@ -169,7 +169,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     {
         var isSuperAdmin = IsSuperAdmin();
         var roles = await db.Roles.AsNoTracking()
-            .Where(x => isSuperAdmin || x.Code != PlatformRbacSeeder.SuperAdminCode)
+            .Where(x => x.TenantId == null && (isSuperAdmin || x.Code != PlatformRbacSeeder.SuperAdminCode))
             .OrderBy(x => x.IsSystemRole ? 0 : 1).ThenBy(x => x.Name)
             .Select(x => new
             {
@@ -193,11 +193,12 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             return BadRequest(new { message = "Role fields exceed their allowed length." });
         if (code == PlatformRbacSeeder.SuperAdminCode || code.Contains(' '))
             return BadRequest(new { message = "This role code is reserved or invalid." });
-        if (await db.Roles.AnyAsync(x => x.Code == code, cancellationToken))
+        if (await db.Roles.AnyAsync(x => x.Code == code && x.TenantId == null, cancellationToken))
             return Conflict(new { message = "Role code already exists." });
 
         var role = new PlatformRole
         {
+            TenantId = null,
             Code = code,
             Name = name,
             Description = request.Description?.Trim(),
@@ -245,7 +246,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     }
 
     [HttpPut("roles/{roleId:long}/status")]
-    [Authorize(Policy = "Role.Update")]
+    [Authorize(Policy = "Role.Deactivate")]
     public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
     {
         var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);

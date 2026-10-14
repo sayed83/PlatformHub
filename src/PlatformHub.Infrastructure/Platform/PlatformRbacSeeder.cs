@@ -30,6 +30,7 @@ public static class PlatformRbacSeeder
         ("Role.View", "View roles", "Access"),
         ("Role.Create", "Create roles", "Access"),
         ("Role.Update", "Update roles", "Access"),
+        ("Role.Deactivate", "Activate or deactivate roles", "Access"),
         ("Role.Assign", "Assign roles to users", "Access"),
         ("Permission.View", "View permission catalog", "Access"),
         ("MenuAccess.View", "View role and user project-menu access", "Access"),
@@ -69,7 +70,7 @@ public static class PlatformRbacSeeder
 
         foreach (var item in RoleCatalog)
         {
-            if (!await db.Roles.AnyAsync(x => x.Code == item.Code, cancellationToken))
+            if (!await db.Roles.AnyAsync(x => x.Code == item.Code && x.TenantId == null, cancellationToken))
             {
                 db.Roles.Add(new PlatformRole
                 {

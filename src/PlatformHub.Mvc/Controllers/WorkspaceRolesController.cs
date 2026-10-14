@@ -9,6 +9,46 @@ namespace PlatformHub.Mvc.Controllers;
 [Route("WorkspaceRoles")]
 public sealed class WorkspaceRolesController(PlatformApiClient api) : Controller
 {
+
+    [HttpPost("create")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(WorkspaceRoleRowViewModel model, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_permission", "Role.Create")) return Forbid();
+        var scope = ScopeQuery(); if (scope is null) return RedirectToAction("Index", "Workspace");
+        var result = await api.PostAsync<WorkspaceRoleRowViewModel>($"api/v1/workspace/roles?{scope}", new { model.Code, model.Name, model.Description, model.BaseRedirectUrl }, ct, User.FindFirst("ph_api_access_token")?.Value);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result is null ? "Role could not be created. Check Role.Create permission and unique role code." : $"Role '{result.Name}' created.";
+        return RedirectToAction(nameof(Index));
+    }
+    [HttpPost("edit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(WorkspaceRoleRowViewModel model, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_permission", "Role.Update")) return Forbid();
+        var scope = ScopeQuery(); if (scope is null) return RedirectToAction("Index", "Workspace");
+        var result = await api.PutAsync<RoleActionResult>($"api/v1/workspace/roles/{model.Id}?{scope}", new { model.Name, model.Description, model.BaseRedirectUrl }, ct, User.FindFirst("ph_api_access_token")?.Value);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result?.Message ?? "Role could not be updated.";
+        return RedirectToAction(nameof(Index));
+    }
+    [HttpPost("status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetStatus(long id, bool isActive, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_permission", isActive ? "Role.Update" : "Role.Deactivate")) return Forbid();
+        var scope = ScopeQuery(); if (scope is null) return RedirectToAction("Index", "Workspace");
+        var result = await api.PutAsync<RoleActionResult>($"api/v1/workspace/roles/{id}/status?{scope}", new { IsActive = isActive }, ct, User.FindFirst("ph_api_access_token")?.Value);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result?.Message ?? "Role status could not be changed.";
+        return RedirectToAction(nameof(Index));
+    }
+    private string? ScopeQuery()
+    {
+        if (!long.TryParse(User.FindFirst("ph_active_tenant_id")?.Value, out var tenantId) || tenantId <= 0) return null;
+        var branch = long.TryParse(User.FindFirst("ph_active_branch_id")?.Value, out var branchId) && branchId > 0 ? $"&branchId={branchId}" : "";
+        var project = long.TryParse(User.FindFirst("ph_active_project_id")?.Value, out var projectId) && projectId > 0 ? $"&projectId={projectId}" : "";
+        return $"tenantId={tenantId}{branch}{project}";
+    }
+    public sealed class RoleActionResult { public string Message { get; set; } = ""; }
+
     [HttpGet("")]
     public async Task<IActionResult> Index(string? search, CancellationToken ct)
     {
@@ -55,6 +95,9 @@ public sealed class WorkspaceRolesController(PlatformApiClient api) : Controller
 public sealed class WorkspaceRoleRowViewModel
 {
     public long Id { get; set; }
+    public long? TenantId { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool IsSystemRole { get; set; }
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Description { get; set; }

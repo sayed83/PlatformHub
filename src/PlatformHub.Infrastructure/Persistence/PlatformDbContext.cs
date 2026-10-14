@@ -97,7 +97,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.Property(x => x.Name).HasMaxLength(150).IsRequired();
             e.Property(x => x.Description).HasMaxLength(500);
             e.Property(x => x.BaseRedirectUrl).HasMaxLength(500);
-            e.HasIndex(x => x.Code).IsUnique();
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique().HasFilter("[TenantId] IS NOT NULL");
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[TenantId] IS NULL");
         });
         modelBuilder.Entity<PlatformPermission>(e =>
         {
