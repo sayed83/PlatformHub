@@ -199,6 +199,67 @@ public sealed class WorkspaceController(
     }
 
     public sealed record MenuAccessUpdateRequest(long MenuItemId, bool IsAllowed);
+    public sealed record MenuDeleteRequest(string TargetType, long TargetId, string DeleteType);
+
+    [HttpPost("menu-items/{menuItemId:long}/delete")]
+    public async Task<IActionResult> DeleteWorkspaceMenu(
+        long menuItemId,
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromBody] MenuDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (menuItemId <= 0 || !projectId.HasValue || projectId.Value <= 0 || request.TargetId <= 0 ||
+            (request.TargetType != "role" && request.TargetType != "user") ||
+            (request.DeleteType != "soft" && request.DeleteType != "hard"))
+            return BadRequest(new { message = "Valid project, target, menu, and delete type are required." });
+
+        var permission = request.TargetType == "role" ? "Role.Update" : "User.Update";
+        if (!await scopedAccess.CanAccessAsync(userId, permission, tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        var targetInScope = request.TargetType == "role"
+            ? await db.UserRoleAssignments.AsNoTracking().AnyAsync(a => a.RoleId == request.TargetId && a.Role.IsActive &&
+                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken)
+            : await db.UserRoleAssignments.AsNoTracking().AnyAsync(a => a.UserId == request.TargetId && !a.User.IsPlatformAdmin && a.Role.IsActive &&
+                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+        if (!targetInScope) return NotFound(new { message = "Selected role or user is not assigned in this workspace scope." });
+
+        var menu = await db.MenuItems.SingleOrDefaultAsync(m => m.Id == menuItemId && m.ProjectId == projectId.Value, cancellationToken);
+        if (menu is null) return NotFound(new { message = "Menu was not found in the active project." });
+
+        if (request.DeleteType == "soft")
+        {
+            menu.IsActive = false;
+            await db.SaveChangesAsync(cancellationToken);
+            return Ok(new { success = true, message = "Menu deactivated. Its record and permission history were retained." });
+        }
+
+        // Built-in catalog entries are managed by ProjectNavigationSeeder and will be
+        // recreated. Protect them from misleading hard-delete operations.
+        var seededCodes = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST",
+            "USER_LIST", "ROLE_LIST", "PERMISSION_CATALOG", "INVENTORY_ITEMS", "WORKSPACE_MENU_PERMISSIONS" };
+        if (seededCodes.Contains(menu.Code, StringComparer.OrdinalIgnoreCase))
+            return Conflict(new { success = false, message = "This is a seeded system menu. Use Soft delete to disable it; the system catalog must retain this entry." });
+
+        var hasChildren = await db.MenuItems.AnyAsync(m => m.ProjectId == projectId.Value && m.ParentMenuId == menu.Id, cancellationToken);
+        var hasRoleAccess = await db.RoleWiseMenuAccesses.AnyAsync(a => a.MenuItemId == menu.Id, cancellationToken);
+        var hasUserAccess = await db.UserWiseMenuAccesses.AnyAsync(a => a.MenuItemId == menu.Id, cancellationToken);
+        if (hasChildren || hasRoleAccess || hasUserAccess)
+            return Conflict(new { success = false, message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
+
+        db.MenuItems.Remove(menu);
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { success = true, message = "Menu permanently deleted." });
+    }
 
     [HttpPut("roles/{roleId:long}/menu-access")]
     public async Task<IActionResult> UpdateRoleMenuAccess(
