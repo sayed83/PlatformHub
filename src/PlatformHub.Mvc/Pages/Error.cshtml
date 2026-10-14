@@ -38,13 +38,23 @@ main{flex:1;width:100%;display:grid;place-items:center;padding:clamp(10px,2vh,22
 <div class="status-row"><span class="status @(isServerError ? "status-error" : "status-warning")">HTTP @Model.StatusCode</span><span class="reference">Reference: <code>@Model.TraceId</code></span></div>
 <div class="grid">
 <section><h2 class="section-title">What happened?</h2><p class="explanation">@Model.Explanation</p>
-@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-{
-    <div role="alert" style="margin-top:16px;padding:13px 15px;border:1px solid #f4d7a1;border-radius:10px;background:#fff8e8;color:#79521b;overflow-wrap:anywhere"><strong>Additional details:</strong> @Model.ErrorMessage</div>
-}<h2 class="section-title" style="margin-top:26px">Recommended actions</h2><ul class="actions-list">@foreach (var action in Model.SuggestedActions){<li>@action</li>}</ul></section>
+<h2 class="section-title" style="margin-top:26px">Recommended actions</h2><ul class="actions-list">@foreach (var action in Model.SuggestedActions){<li>@action</li>}</ul></section>
 <aside class="diagnostics" aria-label="Request diagnostics"><h2 class="section-title">Diagnostic information</h2><dl><dt>Request</dt><dd><code>@Model.RequestMethod @Model.RequestPath@Model.QueryString</code></dd><dt>HTTP status</dt><dd>@Model.StatusCode</dd><dt>Environment</dt><dd>@Model.EnvironmentName</dd><dt>Reference ID</dt><dd><code>@Model.TraceId</code></dd></dl></aside>
 </div>
-@if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails)){<details class="technical"><summary>Technical details (Development only)</summary><pre>@Model.TechnicalDetails</pre></details>}
+@if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails) || !string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <details class="technical">
+        <summary>Actual error details (Development only)</summary>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <p><strong>Service message:</strong> @Model.ErrorMessage</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails))
+        {
+            <pre>@Model.TechnicalDetails</pre>
+        }
+    </details>
+}
 <nav class="buttons" aria-label="Error recovery"><button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button><a class="btn" href="@Model.LoginUrl">@Model.LoginButtonText</a><a class="btn" href="/">Go to home</a><button type="button" class="btn" onclick="if(history.length>1)history.back();else window.location.href='/'">Go back</button></nav>
 <p class="note">If this problem continues, share the reference ID with your administrator and check the PlatformHub.Mvc and PlatformHub.Api logs. Sensitive exception details are not shown outside Development.</p>
 </div></article></main>

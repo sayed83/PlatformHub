@@ -39,8 +39,16 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
         LoginButtonText = isPlatformAdminPanel ? "Platform Admin login" : "User panel login";
         var exception = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Error;
-        if (environment.IsDevelopment() && exception is not null)
-            TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n{exception.StackTrace}";
+        if (environment.IsDevelopment())
+        {
+            var capturedApiDetails = HttpContext.Items["PlatformHub.ErrorDetails"] as string;
+            if (exception is not null)
+                TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n\n{exception}";
+            else if (!string.IsNullOrWhiteSpace(capturedApiDetails))
+                TechnicalDetails = capturedApiDetails;
+            else if (StatusCode >= 500)
+                TechnicalDetails = "No exception object was captured for this response. Use the reference ID to find the corresponding MVC/API log entry. For API connection errors, verify Api:BaseUrl and confirm the API is running.";
+        }
 
         if (StatusCode is < 400 or > 599) StatusCode = 500;
 
