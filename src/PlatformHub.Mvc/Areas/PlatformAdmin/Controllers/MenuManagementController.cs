@@ -122,7 +122,7 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         var endpoint = itemType == "module"
             ? $"api/v1/project-menus/modules/{itemId}/delete"
             : $"api/v1/project-menus/items/{itemId}/delete";
-        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement>(
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
             endpoint, new { projectId, deleteType = "hard" }, ct, token);
         if (data is not null)
         {
