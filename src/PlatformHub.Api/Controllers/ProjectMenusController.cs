@@ -182,6 +182,38 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
+    [HttpPost("items/{menuItemId:long}/delete")]
+    public async Task<IActionResult> DeleteItem(long menuItemId, [FromBody] DeleteMenuItemRequest request, CancellationToken ct)
+    {
+        if (menuItemId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, menu and delete type are required." });
+
+        var menu = await db.MenuItems.SingleOrDefaultAsync(x => x.Id == menuItemId && x.ProjectId == request.ProjectId, ct);
+        if (menu is null) return NotFound(new { message = "Menu was not found in the selected project." });
+
+        if (request.DeleteType == "soft")
+        {
+            menu.IsActive = false;
+            await db.SaveChangesAsync(ct);
+            return Ok(new { success = true, message = "Menu deactivated. The record and permission history were retained." });
+        }
+
+        var seededCodes = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST",
+            "USER_LIST", "ROLE_LIST", "PERMISSION_CATALOG", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" };
+        if (seededCodes.Contains(menu.Code, StringComparer.OrdinalIgnoreCase))
+            return Conflict(new { message = "This is a system menu. Use Soft delete to deactivate it without removing the catalog record." });
+
+        var hasChildren = await db.MenuItems.AnyAsync(x => x.ProjectId == request.ProjectId && x.ParentMenuId == menu.Id, ct);
+        var hasRoleAccess = await db.RoleWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
+        var hasUserAccess = await db.UserWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
+        if (hasChildren || hasRoleAccess || hasUserAccess)
+            return Conflict(new { message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
+
+        db.MenuItems.Remove(menu);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { success = true, message = "Menu permanently deleted." });
+    }
+
     private async Task<bool> IsDescendantAsync(long parentId, long? currentId, long projectId, CancellationToken ct)
     {
         var visited = new HashSet<long>();
@@ -201,3 +233,5 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
 
 public sealed record SaveModuleRequest(long? Id, long ProjectId, string Code, string Name, string? Description, string? Icon, int SortOrder, bool IsActive);
 public sealed record SaveMenuItemRequest(long? Id, long ProjectId, long? ModuleId, long? ParentMenuId, string Code, string Name, string? Area, string? Controller, string? Action, string? RouteUrl, string? Icon, int SortOrder, bool IsExternal, bool IsActive);
+
+public sealed record DeleteMenuItemRequest(long ProjectId, string DeleteType);
