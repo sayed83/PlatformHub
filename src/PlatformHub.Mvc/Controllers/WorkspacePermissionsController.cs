@@ -59,6 +59,38 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
         return View("~/Views/WorkspacePermissions/Index.cshtml", vm);
     }
 
+    [HttpPost("delete-menu")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMenu(WorkspaceMenuDeleteRequest request, CancellationToken ct)
+    {
+        if (User.FindFirst("ph_platform_admin")?.Value == "true")
+            return Forbid();
+        if (request.TargetType is not ("role" or "user") || request.TargetId <= 0 ||
+            request.MenuItemId <= 0 || request.DeleteType is not ("soft" or "hard"))
+            return BadRequest();
+
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        if (!long.TryParse(User.FindFirst("ph_active_tenant_id")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var tenantId) || tenantId <= 0)
+            return Forbid();
+        long? ParseScope(string claim) => long.TryParse(User.FindFirst(claim)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0 ? id : null;
+        var branchId = ParseScope("ph_active_branch_id");
+        var projectId = ParseScope("ph_active_project_id");
+        if (!projectId.HasValue) return Forbid();
+
+        var suffix = $"tenantId={tenantId}" + (branchId.HasValue ? $"&branchId={branchId}" : "") + $"&projectId={projectId}";
+        var result = await api.PostAsync<WorkspaceMenuDeleteResult>(
+            $"api/v1/workspace/menu-items/{request.MenuItemId}/delete?{suffix}",
+            new { request.TargetType, request.TargetId, request.DeleteType }, ct, token);
+
+        if (result?.Success == true)
+            TempData["SuccessMessage"] = result.Message ?? (request.DeleteType == "soft" ? "Menu deactivated." : "Menu permanently deleted.");
+        else
+            TempData["ErrorMessage"] = result?.Message ?? "Menu could not be deleted. It may be a seeded menu or have dependent access records.";
+
+        return RedirectToAction(nameof(Index), new { targetType = request.TargetType, targetId = request.TargetId });
+    }
+
     [HttpPost("save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(WorkspacePermissionSaveRequest request, CancellationToken ct)
@@ -129,4 +161,17 @@ public sealed class WorkspacePermissionSaveRequest
 public sealed class WorkspacePermissionSaveResult
 {
     public bool Success { get; set; }
+}
+
+public sealed class WorkspaceMenuDeleteRequest
+{
+    public string TargetType { get; set; } = "role";
+    public long TargetId { get; set; }
+    public long MenuItemId { get; set; }
+    public string DeleteType { get; set; } = "soft";
+}
+public sealed class WorkspaceMenuDeleteResult
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
 }
