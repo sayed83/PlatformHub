@@ -552,13 +552,25 @@
             dirtyRoles.add(Number(input.dataset.role));
             saveRoleButton.disabled = false;
         });
-        userRows.addEventListener('change', event => {
+        function handleUserDecisionChange(event) {
             const input = event.target.closest('.user-decision');
-            if (!input) return;
+            if (!input || !userRows.contains(input)) return;
+
             userState.set(input.dataset.user + ':' + input.dataset.menu, input.value);
             dirtyUsers.add(Number(input.dataset.user));
-            saveUserButton.disabled = false;
-        });
+            // Keep the button enabled even when Select2 emits a jQuery change event.
+            saveUserButton.disabled = !(project.value && tenant.value && dirtyUsers.size > 0);
+        }
+
+        // The application applies Select2 to dropdowns globally. Select2 emits jQuery
+        // change events, which may not reach a native addEventListener handler.
+        if (window.jQuery) {
+            window.jQuery(userRows)
+                .off('change.menuPolicyUserAccess', '.user-decision')
+                .on('change.menuPolicyUserAccess', '.user-decision', handleUserDecisionChange);
+        } else {
+            userRows.addEventListener('change', handleUserDecisionChange);
+        }
         roleSearch.addEventListener('input', renderRoleMatrix);
         userSearch.addEventListener('input', renderUserMatrix);
 
