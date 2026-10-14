@@ -223,8 +223,6 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             return Conflict(new { message = "The protected Platform Super Admin role cannot be deactivated." });
         if (role.IsSystemRole && !isSuperAdmin)
             return Forbid();
-        if (!request.IsActive && role.IsSystemRole && role.Code == "PLATFORM_ADMIN")
-            return Conflict(new { message = "The built-in Platform Admin role cannot be deactivated." });
 
         role.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
