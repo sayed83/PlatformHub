@@ -1,4 +1,4 @@
-(function (window) {
+(function (window, document) {
     'use strict';
 
     function escape(value) {
@@ -9,12 +9,35 @@
 
     function create(options) {
         if (!window.Tabulator) {
-            throw new Error('Tabulator is not loaded. Check the shared layout script reference.');
+            const target = typeof options.element === 'string' ? document.querySelector(options.element) : options.element;
+            if (target) target.innerHTML = '<div class="alert alert-warning mb-0">The table library could not load. Refresh the page or check the Tabulator CDN connection.</div>';
+            throw new Error('Tabulator is not loaded.');
         }
-        const element = typeof options.element === 'string'
-            ? document.querySelector(options.element)
-            : options.element;
+        const element = typeof options.element === 'string' ? document.querySelector(options.element) : options.element;
         if (!element) throw new Error('PlatformHubGrid target element was not found.');
+
+        const host = element.parentElement;
+        let toolbar = null;
+        let searchInput = options.searchInput
+            ? (typeof options.searchInput === 'string' ? document.querySelector(options.searchInput) : options.searchInput)
+            : null;
+
+        if (options.toolbar !== false) {
+            toolbar = document.createElement('div');
+            toolbar.className = 'ph-grid-toolbar';
+            toolbar.innerHTML =
+                '<div class="ph-grid-search-wrap"><label class="visually-hidden">Search rows</label>' +
+                '<input type="search" class="form-control ph-grid-search" placeholder="' + escape(options.searchPlaceholder || 'Search this list...') + '" aria-label="Search rows"></div>' +
+                '<label class="ph-grid-size-wrap"><span>Rows</span><select class="form-select ph-grid-size" aria-label="Rows per page">' +
+                '<option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label>';
+            host.insertBefore(toolbar, element);
+            if (!searchInput) searchInput = toolbar.querySelector('.ph-grid-search');
+            const sizeSelect = toolbar.querySelector('.ph-grid-size');
+            sizeSelect.value = String(options.paginationSize || 10);
+            sizeSelect.addEventListener('change', function () {
+                grid.setPageSize(Number(sizeSelect.value));
+            });
+        }
 
         const config = {
             data: options.data || [],
@@ -25,7 +48,8 @@
             pagination: options.pagination !== false,
             paginationMode: options.paginationMode || 'local',
             paginationSize: options.paginationSize || 10,
-            paginationSizeSelector: options.paginationSizeSelector || [10, 25, 50, 100],
+            paginationSizeSelector: false,
+            paginationCounter: options.pagination === false ? false : 'rows',
             movableColumns: options.movableColumns === true,
             columnDefaults: { tooltip: true, headerSort: true, ...options.columnDefaults }
         };
@@ -42,12 +66,9 @@
         }
 
         const grid = new window.Tabulator(element, config);
-        if (options.searchInput) {
-            const input = typeof options.searchInput === 'string'
-                ? document.querySelector(options.searchInput)
-                : options.searchInput;
-            input?.addEventListener('input', function () {
-                const query = input.value.trim();
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const query = searchInput.value.trim().toLowerCase();
                 if (!query) {
                     grid.clearFilter(true);
                     return;
@@ -55,11 +76,11 @@
                 grid.setFilter(function (row, params) {
                     return Object.values(row).some(value =>
                         String(value ?? '').toLowerCase().includes(params.query));
-                }, { query: query.toLowerCase() });
+                }, { query: query });
             });
         }
         return grid;
     }
 
     window.PlatformHubGrid = Object.freeze({ create: create, escape: escape });
-})(window);
+})(window, document);
