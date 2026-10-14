@@ -19,10 +19,14 @@ public sealed class PlatformService(PlatformDbContext db, IDapperStoredProcedure
         return new PlatformSummaryDto(totalUsers, activeUsers, totalTenants, activeTenants, totalProjects, activeProjects);
     }
 
-    public async Task<IReadOnlyList<TenantDto>> GetTenantsAsync(CancellationToken cancellationToken) =>
-        await db.Tenants.AsNoTracking().OrderBy(x => x.Name)
-            .Select(x => new TenantDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<TenantDto>> GetTenantsAsync(CancellationToken cancellationToken)
+    {
+        var rows = await dapper.QueryAsync<TenantListRow>(
+            "dbo.usp_Platform_GetTenants",
+            cancellationToken: cancellationToken);
+
+        return rows.Select(x => new TenantDto(x.Id, x.Code, x.Name, x.IsActive)).ToArray();
+    }
 
     public async Task<TenantDto> CreateTenantAsync(CreateTenantRequest request, CancellationToken cancellationToken)
     {
@@ -296,5 +300,14 @@ internal sealed class ProjectListRow
     public string Code { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string? BaseUrl { get; init; }
+    public bool IsActive { get; init; }
+}
+
+
+internal sealed class TenantListRow
+{
+    public long Id { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
     public bool IsActive { get; init; }
 }
