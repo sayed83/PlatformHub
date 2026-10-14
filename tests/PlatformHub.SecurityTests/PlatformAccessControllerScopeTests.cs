@@ -13,6 +13,32 @@ namespace PlatformHub.SecurityTests;
 public sealed class PlatformAccessControllerScopeTests
 {
     [Fact]
+    public async Task User_update_rejects_profile_changes_without_UserUpdate_permission()
+    {
+        await using var db = CreateDb();
+        await SeedBaseAsync(db);
+
+        var result = await CreateController(db).UpdateUser(42,
+            new UpdatePlatformUserRequest("Changed Name", true, null), CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.Equal("Tenant User", (await db.Users.SingleAsync(x => x.Id == 42)).DisplayName);
+    }
+
+    [Fact]
+    public async Task User_update_rejects_status_changes_without_UserDeactivate_permission()
+    {
+        await using var db = CreateDb();
+        await SeedBaseAsync(db);
+
+        var result = await CreateController(db, "User.Update").UpdateUser(42,
+            new UpdatePlatformUserRequest("Tenant User", false, null), CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+        Assert.True((await db.Users.SingleAsync(x => x.Id == 42)).IsActive);
+    }
+
+    [Fact]
     public async Task Role_assignment_rejects_inactive_tenant()
     {
         await using var db = CreateDb();
@@ -91,15 +117,16 @@ public sealed class PlatformAccessControllerScopeTests
         Assert.Empty(await db.UserRoleAssignments.ToListAsync());
     }
 
-    private static PlatformAccessController CreateController(PlatformDbContext db)
+    private static PlatformAccessController CreateController(PlatformDbContext db, params string[] permissions)
     {
+        var claims = new List<Claim> { new("ph_user_id", "1") };
+        claims.AddRange(permissions.Select(permission => new Claim("ph_permission", permission)));
         var controller = new PlatformAccessController(db, new PasswordHasher<AppUser>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity(
-                    new[] { new Claim("ph_user_id", "1") }, authenticationType: "test"))
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "test"))
             }
         };
         return controller;
