@@ -19,6 +19,58 @@ public sealed class WorkspaceController(
     IScopedAccessService scopedAccess) : ControllerBase
 {
 
+    [HttpGet("users")]
+    public async Task<IActionResult> GetWorkspaceUsers(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+
+        var allowed = await scopedAccess.CanAccessAsync(
+            userId, "User.View", tenantId, branchId, projectId, cancellationToken);
+        if (!allowed) return Forbid();
+
+        // Return only accounts explicitly assigned within the selected scope.
+        // A tenant/branch role assignment never grants access to unrelated branches.
+        var assignments = db.UserRoleAssignments.AsNoTracking()
+            .Where(a => a.TenantId == tenantId ||
+                (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value));
+        if (branchId.HasValue)
+            assignments = assignments.Where(a => a.BranchId == null || a.BranchId == branchId.Value);
+        else
+            assignments = assignments.Where(a => a.BranchId == null);
+        if (projectId.HasValue)
+            assignments = assignments.Where(a => a.ProjectId == null || a.ProjectId == projectId.Value);
+        else
+            assignments = assignments.Where(a => a.ProjectId == null);
+
+        var assignedUserIds = assignments.Select(a => a.UserId).Distinct();
+        var users = db.Users.AsNoTracking().Where(u => assignedUserIds.Contains(u.Id) && !u.IsPlatformAdmin);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            users = users.Where(u => u.UserName.Contains(term) || u.DisplayName.Contains(term));
+        }
+
+        var rows = await users.OrderBy(u => u.UserName)
+            .Select(u => new
+            {
+                u.Id, u.UserName, u.DisplayName, u.IsActive,
+                Roles = db.UserRoleAssignments.Where(a => a.UserId == u.Id &&
+                        (a.TenantId == tenantId ||
+                         (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                        (a.BranchId == null || a.BranchId == branchId) &&
+                        (a.ProjectId == null || a.ProjectId == projectId) && a.Role.IsActive)
+                    .Select(a => a.Role.Name).Distinct().OrderBy(n => n).ToList()
+            }).ToListAsync(cancellationToken);
+        return Ok(rows);
+    }
+
     [HttpGet("scopes")]
     public async Task<IActionResult> GetAvailableScopes(CancellationToken cancellationToken)
     {
