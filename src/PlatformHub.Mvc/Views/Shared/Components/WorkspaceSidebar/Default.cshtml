@@ -47,12 +47,17 @@
                 <div class="ph-nav-label">@module.Key</div>
                 foreach (var item in module.OrderBy(x => x.SortOrder).ThenBy(x => x.Name))
                 {
-                    var href = !string.IsNullOrWhiteSpace(item.RouteUrl)
-                        ? item.RouteUrl!
-                        : !string.IsNullOrWhiteSpace(item.Controller)
-                            ? "/" + (string.IsNullOrWhiteSpace(item.Area) ? "" : item.Area + "/") +
-                              item.Controller + "/" + (string.IsNullOrWhiteSpace(item.Action) ? "Index" : item.Action)
-                            : "#";
+                    var isPlatformAdmin = Context.User.FindFirst("ph_platform_admin")?.Value == "true";
+                    var isGlobalUsersRoute = string.Equals(item.Controller, "Users", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(item.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
+                    var href = !isPlatformAdmin && isGlobalUsersRoute
+                        ? "/WorkspaceUsers"
+                        : !string.IsNullOrWhiteSpace(item.RouteUrl)
+                            ? item.RouteUrl!
+                            : !string.IsNullOrWhiteSpace(item.Controller)
+                                ? "/" + (string.IsNullOrWhiteSpace(item.Area) ? "" : item.Area + "/") +
+                                  item.Controller + "/" + (string.IsNullOrWhiteSpace(item.Action) ? "Index" : item.Action)
+                                : "#";
                     var isActive = !string.IsNullOrWhiteSpace(href) && href != "#" &&
                         path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
                     <a class="nav-link @(isActive ? "active" : "")"
