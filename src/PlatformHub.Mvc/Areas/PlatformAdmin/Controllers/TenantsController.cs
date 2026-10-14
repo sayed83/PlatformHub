@@ -31,6 +31,20 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         }
         var tenants = tenantResult.Value;
 
+        // Tenant viewers get a separate read-only directory, not the Platform Admin
+        // management dashboard. This avoids presenting actions they cannot perform.
+        var isPlatformAdmin = User.FindFirst("ph_platform_admin")?.Value == "true";
+        if (!isPlatformAdmin)
+        {
+            if (!User.HasClaim("ph_permission", "Tenant.View"))
+                return Forbid();
+
+            return View("ReadOnly", new TenantManagementViewModel
+            {
+                Tenants = tenants
+            });
+        }
+
         // Load the project catalogue for the directory, then tenant-specific assignments
         // so the counts/details reflect TenantProjects rather than legacy Projects.TenantId.
         var projects = await api.GetAsync<List<ProjectRowViewModel>>("api/v1/platform/projects", token, ct) ?? new();
