@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -23,7 +24,7 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     public string Explanation { get; private set; } = "An unexpected error occurred while processing your request.";
     public IReadOnlyList<string> SuggestedActions { get; private set; } = Array.Empty<string>();
 
-    public void OnGet(int? statusCode)
+    public async Task OnGetAsync(int? statusCode)
     {
         StatusCode = statusCode ?? 500;
         TraceId = HttpContext.TraceIdentifier;
@@ -46,6 +47,18 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
             : originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase);
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
         LogoutUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Logout" : "/Account/Logout";
+
+        // If a signed-in workspace request fails because the API is unavailable, clear the
+        // workspace cookie and return to the user login screen instead of rendering Error Center
+        // inside the authenticated workspace layout. Platform Admin keeps its own panel behavior.
+        if ((StatusCode == StatusCodes.Status502BadGateway || StatusCode == StatusCodes.Status503ServiceUnavailable)
+            && HttpContext.User.Identity?.IsAuthenticated == true
+            && !isPlatformAdminPanel)
+        {
+            await HttpContext.SignOutAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+            Response.Redirect("/Account/Login");
+            return;
+        }
 
         // Authentication expiry should send the user to sign-in; other failures stay on Error Center.
         if (StatusCode == StatusCodes.Status401Unauthorized)
