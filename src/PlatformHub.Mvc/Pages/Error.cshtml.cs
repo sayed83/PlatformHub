@@ -14,6 +14,8 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     public string RequestMethod { get; private set; } = string.Empty;
     public string QueryString { get; private set; } = string.Empty;
     public string EnvironmentName { get; private set; } = string.Empty;
+    public string LoginUrl { get; private set; } = "/Account/Login";
+    public string LoginButtonText { get; private set; } = "User panel login";
     public string? TechnicalDetails { get; private set; }
     public string Title { get; private set; } = "Something went wrong";
     public string Description { get; private set; } = "PlatformHub could not complete this request.";
@@ -30,6 +32,12 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         RequestMethod = HttpContext.Request.Method;
         QueryString = HttpContext.Request.QueryString.HasValue ? HttpContext.Request.QueryString.Value! : string.Empty;
         EnvironmentName = environment.EnvironmentName;
+
+        // Route back to the login page belonging to the panel where the request originated.
+        var isPlatformAdminPanel = RequestPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase)
+            || HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true";
+        LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
+        LoginButtonText = isPlatformAdminPanel ? "Platform Admin login" : "User panel login";
         var exception = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Error;
         if (environment.IsDevelopment() && exception is not null)
             TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n{exception.StackTrace}";
