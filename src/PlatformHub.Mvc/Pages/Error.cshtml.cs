@@ -9,6 +9,7 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
 {
     public int StatusCode { get; private set; } = 500;
     public string TraceId { get; private set; } = string.Empty;
+    [TempData] public string? ErrorMessage { get; set; }
     public string RequestPath { get; private set; } = string.Empty;
     public string RequestMethod { get; private set; } = string.Empty;
     public string QueryString { get; private set; } = string.Empty;
