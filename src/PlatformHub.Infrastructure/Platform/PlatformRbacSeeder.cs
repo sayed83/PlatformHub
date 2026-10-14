@@ -32,6 +32,8 @@ public static class PlatformRbacSeeder
         ("Role.Update", "Update roles", "Access"),
         ("Role.Assign", "Assign roles to users", "Access"),
         ("Permission.View", "View permission catalog", "Access"),
+        ("MenuAccess.View", "View role and user project-menu access", "Access"),
+        ("MenuAccess.Update", "Change role and user project-menu access", "Access"),
         ("AuditLog.View", "View audit logs", "Operations"),
         ("Platform.Settings.Manage", "Manage platform settings", "Operations"),
         ("Inventory.Item.View", "View inventory items", "Inventory"),
@@ -133,6 +135,7 @@ public static class PlatformRbacSeeder
                 "Project.View", "Project.Create", "Project.Update", "Project.Deactivate",
                 "User.View", "User.Create", "User.Update", "User.Deactivate",
                 "Role.View", "Role.Create", "Role.Update", "Role.Assign", "Permission.View",
+                "MenuAccess.View", "MenuAccess.Update",
                 "AuditLog.View", "Platform.Settings.Manage",
                 "Inventory.Item.View", "Inventory.Item.Create", "Inventory.Item.Update", "Inventory.Item.Deactivate"
             ],

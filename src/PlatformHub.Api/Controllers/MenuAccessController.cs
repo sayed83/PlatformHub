@@ -33,12 +33,12 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
             (User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN") || !user.IsPlatformAdmin);
     }
 
-    [HttpGet("projects")]
+    [HttpGet("projects"), Authorize(Policy = "MenuAccess.View")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name }).ToListAsync(ct));
 
-    [HttpGet("tenants")]
+    [HttpGet("tenants"), Authorize(Policy = "MenuAccess.View")]
     public async Task<IActionResult> Tenants([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0) return BadRequest(new { message = "Select a project." });
@@ -63,7 +63,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         return Ok(tenants);
     }
 
-    [HttpGet("lookups")]
+    [HttpGet("lookups"), Authorize(Policy = "MenuAccess.View")]
     public async Task<IActionResult> Lookups([FromQuery] long projectId, [FromQuery] long tenantId, CancellationToken ct)
     {
         if (projectId <= 0 || tenantId <= 0) return BadRequest(new { message = "Select a project and tenant." });
@@ -98,7 +98,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         return Ok(new { roles, users, menus });
     }
 
-    [HttpGet("role")]
+    [HttpGet("role"), Authorize(Policy = "MenuAccess.View")]
     public async Task<IActionResult> GetRoleAccess([FromQuery] long projectId, [FromQuery] long roleId, CancellationToken ct)
     {
         if (projectId <= 0 || roleId <= 0) return BadRequest(new { message = "Project and role are required." });
@@ -109,7 +109,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         return Ok(menuIds.Select(id => new { menuItemId = id, isAllowed = allowed.GetValueOrDefault(id) }));
     }
 
-    [HttpPost("role")]
+    [HttpPost("role"), Authorize(Policy = "MenuAccess.Update")]
     public async Task<IActionResult> SaveRoleAccess([FromBody] SaveRoleMenuAccessRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || request.RoleId <= 0) return BadRequest(new { message = "Project and role are required." });
@@ -131,7 +131,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         return Ok(new { message = "Role menu access saved.", count = request.Items.Count });
     }
 
-    [HttpGet("user")]
+    [HttpGet("user"), Authorize(Policy = "MenuAccess.View")]
     public async Task<IActionResult> GetUserAccess([FromQuery] long projectId, [FromQuery] long userId, CancellationToken ct)
     {
         if (projectId <= 0 || userId <= 0) return BadRequest(new { message = "Project and user are required." });
@@ -142,7 +142,7 @@ public sealed class MenuAccessController(PlatformDbContext db) : ControllerBase
         return Ok(menuIds.Select(id => new { menuItemId = id, decision = values.ContainsKey(id) ? (values[id] ? "allow" : "deny") : "inherit" }));
     }
 
-    [HttpPost("user")]
+    [HttpPost("user"), Authorize(Policy = "MenuAccess.Update")]
     public async Task<IActionResult> SaveUserAccess([FromBody] SaveUserMenuAccessRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || request.UserId <= 0) return BadRequest(new { message = "Project and user are required." });

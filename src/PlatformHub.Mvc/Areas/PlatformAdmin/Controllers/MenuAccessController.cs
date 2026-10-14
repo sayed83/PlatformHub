@@ -9,12 +9,12 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 public sealed class MenuAccessController(PlatformApiClient api) : Controller
 {
     public IActionResult Index() =>
-        User.FindFirst("ph_platform_admin")?.Value == "true" ? View() : Forbid();
+        !IsPlatformAdmin() ? Forbid() : !HasPermission("MenuAccess.View") ? Forbid() : View();
 
     [HttpGet]
     public async Task<IActionResult> Data(string kind, long projectId, long selectionId = 0, CancellationToken ct = default)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin() || !HasPermission("MenuAccess.View")) return Forbid();
         var token = Token();
         if (token is null) return Unauthorized();
         var path = kind switch
@@ -43,7 +43,7 @@ public sealed class MenuAccessController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveRole([FromBody] SaveRoleRequest model, CancellationToken ct)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin() || !HasPermission("MenuAccess.Update")) return Forbid();
         var token = Token();
         if (token is null) return Unauthorized();
         var (data, error) = await api.PostWithErrorAsync<object>("api/v1/menu-access/role", model, ct, token);
@@ -53,7 +53,7 @@ public sealed class MenuAccessController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveUser([FromBody] SaveUserRequest model, CancellationToken ct)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin() || !HasPermission("MenuAccess.Update")) return Forbid();
         var token = Token();
         if (token is null) return Unauthorized();
         var (data, error) = await api.PostWithErrorAsync<object>("api/v1/menu-access/user", model, ct, token);
@@ -61,6 +61,7 @@ public sealed class MenuAccessController(PlatformApiClient api) : Controller
     }
 
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
+    private bool HasPermission(string code) => User.HasClaim("ph_permission", code);
     private string? Token() => User.FindFirst("ph_api_access_token")?.Value;
     public sealed record RoleItem(long MenuItemId, bool IsAllowed);
     public sealed record SaveRoleRequest(long ProjectId, long RoleId, List<RoleItem> Items);
