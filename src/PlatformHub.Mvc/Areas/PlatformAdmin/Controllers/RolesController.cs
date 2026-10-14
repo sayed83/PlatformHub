@@ -7,7 +7,7 @@ namespace PlatformHub.Mvc.Areas.PlatformAdmin.Controllers;
 
 [Area("PlatformAdmin")]
 [Authorize]
-public sealed class RolesController(PlatformApiClient api) : Controller
+public sealed class RolesController(PlatformApiClient api, ILogger<RolesController> logger) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -15,10 +15,46 @@ public sealed class RolesController(PlatformApiClient api) : Controller
         if (!IsPlatformAdmin()) return Forbid();
         var token = AccessToken();
         if (token is null) return Challenge();
-        var model = await LoadAsync(token, ct);
-        if (model is null)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable);
-        return View(model);
+        var rolesResult = await api.GetWithStatusAsync<List<RoleRowViewModel>>(
+            "api/v1/platform/access/roles", token, ct);
+        var permissionsResult = await api.GetWithStatusAsync<List<PermissionRowViewModel>>(
+            "api/v1/platform/access/permissions", token, ct);
+
+        if (rolesResult.StatusCode == StatusCodes.Status401Unauthorized ||
+            permissionsResult.StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            TempData["ErrorMessage"] = "Your Platform API session has expired. Please sign in again.";
+            return Redirect("/PlatformAdmin/Account/Login");
+        }
+
+        if (rolesResult.Value is null || permissionsResult.Value is null)
+        {
+            var failedEndpoint = rolesResult.Value is null
+                ? "api/v1/platform/access/roles"
+                : "api/v1/platform/access/permissions";
+            var failedStatus = rolesResult.Value is null
+                ? rolesResult.StatusCode
+                : permissionsResult.StatusCode;
+            var failure = rolesResult.Value is null
+                ? rolesResult.Error
+                : permissionsResult.Error;
+
+            logger.LogWarning(
+                "Roles page could not load required API data. Endpoint={Endpoint}, StatusCode={StatusCode}, Error={Error}, TraceId={TraceId}",
+                failedEndpoint, failedStatus, failure, HttpContext.TraceIdentifier);
+
+            TempData["ErrorMessage"] = $"Could not load role management data from {failedEndpoint}. API status: {failedStatus?.ToString() ?? "unavailable"}. {failure}";
+            var statusCode = failedStatus is >= 400 and <= 599
+                ? failedStatus.Value
+                : StatusCodes.Status503ServiceUnavailable;
+            return StatusCode(statusCode);
+        }
+
+        return View(new RoleManagementViewModel
+        {
+            Roles = rolesResult.Value,
+            Permissions = permissionsResult.Value
+        });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
