@@ -103,11 +103,22 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     }
 
     [HttpPut("users/{userId:long}")]
-    [Authorize(Policy = "User.Update")]
+    [Authorize]
     public async Task<IActionResult> UpdateUser(long userId, [FromBody] UpdatePlatformUserRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
         if (user is null || (user.IsPlatformAdmin && !IsSuperAdmin())) return NotFound(new { message = "User not found." });
+
+        // Keep profile edits and account deactivation independently permissioned.
+        // A caller with User.Deactivate only must not gain User.Update through this endpoint.
+        var canUpdate = User.HasClaim(AppClaimTypes.Permission, "User.Update");
+        var canDeactivate = User.HasClaim(AppClaimTypes.Permission, "User.Deactivate");
+        var profileChanged = !string.Equals(user.DisplayName, request.DisplayName?.Trim(), StringComparison.Ordinal)
+            || !string.Equals(user.BaseRedirectUrl, request.BaseRedirectUrl?.Trim(), StringComparison.Ordinal);
+        var statusChanged = user.IsActive != request.IsActive;
+        if ((profileChanged && !canUpdate) || (statusChanged && !canDeactivate))
+            return Forbid();
+
         if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > 200
             || (request.BaseRedirectUrl?.Length ?? 0) > 500)
             return BadRequest(new { message = "Display name is required (max 200 characters); redirect URL max is 500 characters." });
