@@ -26,7 +26,7 @@
     else {
         <div class="card border-0 shadow-sm"><div class="card-body">
             <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">@(Model.TargetType == "role" ? "Role menu access" : "Individual user overrides")</h2><span class="small text-secondary">Project ID: @Model.ProjectId</span></div>
-            <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Module</th><th>Menu</th><th>Code</th><th>Access</th><th>Decision</th><th></th></tr></thead><tbody>
+            <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Module</th><th>Menu</th><th>Code</th><th>Access</th><th>Decision</th><th>Permission</th><th>Delete actions</th></tr></thead><tbody>
             @foreach (var menu in Model.Menus) {
                 <tr><td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td><td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td><td>@(Model.TargetType == "user" && !menu.HasExplicitDecision ? "Inherited from role" : "Explicit")</td><td>
                     <form method="post" action="/WorkspacePermissions/save" class="d-flex flex-wrap gap-2">
@@ -35,6 +35,19 @@
                         <input type="hidden" name="IsAllowed" value="@(!menu.IsAllowed ? "true" : "false")" />
                         <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit">@(menu.IsAllowed ? "Deny" : "Allow")</button>
                     </form>
+                </td><td>
+                    <div class="d-flex flex-wrap gap-2">
+                        <form method="post" action="/WorkspacePermissions/delete-menu" onsubmit="return confirm('Soft delete this menu? It will be deactivated and its permission records will be retained.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TargetType" value="@Model.TargetType" /><input type="hidden" name="TargetId" value="@Model.TargetId" /><input type="hidden" name="MenuItemId" value="@menu.Id" /><input type="hidden" name="DeleteType" value="soft" />
+                            <button class="btn btn-sm btn-outline-warning" type="submit">Soft delete</button>
+                        </form>
+                        <form method="post" action="/WorkspacePermissions/delete-menu" onsubmit="return confirm('Permanently delete this menu? This cannot be undone. Hard delete is blocked for seeded menus or menus with dependencies.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TargetType" value="@Model.TargetType" /><input type="hidden" name="TargetId" value="@Model.TargetId" /><input type="hidden" name="MenuItemId" value="@menu.Id" /><input type="hidden" name="DeleteType" value="hard" />
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Hard delete</button>
+                        </form>
+                    </div>
                 </td></tr>
             }
             </tbody></table></div>
