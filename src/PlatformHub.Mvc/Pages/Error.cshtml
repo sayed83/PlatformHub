@@ -45,7 +45,7 @@ main{flex:1;width:100%;display:grid;place-items:center;padding:clamp(10px,2vh,22
 <aside class="diagnostics" aria-label="Request diagnostics"><h2 class="section-title">Diagnostic information</h2><dl><dt>Request</dt><dd><code>@Model.RequestMethod @Model.RequestPath@Model.QueryString</code></dd><dt>HTTP status</dt><dd>@Model.StatusCode</dd><dt>Environment</dt><dd>@Model.EnvironmentName</dd><dt>Reference ID</dt><dd><code>@Model.TraceId</code></dd></dl></aside>
 </div>
 @if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails)){<details class="technical"><summary>Technical details (Development only)</summary><pre>@Model.TechnicalDetails</pre></details>}
-<nav class="buttons" aria-label="Error recovery"><button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button><a class="btn" href="/">Go to home</a><button type="button" class="btn" onclick="if(history.length>1)history.back();else window.location.href='/'">Go back</button></nav>
+<nav class="buttons" aria-label="Error recovery"><button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button><a class="btn" href="@Model.LoginUrl">@Model.LoginButtonText</a><a class="btn" href="/">Go to home</a><button type="button" class="btn" onclick="if(history.length>1)history.back();else window.location.href='/'">Go back</button></nav>
 <p class="note">If this problem continues, share the reference ID with your administrator and check the PlatformHub.Mvc and PlatformHub.Api logs. Sensitive exception details are not shown outside Development.</p>
 </div></article></main>
 <footer class="footer">PlatformHub · Secure workspace management</footer>
