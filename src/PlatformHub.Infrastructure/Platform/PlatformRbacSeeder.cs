@@ -147,7 +147,7 @@ public static class PlatformRbacSeeder
                 "Branch.View", "Branch.Create", "Branch.Update",
                 "Project.View", "Project.Create", "Project.Update",
                 "User.View", "User.Create", "User.Update",
-                "Role.View", "Role.Assign", "Permission.View",
+                "Role.View", "Role.Create", "Role.Update", "Role.Deactivate", "Role.Assign", "Permission.View",
                 "Inventory.Item.View", "Inventory.Item.Create", "Inventory.Item.Update", "Inventory.Item.Deactivate"
             ],
             ["BRANCH_ADMIN"] =
