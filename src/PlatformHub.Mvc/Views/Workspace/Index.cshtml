@@ -3,9 +3,24 @@
     ViewData["Title"] = "Workspace";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var scopeKey = Context.Request.Query["scopeKey"].ToString();
+    string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "layout-dashboard" or "dashboard" => "▦",
+        "building-2" or "building" => "▣",
+        "git-branch" or "branches" => "⑂",
+        "panels-top-left" or "project" => "◈",
+        "users" or "user" => "♙",
+        "shield-check" or "shield" => "⚿",
+        "key-round" or "key" => "⚷",
+        "package" or "inventory" => "▤",
+        "settings" or "settings-2" => "⚙",
+        "book-open" or "book" => "▤",
+        "graduation-cap" => "♧",
+        _ => "•"
+    };
 }
 <style>
-    .ws-page { width:100%; min-width:0; }
+    .ws-page { width:100%; min-width:0; max-width:100%; overflow-wrap:anywhere; }
     .ws-hero { position:relative; overflow:hidden; background:linear-gradient(118deg,#162538 0%,#203b59 58%,#28507a 100%); color:#fff; border-radius:1.1rem; }
     .ws-hero:after { content:""; position:absolute; width:260px;height:260px;border-radius:50%;right:-90px;top:-130px;background:rgba(255,255,255,.055);pointer-events:none; }
     .ws-eyebrow { color:#bfd6fb;letter-spacing:.13em;font-size:.72rem;font-weight:750;text-transform:uppercase; }
@@ -14,8 +29,8 @@
     .ws-section-title { font-size:1.05rem;font-weight:700;color:#192a3d; }
     .ws-scope-card { border:1px solid #e3e9f1!important;border-radius:1rem; }
     .ws-scope-form { display:flex;align-items:center;gap:.65rem;width:100%;min-width:0;max-width:100%; }
-    .ws-scope-form .form-select { flex:1 1 0%;width:1%;min-width:0;max-width:100%;height:46px;border-color:#d4deea; }
-    .ws-scope-form .btn { flex:0 0 auto;min-height:46px;white-space:normal; }
+    .ws-scope-form .form-select { flex:1 1 0%;width:100%;min-width:0;max-width:100%;height:46px;border-color:#d4deea; }
+    .ws-scope-form .btn { flex:0 1 220px;min-width:170px;max-width:100%;min-height:46px;white-space:normal;overflow-wrap:anywhere; }
     .ws-stat-card { height:100%;border:1px solid #e4eaf2!important;border-radius:1rem; }
     .ws-stat-label { color:#7b8796;font-size:.72rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase; }
     .ws-stat-value { color:#1e2f43;font-size:clamp(1rem,1.3vw,1.22rem);font-weight:700;overflow-wrap:anywhere; }
@@ -172,7 +187,7 @@
                                    rel="@(menu.IsExternal ? "noopener noreferrer" : null)"
                                    style="@(menu.ParentMenuId.HasValue ? "margin-left:1rem;" : null)">
                                     <div class="card-body p-4">
-                                        <div class="ws-icon mb-3">@(string.IsNullOrWhiteSpace(menu.Icon) ? "☷" : menu.Icon)</div>
+                                        <div class="ws-icon mb-3">@MenuIcon(menu.Icon)</div>
                                         <h3 class="h6">@menu.Name</h3>
                                         @if (!string.IsNullOrWhiteSpace(menu.ModuleName))
                                         {
