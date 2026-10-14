@@ -100,7 +100,8 @@ public static class ProjectNavigationSeeder
                 menu.Icon = seed.Icon;
                 menu.SortOrder = seed.SortOrder;
                 menu.IsExternal = false;
-                menu.IsActive = true;
+                // New catalog rows are active by default. Do not reactivate an existing
+                // menu that an administrator intentionally soft-deactivated.
             }
 
             await db.SaveChangesAsync(ct);
