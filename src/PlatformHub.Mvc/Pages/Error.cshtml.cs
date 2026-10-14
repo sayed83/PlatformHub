@@ -16,6 +16,7 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     public string EnvironmentName { get; private set; } = string.Empty;
     public string LoginUrl { get; private set; } = "/Account/Login";
     public string LoginButtonText { get; private set; } = "User panel login";
+    public string LogoutUrl { get; private set; } = "/Account/Logout";
     public string? TechnicalDetails { get; private set; }
     public string Title { get; private set; } = "Something went wrong";
     public string Description { get; private set; } = "PlatformHub could not complete this request.";
@@ -38,10 +39,13 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         // Route back to the login page belonging to the panel where the request originated.
         var originalPath = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>()?.OriginalPath
             ?? RequestPath;
-        // Prefer the path that actually failed. The current identity alone must not
-        // turn a workspace error into a Platform Admin login link.
-        var isPlatformAdminPanel = originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase);
+        // The authenticated panel claim is authoritative. Workspace menu items may still
+        // point to a legacy /PlatformAdmin route, which must not change the login panel.
+        var isPlatformAdminPanel = HttpContext.User.Identity?.IsAuthenticated == true
+            ? HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true"
+            : originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase);
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
+        LogoutUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Logout" : "/Account/Logout";
 
         // Authentication expiry should send the user to sign-in; other failures stay on Error Center.
         if (StatusCode == StatusCodes.Status401Unauthorized)
