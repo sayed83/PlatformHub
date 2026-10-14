@@ -74,14 +74,5 @@
                 }
             }
         }
-        @if (Context.User.FindFirst("ph_platform_admin")?.Value != "true")
-        {
-            <div class="ph-nav-label">Menu Permissions</div>
-            <a class="nav-link @(path.StartsWith("/WorkspacePermissions", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-               href="/WorkspacePermissions">
-                <span class="ph-nav-icon" aria-hidden="true">⚿</span>
-                <span>Menu Permissions</span>
-            </a>
-        }
     </nav>
 </div>
