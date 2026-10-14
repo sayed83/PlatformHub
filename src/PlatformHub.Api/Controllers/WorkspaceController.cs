@@ -19,6 +19,51 @@ public sealed class WorkspaceController(
     IScopedAccessService scopedAccess) : ControllerBase
 {
 
+    [HttpGet("roles")]
+    public async Task<IActionResult> GetWorkspaceRoles(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+
+        var allowed = await scopedAccess.CanAccessAsync(
+            userId, "Role.View", tenantId, branchId, projectId, cancellationToken);
+        if (!allowed) return Forbid();
+
+        // Show only active roles actually assigned within this exact workspace scope.
+        // Role definitions are shared platform catalog entries; workspace admins do not
+        // get the global role editor from this read-only page.
+        var assignments = db.UserRoleAssignments.AsNoTracking()
+            .Where(a => a.TenantId == tenantId ||
+                (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value));
+        if (branchId.HasValue)
+            assignments = assignments.Where(a => a.BranchId == null || a.BranchId == branchId.Value);
+        else
+            assignments = assignments.Where(a => a.BranchId == null);
+        if (projectId.HasValue)
+            assignments = assignments.Where(a => a.ProjectId == null || a.ProjectId == projectId.Value);
+        else
+            assignments = assignments.Where(a => a.ProjectId == null);
+
+        var roleIds = assignments.Select(a => a.RoleId).Distinct();
+        var roles = await db.Roles.AsNoTracking()
+            .Where(r => roleIds.Contains(r.Id) && r.IsActive)
+            .OrderBy(r => r.Name)
+            .Select(r => new
+            {
+                r.Id, r.Code, r.Name, r.Description, r.BaseRedirectUrl,
+                UserCount = assignments.Where(a => a.RoleId == r.Id)
+                    .Select(a => a.UserId).Distinct().Count(),
+                Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id)
+                    .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
+            }).ToListAsync(cancellationToken);
+        return Ok(roles);
+    }
+
     [HttpGet("users")]
     public async Task<IActionResult> GetWorkspaceUsers(
         [FromQuery] long tenantId,
