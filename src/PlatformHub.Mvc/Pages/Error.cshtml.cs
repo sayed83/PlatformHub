@@ -31,7 +31,7 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
             ?? reExecuteFeature?.OriginalPath
             ?? HttpContext.Request.Path.Value
             ?? string.Empty;
-        RequestMethod = reExecuteFeature?.OriginalPath is not null ? reExecuteFeature.OriginalPath : HttpContext.Request.Method;
+        RequestMethod = HttpContext.Request.Method;
         QueryString = HttpContext.Request.QueryString.HasValue ? HttpContext.Request.QueryString.Value! : string.Empty;
         EnvironmentName = environment.EnvironmentName;
 
