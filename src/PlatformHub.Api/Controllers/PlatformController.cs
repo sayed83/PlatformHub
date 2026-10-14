@@ -28,19 +28,39 @@ public sealed class PlatformController(IPlatformService platform, PlatformDbCont
         if (await platform.IsPlatformAdminAsync(userId.Value, cancellationToken))
             return Ok(await platform.GetTenantsAsync(cancellationToken));
 
-        var candidateTenantIds = await db.UserRoleAssignments.AsNoTracking()
+        // Preserve each assignment's branch scope while resolving its owning tenant.
+        // A branch-only assignment must be checked against that exact branch; checking
+        // Tenant.View with branchId=null incorrectly rejects legitimate branch admins.
+        var candidateScopes = await db.UserRoleAssignments.AsNoTracking()
             .Where(a => a.UserId == userId.Value && a.Role.IsActive)
-            .Select(a => a.TenantId ?? (a.BranchId.HasValue
-                ? db.Branches.Where(b => b.Id == a.BranchId.Value).Select(b => (long?)b.TenantId).FirstOrDefault()
-                : null))
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value).Distinct().ToListAsync(cancellationToken);
+            .Select(a => new
+            {
+                TenantId = a.TenantId ?? (a.BranchId.HasValue
+                    ? db.Branches.Where(b => b.Id == a.BranchId.Value)
+                        .Select(b => (long?)b.TenantId).FirstOrDefault()
+                    : null),
+                a.BranchId
+            })
+            .Where(scope => scope.TenantId.HasValue)
+            .Select(scope => new { TenantId = scope.TenantId!.Value, scope.BranchId })
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
         var allTenants = await platform.GetTenantsAsync(cancellationToken);
         var visibleIds = new HashSet<long>();
-        foreach (var tenantId in candidateTenantIds)
-            if (await scopedAccess.CanAccessAsync(userId.Value, "Tenant.View", tenantId, cancellationToken: cancellationToken))
-                visibleIds.Add(tenantId);
+        foreach (var scope in candidateScopes)
+        {
+            if (await scopedAccess.CanAccessAsync(
+                    userId.Value,
+                    "Tenant.View",
+                    scope.TenantId,
+                    branchId: scope.BranchId,
+                    cancellationToken: cancellationToken))
+            {
+                visibleIds.Add(scope.TenantId);
+            }
+        }
+
         return Ok(allTenants.Where(t => visibleIds.Contains(t.Id)));
     }
 
