@@ -45,3 +45,47 @@ public sealed class PermissionRowViewModel
     public string? Description { get; set; }
     public bool IsSystemPermission { get; set; }
 }
+
+public sealed class RoleHardDeleteViewModel
+{
+    public long Id { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Description { get; set; }
+    public bool IsSystemRole { get; set; }
+    public bool IsActive { get; set; }
+    public string? BaseRedirectUrl { get; set; }
+    public List<RoleAssignmentDetailViewModel> Assignments { get; set; } = [];
+    public List<RolePermissionDetailViewModel> Permissions { get; set; } = [];
+    public List<RoleMenuAccessDetailViewModel> MenuAccess { get; set; } = [];
+    public bool CanDelete { get; set; }
+}
+public sealed class RoleAssignmentDetailViewModel
+{
+    public long Id { get; set; }
+    public long UserId { get; set; }
+    public string UserName { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public long? TenantId { get; set; }
+    public string? TenantName { get; set; }
+    public long? BranchId { get; set; }
+    public string? BranchName { get; set; }
+    public long? ProjectId { get; set; }
+    public string? ProjectName { get; set; }
+}
+public sealed class RolePermissionDetailViewModel
+{
+    public long PermissionId { get; set; }
+    public string Code { get; set; } = "";
+    public string PermissionName { get; set; } = "";
+    public string Module { get; set; } = "";
+}
+public sealed class RoleMenuAccessDetailViewModel
+{
+    public long Id { get; set; }
+    public long ProjectId { get; set; }
+    public string ProjectName { get; set; } = "";
+    public long MenuItemId { get; set; }
+    public string MenuName { get; set; } = "";
+    public bool IsAllowed { get; set; }
+}
