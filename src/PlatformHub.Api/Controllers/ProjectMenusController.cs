@@ -182,6 +182,33 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
+    [HttpPost("modules/{moduleId:long}/delete")]
+    public async Task<IActionResult> DeleteModule(long moduleId, [FromBody] DeleteModuleRequest request, CancellationToken ct)
+    {
+        if (moduleId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, module and delete type are required." });
+
+        var module = await db.ProjectModules.SingleOrDefaultAsync(x => x.Id == moduleId && x.ProjectId == request.ProjectId, ct);
+        if (module is null) return NotFound(new { message = "Module was not found in the selected project." });
+
+        if (request.DeleteType == "soft")
+        {
+            module.IsActive = false;
+            var menuItems = await db.MenuItems.Where(x => x.ProjectId == request.ProjectId && x.ModuleId == moduleId).ToListAsync(ct);
+            foreach (var item in menuItems) item.IsActive = false;
+            await db.SaveChangesAsync(ct);
+            return Ok(new { success = true, message = "Module and its menu entries were deactivated. Records and access history were retained." });
+        }
+
+        var hasMenus = await db.MenuItems.AnyAsync(x => x.ProjectId == request.ProjectId && x.ModuleId == moduleId, ct);
+        if (hasMenus)
+            return Conflict(new { message = "Hard delete is blocked because this module still contains menu entries. Remove or hard-delete the menu entries first, then retry." });
+
+        db.ProjectModules.Remove(module);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { success = true, message = "Module permanently deleted." });
+    }
+
     [HttpPost("items/{menuItemId:long}/delete")]
     public async Task<IActionResult> DeleteItem(long menuItemId, [FromBody] DeleteMenuItemRequest request, CancellationToken ct)
     {
@@ -235,3 +262,5 @@ public sealed record SaveModuleRequest(long? Id, long ProjectId, string Code, st
 public sealed record SaveMenuItemRequest(long? Id, long ProjectId, long? ModuleId, long? ParentMenuId, string Code, string Name, string? Area, string? Controller, string? Action, string? RouteUrl, string? Icon, int SortOrder, bool IsExternal, bool IsActive);
 
 public sealed record DeleteMenuItemRequest(long ProjectId, string DeleteType);
+
+public sealed record DeleteModuleRequest(long ProjectId, string DeleteType);
