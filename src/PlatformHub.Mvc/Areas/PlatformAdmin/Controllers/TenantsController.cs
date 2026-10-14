@@ -84,6 +84,36 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
 
 
     [HttpGet]
+    public async Task<IActionResult> Details(long id, CancellationToken ct)
+    {
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        if (!HasPermission("Tenant.View")) return Forbid();
+
+        var result = await api.GetWithStatusAsync<List<TenantViewModel>>(
+            "api/v1/platform/tenants", token, ct);
+        if (result.StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            TempData["ErrorMessage"] = "Your session expired. Please sign in again.";
+            return RedirectToAction("Login", "Account", new { area = "PlatformAdmin" });
+        }
+        if (result.Value is null)
+        {
+            TempData["ErrorMessage"] = result.Error ?? "Unable to load tenant details.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var tenant = result.Value.FirstOrDefault(x => x.Id == id);
+        if (tenant is null) return NotFound();
+
+        return View("Details", new TenantManagementViewModel
+        {
+            Tenants = new[] { tenant }
+        });
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Projects(long id, CancellationToken ct)
     {
         if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
@@ -143,6 +173,7 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(long id, string code, string name, CancellationToken ct)
     {
+        if (!HasPermission("Tenant.Update")) return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/update", new { code, name }, ct, token);
@@ -153,6 +184,7 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(long id, bool hardDelete, CancellationToken ct)
     {
+        if (!HasPermission("Tenant.Deactivate")) return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/delete", new { hardDelete }, ct, token);
@@ -170,6 +202,7 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(long id, CancellationToken ct)
     {
+        if (!HasPermission("Tenant.Deactivate")) return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/activate", new { }, ct, token);
@@ -182,7 +215,7 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TenantManagementViewModel model, CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true")
+        if (!HasPermission("Tenant.Create"))
             return Forbid();
 
         var token = User.FindFirst("ph_api_access_token")?.Value;
@@ -223,6 +256,9 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
         TempData["SuccessMessage"] = $"Tenant '{created.Name}' created successfully.";
         return RedirectToAction(nameof(Index));
     }
+    private bool HasPermission(string permission) =>
+        User.FindFirst("ph_platform_admin")?.Value == "true" ||
+        User.HasClaim("ph_permission", permission);
 }
 
 public sealed class AssignTenantProjectsResult { public string Message { get; set; } = string.Empty; public long TenantId { get; set; } public int AssignedCount { get; set; } }

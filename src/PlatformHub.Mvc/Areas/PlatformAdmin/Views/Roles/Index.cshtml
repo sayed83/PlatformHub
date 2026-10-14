@@ -232,7 +232,10 @@
                                             <div class="permission-group mb-3">
                                                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                                                     <h4 class="rp-section-label mb-0">@group.Key</h4>
-                                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-select-group="@role.Id" data-module="@group.Key">Select group</button>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-select-group="@role.Id" data-module="@group.Key">Select all</button>
+                                                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-secondary" data-clear-group="@role.Id" data-module="@group.Key">Clear</button>
+                                                    </div>
                                                 </div>
                                                 <div class="row g-2">
                                                     @foreach (var permission in group.OrderBy(x => x.Name))
@@ -322,20 +325,20 @@
                 group.classList.toggle('d-none', options.length > 0 && options.every(option => option.classList.contains('d-none')));
             });
         });
-        panel.querySelector('[data-select-all]')?.addEventListener('click', () => {
-            panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.checked = true);
-            updateCount(panel);
-        });
-        panel.querySelector('[data-clear-all]')?.addEventListener('click', () => {
-            panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.checked = false);
-            updateCount(panel);
-        });
-        panel.querySelectorAll('[data-select-group]').forEach(button => button.addEventListener('click', () => {
-            panel.querySelectorAll('.role-permission-checkbox').forEach(box => {
-                if (box.dataset.module === button.dataset.module) box.checked = true;
+        function setChecks(selector, predicate, checked) {
+            panel.querySelectorAll(selector).forEach(box => {
+                if (predicate(box)) box.checked = checked;
             });
             updateCount(panel);
-        }));
+        }
+        panel.querySelector('[data-select-all]')?.addEventListener('click', () =>
+            setChecks('.role-permission-checkbox', () => true, true));
+        panel.querySelector('[data-clear-all]')?.addEventListener('click', () =>
+            setChecks('.role-permission-checkbox', () => true, false));
+        panel.querySelectorAll('[data-select-group]').forEach(button => button.addEventListener('click', () =>
+            setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, true)));
+        panel.querySelectorAll('[data-clear-group]').forEach(button => button.addEventListener('click', () =>
+            setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, false)));
     });
 
     const catalogSearch = document.getElementById('permissionCatalogSearch');
