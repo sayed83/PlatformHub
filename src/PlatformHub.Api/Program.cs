@@ -250,6 +250,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<ActiveTenantContextMiddleware>();
 app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
