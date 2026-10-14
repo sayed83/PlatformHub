@@ -1,0 +1,111 @@
+@using PlatformHub.Mvc.Areas.PlatformAdmin.Models
+@model TenantManagementViewModel
+@{
+    ViewData["Title"] = "Tenant directory";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var activeCount = Model.Tenants.Count(x => x.IsActive);
+    var inactiveCount = Model.Tenants.Count - activeCount;
+}
+<style>
+    .tv-hero { border:1px solid #dce6f3; border-radius:1rem; padding:clamp(1.25rem,3vw,2rem); background:linear-gradient(120deg,#eaf2ff,#f8fbff); }
+    .tv-stat { height:100%; border:1px solid var(--bs-border-color); border-radius:.85rem; background:var(--bs-body-bg); padding:1rem; }
+    .tv-stat-label { color:var(--bs-secondary-color); font-size:.76rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .tv-stat-value { font-size:1.7rem; font-weight:750; line-height:1.2; margin-top:.45rem; }
+    .tv-avatar { display:inline-flex; align-items:center; justify-content:center; flex:0 0 2.65rem; width:2.65rem; height:2.65rem; border-radius:.8rem; color:var(--bs-primary); background:rgba(13,110,253,.1); font-weight:750; }
+    .tv-table th { white-space:nowrap; color:var(--bs-secondary-color); font-size:.75rem; text-transform:uppercase; letter-spacing:.045em; }
+    .tv-table td { padding-top:.9rem; padding-bottom:.9rem; }
+</style>
+
+<section class="tv-hero mb-4">
+    <div class="d-flex align-items-start gap-3">
+        <div class="tv-avatar" aria-hidden="true">▦</div>
+        <div class="flex-grow-1">
+            <div class="small text-primary fw-bold text-uppercase mb-2">Organization · Read only</div>
+            <h1 class="h3 fw-bold mb-2">Tenant directory</h1>
+            <p class="text-secondary mb-0">View tenant information available to your account. This page is read-only; tenant creation, editing, activation, deletion, and project assignment are managed by an authorized platform administrator.</p>
+        </div>
+        <span class="badge rounded-pill text-bg-light border text-secondary">Tenant.View</span>
+    </div>
+</section>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-4"><div class="tv-stat"><div class="tv-stat-label">Tenants available</div><div class="tv-stat-value">@Model.Tenants.Count</div><div class="small text-secondary mt-1">Visible within your access scope</div></div></div>
+    <div class="col-6 col-sm-4"><div class="tv-stat"><div class="tv-stat-label">Active</div><div class="tv-stat-value">@activeCount</div><div class="small text-secondary mt-1">Enabled tenants</div></div></div>
+    <div class="col-6 col-sm-4"><div class="tv-stat"><div class="tv-stat-label">Inactive</div><div class="tv-stat-value">@inactiveCount</div><div class="small text-secondary mt-1">Disabled tenants</div></div></div>
+</div>
+
+<section class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-body p-3 p-lg-4">
+        <h2 class="h5 fw-bold mb-1">Available tenants</h2>
+        <p class="small text-secondary mb-0">Only tenant records returned for your account are displayed.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover tv-table align-middle mb-0">
+            <thead class="table-light"><tr><th class="ps-3 ps-lg-4">Tenant</th><th>Tenant code</th><th>Status</th><th class="text-end pe-3 pe-lg-4">Information</th></tr></thead>
+            <tbody>
+            @if (Model.Tenants.Count == 0)
+            {
+                <tr><td colspan="4" class="text-center py-5">
+                    <div class="tv-avatar mx-auto mb-3" aria-hidden="true">▦</div>
+                    <div class="fw-semibold">No tenants available</div>
+                    <p class="small text-secondary mb-0 mt-1">No tenant records were returned for your current account and access scope. Ask your platform administrator to verify the Tenant.View permission and tenant assignment.</p>
+                </td></tr>
+            }
+            else
+            {
+                @foreach (var tenant in Model.Tenants.OrderBy(x => x.Name))
+                {
+                    <tr>
+                        <td class="ps-3 ps-lg-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="tv-avatar">@((string.IsNullOrWhiteSpace(tenant.Name) ? tenant.Code : tenant.Name).Trim().Substring(0, 1).ToUpperInvariant())</span>
+                                <div><div class="fw-semibold">@tenant.Name</div><div class="small text-secondary">Tenant ID: @tenant.Id</div></div>
+                            </div>
+                        </td>
+                        <td><code>@tenant.Code</code></td>
+                        <td>
+                            @if (tenant.IsActive)
+                            {
+                                <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge rounded-pill text-bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end pe-3 pe-lg-4">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tenantInfo-@tenant.Id">View details</button>
+                            <div class="modal fade text-start" id="tenantInfo-@tenant.Id" tabindex="-1" aria-labelledby="tenantInfoTitle-@tenant.Id" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                                    <div class="modal-header">
+                                        <div><h2 class="modal-title h5 fw-bold" id="tenantInfoTitle-@tenant.Id">@tenant.Name</h2><div class="small text-secondary">Read-only tenant information</div></div>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <dl class="row mb-0">
+                                            <dt class="col-sm-5 text-secondary">Tenant ID</dt><dd class="col-sm-7">@tenant.Id</dd>
+                                            <dt class="col-sm-5 text-secondary">Tenant name</dt><dd class="col-sm-7">@tenant.Name</dd>
+                                            <dt class="col-sm-5 text-secondary">Tenant code</dt><dd class="col-sm-7"><code>@tenant.Code</code></dd>
+                                            <dt class="col-sm-5 text-secondary">Status</dt><dd class="col-sm-7">@(tenant.IsActive ? "Active" : "Inactive")</dd>
+                                        </dl>
+                                    </div>
+                                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+                                </div></div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
