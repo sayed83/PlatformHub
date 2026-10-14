@@ -454,9 +454,10 @@
             return menus.filter(m => [m.name, m.code, m.moduleName].some(v => String(v || '').toLowerCase().includes(q)));
         }
         function renderRoleMatrix() {
-            roleHead.innerHTML = '<th>Menu / resource</th>' + roles.map(r =>
-                '<th class="policy-column"><span class="policy-role-chip role">' + esc(r.name) + '</span><div class="policy-code mt-1">' + esc(r.code) + '</div></th>'
-            ).join('');
+            roleHead.innerHTML = '<th><div class="d-flex flex-column gap-1"><span>Menu / resource</span><span class="small fw-normal text-secondary">Select all menus</span></div></th>' + roles.map(r => {
+                const allAllowed = menus.length > 0 && menus.every(m => roleState.get(r.id + ':' + m.id) === true);
+                return '<th class="policy-column"><span class="policy-role-chip role">' + esc(r.name) + '</span><div class="policy-code mt-1">' + esc(r.code) + '</div><label class="small d-flex align-items-center justify-content-center gap-1 mt-2"><input type="checkbox" class="policy-check role-select-all" data-role="' + r.id + '" ' + (allAllowed ? 'checked' : '') + ' aria-label="Select all menus for role ' + esc(r.name) + '"> All menus</label></th>';
+            }).join('');
             const rows = filteredMenus(roleSearch.value);
             roleRows.innerHTML = rows.length ? rows.map(m => '<tr data-search="' + esc((m.name + ' ' + m.code + ' ' + (m.moduleName || '')).toLowerCase()) + '"><td>' + menuCell(m) + '</td>' +
                 roles.map(r => {
@@ -469,9 +470,10 @@
             saveRoleButton.disabled = !project.value || roles.length === 0 || dirtyRoles.size === 0;
         }
         function renderUserMatrix() {
-            userHead.innerHTML = '<th>Menu / resource</th>' + users.map(u =>
-                '<th class="policy-column"><span class="policy-role-chip user">' + esc(u.displayName) + '</span><div class="policy-code mt-1">' + esc(u.userName) + '</div></th>'
-            ).join('');
+            userHead.innerHTML = '<th><div class="d-flex flex-column gap-1"><span>Menu / resource</span><span class="small fw-normal text-secondary">Set all user overrides</span></div></th>' + users.map(u => {
+                const allAllowed = menus.length > 0 && menus.every(m => (userState.get(u.id + ':' + m.id) || 'inherit') === 'allow');
+                return '<th class="policy-column"><span class="policy-role-chip user">' + esc(u.displayName) + '</span><div class="policy-code mt-1">' + esc(u.userName) + '</div><button type="button" class="btn btn-sm btn-outline-success mt-2 user-select-all" data-user="' + u.id + '">Allow all menus</button><div class="small text-secondary mt-1">' + (allAllowed ? 'All allowed' : 'Apply to every menu') + '</div></th>';
+            }).join('');
             const rows = filteredMenus(userSearch.value);
             userRows.innerHTML = rows.length ? rows.map(m => '<tr><td>' + menuCell(m) + '</td>' +
                 users.map(u => {
@@ -544,13 +546,31 @@
                 (users.length ? '' : ' No active users have a role assignment for this project or its tenant.'));
         }
 
+        roleHead.addEventListener('change', event => {
+            const input = event.target.closest('.role-select-all');
+            if (!input) return;
+            const roleId = Number(input.dataset.role);
+            menus.forEach(menu => roleState.set(roleId + ':' + menu.id, input.checked));
+            dirtyRoles.add(roleId);
+            renderRoleMatrix();
+        });
         roleRows.addEventListener('change', event => {
             const input = event.target.closest('.role-check');
             if (!input) return;
             const key = input.dataset.role + ':' + input.dataset.menu;
             roleState.set(key, input.checked);
             dirtyRoles.add(Number(input.dataset.role));
-            saveRoleButton.disabled = false;
+            renderRoleMatrix();
+        });
+        userHead.addEventListener('click', event => {
+            const button = event.target.closest('.user-select-all');
+            if (!button) return;
+            const userId = Number(button.dataset.user);
+            menus.forEach(menu => userState.set(userId + ':' + menu.id, 'allow'));
+            dirtyUsers.add(userId);
+            renderUserMatrix();
+            saveUserButton.disabled = !(project.value && tenant.value && dirtyUsers.size > 0);
+            notice('All menu overrides set to Allow for the selected user. Save user overrides to apply the changes.', 'info');
         });
         function handleUserDecisionChange(event) {
             const input = event.target.closest('.user-decision');
