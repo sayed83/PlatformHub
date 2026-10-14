@@ -1,0 +1,70 @@
+@model IReadOnlyList<PlatformHub.Mvc.Controllers.WorkspaceUserRowViewModel>
+@{
+    ViewData["Title"] = "Workspace Users";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var search = ViewData["Search"] as string ?? "";
+}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="text-uppercase small fw-semibold text-secondary mb-1">Workspace · Access control</div>
+            <h1 class="h3 mb-1">Users</h1>
+            <p class="text-secondary mb-0">Users assigned to your active tenant and branch scope.</p>
+        </div>
+        <span class="badge text-bg-primary">@Model.Count user(s)</span>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form method="get" action="/WorkspaceUsers" class="row g-2 mb-3">
+                <div class="col-12 col-md-8 col-lg-6">
+                    <label class="form-label" for="search">Search users</label>
+                    <input class="form-control" id="search" name="search" value="@search"
+                           placeholder="Username or display name" maxlength="100" />
+                </div>
+                <div class="col-auto align-self-end">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Search</button>
+                    <a class="btn btn-outline-secondary" href="/WorkspaceUsers">Clear</a>
+                </div>
+            </form>
+
+            @if (Model.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <h2 class="h5">No users found</h2>
+                    <p class="text-secondary mb-0">No users are assigned to this workspace scope, or your search returned no matches.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>User</th><th>Username</th><th>Roles</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var user in Model)
+                        {
+                            <tr>
+                                <td><div class="fw-semibold">@user.DisplayName</div><small class="text-secondary">ID: @user.Id</small></td>
+                                <td>@user.UserName</td>
+                                <td>
+                                    @if (user.Roles.Count == 0) { <span class="text-secondary">No role assigned</span> }
+                                    else { foreach (var role in user.Roles) { <span class="badge rounded-pill text-bg-light border me-1">@role</span> } }
+                                </td>
+                                <td>
+                                    @if (user.IsActive) { <span class="badge text-bg-success">Active</span> }
+                                    else { <span class="badge text-bg-secondary">Inactive</span> }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="alert alert-info mt-3 mb-0">
+        <strong>Scope protection:</strong> This page shows only users assigned within your authorized workspace scope. Global platform user management remains restricted to platform administrators.
+    </div>
+</div>
