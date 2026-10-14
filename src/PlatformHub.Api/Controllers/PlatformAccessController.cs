@@ -212,6 +212,37 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         });
     }
 
+    [HttpPut("roles/{roleId:long}")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> UpdateRole(long roleId, [FromBody] UpdateRoleRequest request, CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "The protected Platform Super Admin role cannot be edited." });
+        if (role.IsSystemRole && !IsSuperAdmin())
+            return Forbid();
+
+        var name = request.Name?.Trim();
+        var description = request.Description?.Trim();
+        var redirect = request.BaseRedirectUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 150
+            || (description?.Length ?? 0) > 500 || (redirect?.Length ?? 0) > 500)
+            return BadRequest(new { message = "Role name is required (max 150 characters); description and redirect URL must not exceed 500 characters." });
+
+        role.Name = name;
+        role.Description = string.IsNullOrWhiteSpace(description) ? null : description;
+        role.BaseRedirectUrl = string.IsNullOrWhiteSpace(redirect) ? null : redirect;
+        await db.SaveChangesAsync(cancellationToken);
+
+        var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
+            .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
+        if (affectedUserIds.Length > 0)
+            await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
+        return Ok(new { message = $"Role '{role.Name}' updated successfully.", role.Id, role.Code, role.Name, role.Description, role.BaseRedirectUrl });
+    }
+
     [HttpPut("roles/{roleId:long}/status")]
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
@@ -536,6 +567,7 @@ public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? Branch
 public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
 public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
 public sealed record SetRoleStatusRequest(bool IsActive);
+public sealed record UpdateRoleRequest(string Name, string? Description, string? BaseRedirectUrl);
 
 public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl, bool IsPlatformAdmin = false);
 public sealed record UpdatePlatformUserRequest(string DisplayName, bool IsActive, string? BaseRedirectUrl);
