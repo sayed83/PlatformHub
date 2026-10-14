@@ -101,7 +101,7 @@ public sealed class WorkspaceController(
             // If the assignment is tenant/branch scoped, offer each active project assigned
             // to the tenant. This lets branch admins select a project without changing the
             // scope of their role assignment.
-            if (availableProjects.Length > 0)
+            if (availableProjects.Count > 0)
             {
                 foreach (var project in availableProjects)
                 {
