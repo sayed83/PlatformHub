@@ -193,7 +193,19 @@
                                     }
                                     else if (canConfigure)
                                     {
-                                        <button type="button" class="btn btn-outline-primary btn-sm" data-role-toggle="@role.Id" aria-expanded="false" aria-controls="role-permissions-@role.Id">Configure <span aria-hidden="true">⌄</span></button>
+                                        <div class="d-flex gap-2 flex-wrap justify-content-end">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" data-role-toggle="@role.Id" aria-expanded="false" aria-controls="role-permissions-@role.Id">Configure <span aria-hidden="true">⌄</span></button>
+                                            <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@role.Id" />
+                                                <input type="hidden" name="isActive" value="@(!role.IsActive)" />
+                                                <button type="submit" class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")" data-confirm="@(role.IsActive ? "Deactivate" : "Activate") role @role.Name?">@(role.IsActive ? "Deactivate" : "Activate")</button>
+                                            </form>
+                                            @if (isSuperAdmin && !role.IsSystemRole)
+                                            {
+                                                <a asp-area="PlatformAdmin" asp-controller="Roles" asp-action="HardDeleteDetails" asp-route-id="@role.Id" class="btn btn-outline-danger btn-sm">Hard delete</a>
+                                            }
+                                        </div>
                                     }
                                     else
                                     {
@@ -296,6 +308,7 @@
         });
         roleEmpty?.classList.toggle('d-none', visible !== 0);
     }
+    document.querySelectorAll('form button[data-confirm]').forEach(button => button.addEventListener('click', event => { if (!confirm(button.dataset.confirm)) event.preventDefault(); }));
     roleSearch?.addEventListener('input', filterRoles);
     roleTypeFilter?.addEventListener('change', filterRoles);
 
