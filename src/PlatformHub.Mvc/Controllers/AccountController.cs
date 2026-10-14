@@ -10,7 +10,13 @@ namespace PlatformHub.Mvc.Controllers;
 public sealed class AccountController(PlatformApiClient api) : Controller
 {
     [HttpGet]
-    public IActionResult Login() => View(new LoginViewModel());
+    public IActionResult Login()
+    {
+        // A valid signed-in session should never render the login form inside the workspace shell.
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectToAction("Index", "Workspace");
+        return View(new LoginViewModel());
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken ct)
