@@ -402,13 +402,38 @@
             const form = document.createElement('form');
             form.innerHTML = csrf;
             const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
-            const response = await fetch(url, {
-                method: 'POST', credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
-                body: JSON.stringify(payload)
-            });
+            if (!token) throw new Error('Security token is missing. Refresh the page and try again.');
+
+            let response;
+            try {
+                response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(payload)
+                });
+            } catch {
+                throw new Error('Could not reach PlatformHub. Check the MVC and API applications, then try again.');
+            }
+
             const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.message || 'Could not save menu permissions.');
+            if (!response.ok) {
+                if (response.status === 400 && data.errors) {
+                    const details = Object.values(data.errors).flat().filter(Boolean).join(' ');
+                    throw new Error(details || data.message || 'The server rejected the submitted access changes.');
+                }
+                if (response.status === 401) {
+                    throw new Error('Your session has expired. Sign in again, then retry saving the user overrides.');
+                }
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to save user menu overrides.');
+                }
+                throw new Error((data.message || 'Could not save menu permissions.') + ' (HTTP ' + response.status + ')');
+            }
             return data;
         }
         function options(select, items, label, placeholder) {
@@ -527,13 +552,25 @@
             dirtyRoles.add(Number(input.dataset.role));
             saveRoleButton.disabled = false;
         });
-        userRows.addEventListener('change', event => {
+        function handleUserDecisionChange(event) {
             const input = event.target.closest('.user-decision');
-            if (!input) return;
+            if (!input || !userRows.contains(input)) return;
+
             userState.set(input.dataset.user + ':' + input.dataset.menu, input.value);
             dirtyUsers.add(Number(input.dataset.user));
-            saveUserButton.disabled = false;
-        });
+            // Keep the button enabled even when Select2 emits a jQuery change event.
+            saveUserButton.disabled = !(project.value && tenant.value && dirtyUsers.size > 0);
+        }
+
+        // The application applies Select2 to dropdowns globally. Select2 emits jQuery
+        // change events, which may not reach a native addEventListener handler.
+        if (window.jQuery) {
+            window.jQuery(userRows)
+                .off('change.menuPolicyUserAccess', '.user-decision')
+                .on('change.menuPolicyUserAccess', '.user-decision', handleUserDecisionChange);
+        } else {
+            userRows.addEventListener('change', handleUserDecisionChange);
+        }
         roleSearch.addEventListener('input', renderRoleMatrix);
         userSearch.addEventListener('input', renderUserMatrix);
 
@@ -582,15 +619,27 @@
             } catch (error) { notice(error.message, 'danger'); renderRoleMatrix(); }
         });
         saveUserButton.addEventListener('click', async () => {
+            if (!project.value || !tenant.value || dirtyUsers.size === 0) {
+                notice('Change at least one user decision before saving.', 'warning');
+                return;
+            }
+
+            const pendingUserIds = Array.from(dirtyUsers);
             saveUserButton.disabled = true;
+            saveUserButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Saving overrides…';
             try {
-                for (const userId of dirtyUsers) {
+                for (const userId of pendingUserIds) {
                     const items = menus.map(m => ({ menuItemId: m.id, decision: userState.get(userId + ':' + m.id) || 'inherit' }));
                     await post(saveUserUrl, { projectId: Number(project.value), userId, items });
                 }
-                dirtyUsers.clear(); renderUserMatrix();
+                dirtyUsers.clear();
                 notice('User-wise overrides saved successfully.');
-            } catch (error) { notice(error.message, 'danger'); renderUserMatrix(); }
+            } catch (error) {
+                notice(error.message || 'Could not save user overrides.', 'danger');
+            } finally {
+                saveUserButton.innerHTML = '<span aria-hidden="true">✓</span> Save user overrides';
+                renderUserMatrix();
+            }
         });
 
         get(requestUrl('projects', 0)).then(items => {

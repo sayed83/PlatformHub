@@ -3,13 +3,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlatformHub.Application.Auth;
 using PlatformHub.Application.Platform;
+using PlatformHub.Infrastructure.Persistence;
+using PlatformHub.Infrastructure.Platform;
+using Microsoft.EntityFrameworkCore;
 
 namespace PlatformHub.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/platform")]
-[Authorize(Policy = "PlatformAdmin")]
-public sealed class PlatformController(IPlatformService platform) : ControllerBase
+[Authorize]
+public sealed class PlatformController(IPlatformService platform, PlatformDbContext db, IScopedAccessService scopedAccess) : ControllerBase
 {
     [HttpGet("summary")]
     [Authorize(Policy = "Platform.Dashboard.View")]
@@ -18,8 +21,28 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
 
     [HttpGet("tenants")]
     [Authorize(Policy = "Tenant.View")]
-    public async Task<IActionResult> GetTenants(CancellationToken cancellationToken) =>
-        Ok(await platform.GetTenantsAsync(cancellationToken));
+    public async Task<IActionResult> GetTenants(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Forbid();
+        if (await platform.IsPlatformAdminAsync(userId.Value, cancellationToken))
+            return Ok(await platform.GetTenantsAsync(cancellationToken));
+
+        var candidateTenantIds = await db.UserRoleAssignments.AsNoTracking()
+            .Where(a => a.UserId == userId.Value && a.Role.IsActive)
+            .Select(a => a.TenantId ?? (a.BranchId.HasValue
+                ? db.Branches.Where(b => b.Id == a.BranchId.Value).Select(b => (long?)b.TenantId).FirstOrDefault()
+                : null))
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value).Distinct().ToListAsync(cancellationToken);
+
+        var allTenants = await platform.GetTenantsAsync(cancellationToken);
+        var visibleIds = new HashSet<long>();
+        foreach (var tenantId in candidateTenantIds)
+            if (await scopedAccess.CanAccessAsync(userId.Value, "Tenant.View", tenantId, cancellationToken: cancellationToken))
+                visibleIds.Add(tenantId);
+        return Ok(allTenants.Where(t => visibleIds.Contains(t.Id)));
+    }
 
     [HttpPost("tenants")]
     [Authorize(Policy = "Tenant.Create")]
@@ -40,7 +63,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     [Authorize(Policy = "Tenant.Update")]
     public async Task<IActionResult> UpdateTenant(long id, [FromBody] UpdateTenantRequest request, CancellationToken cancellationToken)
     {
-        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        if (!await CanManageTenantAsync(id, "Tenant.Update", cancellationToken)) return Forbid();
         try { return Ok(await platform.UpdateTenantAsync(id, request.Code, request.Name, cancellationToken)); }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
@@ -50,7 +73,8 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     [Authorize(Policy = "Tenant.Deactivate")]
     public async Task<IActionResult> DeleteTenant(long id, [FromBody] DeleteRequest request, CancellationToken cancellationToken)
     {
-        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        if (!await CanManageTenantAsync(id, "Tenant.Deactivate", cancellationToken)) return Forbid();
+        if (request.HardDelete && !await IsPlatformAdminAsync(cancellationToken)) return Forbid();
         try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return Ok(new { success = true }); }
         catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
@@ -60,7 +84,7 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     [Authorize(Policy = "Tenant.Update")]
     public async Task<IActionResult> ActivateTenant(long id, CancellationToken cancellationToken)
     {
-        if (await GetVerifiedPlatformAdminIdAsync(cancellationToken) is null) return Forbid();
+        if (!await CanManageTenantAsync(id, "Tenant.Update", cancellationToken)) return Forbid();
         try { await platform.ActivateTenantAsync(id, cancellationToken); return Ok(new { success = true }); }
         catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
     }
@@ -174,6 +198,25 @@ public sealed class PlatformController(IPlatformService platform) : ControllerBa
     public sealed record UpdateTenantRequest(string Code, string Name);
     public sealed record UpdateBranchRequest(string Code, string Name, string? Address);
     public sealed record DeleteRequest(bool HardDelete);
+
+    private long? GetUserId()
+    {
+        var raw = User.FindFirst(AppClaimTypes.UserId)?.Value;
+        return long.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
+    }
+
+    private async Task<bool> IsPlatformAdminAsync(CancellationToken ct)
+    {
+        var id = GetUserId();
+        return id.HasValue && await platform.IsPlatformAdminAsync(id.Value, ct);
+    }
+
+    private async Task<bool> CanManageTenantAsync(long tenantId, string permission, CancellationToken ct)
+    {
+        if (await IsPlatformAdminAsync(ct)) return true;
+        var id = GetUserId();
+        return id.HasValue && await scopedAccess.CanAccessAsync(id.Value, permission, tenantId, cancellationToken: ct);
+    }
 
     private async Task<long?> GetVerifiedPlatformAdminIdAsync(CancellationToken cancellationToken)
     {

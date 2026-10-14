@@ -1,0 +1,69 @@
+@model IReadOnlyList<PlatformHub.Mvc.Models.WorkspaceMenuItemViewModel>
+@{
+    var path = Context.Request.Path.Value ?? "/";
+    var sidebarMenus = Model.Where(x => !string.Equals(x.Code, "WORKSPACE_OVERVIEW", StringComparison.OrdinalIgnoreCase)).ToList();
+    string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "layout-dashboard" or "dashboard" => "▦",
+        "building-2" or "building" => "▣",
+        "git-branch" or "branches" => "⑂",
+        "panels-top-left" or "project" => "◈",
+        "users" or "user" => "♙",
+        "shield-check" or "shield" => "⚿",
+        "key-round" or "key" => "⚷",
+        "package" or "inventory" => "▤",
+        "settings" or "settings-2" => "⚙",
+        "book-open" or "book" => "▤",
+        "graduation-cap" => "♧",
+        _ => "•"
+    };
+}
+<div class="ph-user-sidebar-inner">
+    <div class="ph-nav-label">Workspace</div>
+    <nav class="nav flex-column" aria-label="Workspace navigation">
+        <a class="nav-link @(path.Equals("/Workspace", StringComparison.OrdinalIgnoreCase) || path.Equals("/Workspace/Index", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+           href="/Workspace">
+            <span class="ph-nav-icon" aria-hidden="true">▦</span> Overview
+        </a>
+        @if (sidebarMenus.Count == 0)
+        {
+            <div class="px-3 py-2 small" style="color:#aebdd0">
+                @if (Context.User.FindFirst("ph_active_project_id") is null)
+                {
+                    <span>Select an active workspace with a project to load its menu.</span>
+                }
+                else
+                {
+                    <span>No menu items are assigned to this project, or your account has no menu access.</span>
+                }
+            </div>
+        }
+        else
+        {
+            var modules = sidebarMenus.GroupBy(x => string.IsNullOrWhiteSpace(x.ModuleName) ? "General" : x.ModuleName!)
+                .OrderBy(g => g.Min(x => x.SortOrder)).ToList();
+            foreach (var module in modules)
+            {
+                <div class="ph-nav-label">@module.Key</div>
+                foreach (var item in module.OrderBy(x => x.SortOrder).ThenBy(x => x.Name))
+                {
+                    var href = !string.IsNullOrWhiteSpace(item.RouteUrl)
+                        ? item.RouteUrl!
+                        : !string.IsNullOrWhiteSpace(item.Controller)
+                            ? "/" + (string.IsNullOrWhiteSpace(item.Area) ? "" : item.Area + "/") +
+                              item.Controller + "/" + (string.IsNullOrWhiteSpace(item.Action) ? "Index" : item.Action)
+                            : "#";
+                    var isActive = !string.IsNullOrWhiteSpace(href) && href != "#" &&
+                        path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+                    <a class="nav-link @(isActive ? "active" : "")"
+                       href="@href"
+                       target="@(item.IsExternal ? "_blank" : null)"
+                       rel="@(item.IsExternal ? "noopener noreferrer" : null)">
+                        <span class="ph-nav-icon" aria-hidden="true">@MenuIcon(item.Icon)</span>
+                        <span>@item.Name</span>
+                    </a>
+                }
+            }
+        }
+    </nav>
+</div>

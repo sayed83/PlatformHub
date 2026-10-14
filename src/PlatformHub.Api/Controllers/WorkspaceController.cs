@@ -48,73 +48,102 @@ public sealed class WorkspaceController(
             .Select(x => new { x.Id, x.TenantId, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
-        var projectIds = assignments.Where(x => x.ProjectId.HasValue)
-            .Select(x => x.ProjectId!.Value).Distinct().ToArray();
+        // Load active projects once. A branch/tenant-scoped role assignment may not carry
+        // ProjectId, but the tenant can still have reusable projects assigned through TenantProjects.
         var projects = await db.Projects.AsNoTracking()
-            .Where(x => projectIds.Contains(x.Id) && x.IsActive)
+            .Where(x => x.IsActive)
             .Select(x => new { x.Id, x.TenantId, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
         var tenantIds = assignments.Where(x => x.TenantId.HasValue)
             .Select(x => x.TenantId!.Value)
             .Concat(branches.Select(x => x.TenantId))
-            .Concat(projects.Where(x => x.TenantId.HasValue).Select(x => x.TenantId!.Value))
+            .Concat(projects.Where(p => assignments.Any(a => a.ProjectId == p.Id) && p.TenantId.HasValue)
+                .Select(p => p.TenantId!.Value))
             .Distinct().ToArray();
         var tenants = await db.Tenants.AsNoTracking()
             .Where(x => tenantIds.Contains(x.Id) && x.IsActive)
             .Select(x => new { x.Id, x.Code, x.Name })
             .ToListAsync(cancellationToken);
 
-        // Resolve reusable-project subscriptions in one query instead of issuing a synchronous
-        // database query for every assignment while building the response.
         var activeTenantProjectPairs = await db.TenantProjects.AsNoTracking()
-            .Where(tp => projectIds.Contains(tp.ProjectId) && tp.IsEnabled)
+            .Where(tp => tp.IsEnabled && tp.Tenant.IsActive)
             .Select(tp => new { tp.TenantId, tp.ProjectId })
             .ToListAsync(cancellationToken);
         var activeTenantProjectKeys = activeTenantProjectPairs
             .Select(tp => (tp.TenantId, tp.ProjectId))
             .ToHashSet();
 
-        var scopes = assignments.Select(a =>
+        var resolvedScopes = new List<object>();
+        foreach (var assignment in assignments)
         {
-            var branch = a.BranchId.HasValue
-                ? branches.FirstOrDefault(x => x.Id == a.BranchId.Value) : null;
-            var project = a.ProjectId.HasValue
-                ? projects.FirstOrDefault(x => x.Id == a.ProjectId.Value) : null;
-            var resolvedTenantId = a.TenantId ?? branch?.TenantId ?? project?.TenantId;
+            var branch = assignment.BranchId.HasValue
+                ? branches.FirstOrDefault(x => x.Id == assignment.BranchId.Value) : null;
+            var assignedProject = assignment.ProjectId.HasValue
+                ? projects.FirstOrDefault(x => x.Id == assignment.ProjectId.Value) : null;
+            var resolvedTenantId = assignment.TenantId ?? branch?.TenantId ?? assignedProject?.TenantId;
             var tenant = resolvedTenantId.HasValue
                 ? tenants.FirstOrDefault(t => t.Id == resolvedTenantId.Value) : null;
 
-            // Discard invalid or cross-tenant assignments rather than exposing them in the UI.
-            var projectAssignedToTenant = project is not null && tenant is not null &&
-                (project.TenantId == tenant.Id ||
-                 activeTenantProjectKeys.Contains((tenant.Id, project.Id)));
-
+            // Reject invalid or cross-tenant assignments before expanding projects.
             if (tenant is null
-                || (branch is not null && branch.TenantId != tenant.Id)
-                || (project is not null && !projectAssignedToTenant)
-                || (a.BranchId.HasValue && branch is null)
-                || (a.ProjectId.HasValue && project is null))
-                return null;
+                || (assignment.BranchId.HasValue && (branch is null || branch.TenantId != tenant.Id))
+                || (assignment.ProjectId.HasValue && assignedProject is null))
+                continue;
 
-            return new
+            var availableProjects = projects
+                .Where(project =>
+                    (!assignment.ProjectId.HasValue || project.Id == assignment.ProjectId.Value) &&
+                    (project.TenantId == tenant.Id ||
+                     activeTenantProjectKeys.Contains((tenant.Id, project.Id))))
+                .ToList();
+
+            // If the assignment is tenant/branch scoped, offer each active project assigned
+            // to the tenant. This lets branch admins select a project without changing the
+            // scope of their role assignment.
+            if (availableProjects.Count > 0)
             {
-                Id = tenant.Id,
-                TenantCode = tenant.Code,
-                TenantName = tenant.Name,
-                BranchId = branch?.Id,
-                BranchCode = branch?.Code,
-                BranchName = branch?.Name,
-                ProjectId = project?.Id,
-                ProjectCode = project?.Code,
-                ProjectName = project?.Name,
-                a.RoleCode,
-                a.RoleName
-            };
-        })
-        .Where(x => x is not null)
-        .Distinct()
-        .ToList();
+                foreach (var project in availableProjects)
+                {
+                    resolvedScopes.Add(new
+                    {
+                        Id = tenant.Id,
+                        TenantCode = tenant.Code,
+                        TenantName = tenant.Name,
+                        BranchId = branch?.Id,
+                        BranchCode = branch?.Code,
+                        BranchName = branch?.Name,
+                        ProjectId = (long?)project.Id,
+                        ProjectCode = (string?)project.Code,
+                        ProjectName = (string?)project.Name,
+                        assignment.RoleCode,
+                        assignment.RoleName
+                    });
+                }
+            }
+            else if (!assignment.ProjectId.HasValue)
+            {
+                // Keep a tenant/branch-only scope available when the tenant has no project yet.
+                resolvedScopes.Add(new
+                {
+                    Id = tenant.Id,
+                    TenantCode = tenant.Code,
+                    TenantName = tenant.Name,
+                    BranchId = branch?.Id,
+                    BranchCode = branch?.Code,
+                    BranchName = branch?.Name,
+                    ProjectId = (long?)null,
+                    ProjectCode = (string?)null,
+                    ProjectName = (string?)null,
+                    assignment.RoleCode,
+                    assignment.RoleName
+                });
+            }
+        }
+
+        var scopes = resolvedScopes
+            .Distinct()
+            .ToList();
 
         return Ok(scopes);
     }

@@ -12,9 +12,6 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true")
-            return Forbid();
-
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token))
             return Challenge();
@@ -119,7 +116,6 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(long id, string code, string name, CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/update", new { code, name }, ct, token);
@@ -130,7 +126,6 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(long id, bool hardDelete, CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/delete", new { hardDelete }, ct, token);
@@ -148,7 +143,6 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(long id, CancellationToken ct)
     {
-        if (User.FindFirst("ph_platform_admin")?.Value != "true") return Forbid();
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         var (result, error) = await api.PostWithErrorAsync<object>($"api/v1/platform/tenants/{id}/activate", new { }, ct, token);

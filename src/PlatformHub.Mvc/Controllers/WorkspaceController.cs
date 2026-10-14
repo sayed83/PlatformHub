@@ -31,6 +31,20 @@ public sealed class WorkspaceController(PlatformApiClient api) : Controller
         var tenantId = ParseClaim(ActiveTenant);
         var branchId = ParseClaim(ActiveBranch);
         var projectId = ParseClaim(ActiveProject);
+
+        // On first login, activate the first valid project-backed scope automatically.
+        // This makes the workspace and its dynamic sidebar usable without requiring an
+        // extra manual click on "Set active workspace".
+        if (!tenantId.HasValue && scopes.Count > 0)
+        {
+            var initialScope = scopes
+                .OrderByDescending(x => x.ProjectId.HasValue)
+                .ThenByDescending(x => x.BranchId.HasValue)
+                .First();
+            await ReplaceActiveScopeClaimsAsync(initialScope.Id, initialScope.BranchId, initialScope.ProjectId);
+            return RedirectToAction(nameof(Index));
+        }
+
         var selected = tenantId.HasValue
             ? scopes.FirstOrDefault(x => x.Id == tenantId.Value &&
                 x.BranchId == branchId && x.ProjectId == projectId)

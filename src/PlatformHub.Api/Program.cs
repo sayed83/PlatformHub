@@ -195,6 +195,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
     await PlatformRbacSeeder.SeedAsync(db);
+    await ProjectNavigationSeeder.SeedAsync(db);
     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
     await PlatformRoleUserSeeder.SeedAsync(db, app.Configuration, passwordHasher, loggerFactory);
 }
@@ -250,6 +251,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<ActiveTenantContextMiddleware>();
 app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
