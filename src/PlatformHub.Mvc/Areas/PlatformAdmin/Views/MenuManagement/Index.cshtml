@@ -876,7 +876,7 @@
         // render() only draws the tables/footers. Cards are handled by setStats().
         function render() {
             const filteredModules = modules.filter(moduleMatches), filteredMenus = (displayedMenus ?? menus).filter(menuMatches);
-            moduleRows.innerHTML = filteredModules.length ? filteredModules.map(x => '<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-mod-icon">' + iconHtml(x.icon, '▦') + '</span><div><div class="pm-primary">' + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></div></div></td><td><span class="text-secondary">' + esc(x.description || 'No description') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="' + x.id + '">Edit</button></td></tr>').join('') : '<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">' + (modules.length ? 'No matching modules' : 'No modules created yet') + '</div><div class="small mb-3">' + (modules.length ? 'Try another search term.' : 'Create a module to group related navigation entries.') + '</div>' + (modules.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>') + '</div></td></tr>';
+            moduleRows.innerHTML = filteredModules.length ? filteredModules.map(x => '<tr><td><div class="d-flex align-items-center gap-3"><span class="pm-mod-icon">' + iconHtml(x.icon, '▦') + '</span><div><div class="pm-primary">' + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></div></div></td><td><span class="text-secondary">' + esc(x.description || 'No description') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-module="' + x.id + '">Edit</button> <button class="btn btn-sm btn-outline-warning" data-delete-module="' + x.id + '" data-delete-type="soft">Soft delete</button> <button class="btn btn-sm btn-outline-danger" data-delete-module="' + x.id + '" data-delete-type="hard">Hard delete</button></td></tr>').join('') : '<tr><td colspan="5"><div class="pm-empty"><div class="pm-empty-icon">▦</div><div class="fw-semibold text-dark mb-1">' + (modules.length ? 'No matching modules' : 'No modules created yet') + '</div><div class="small mb-3">' + (modules.length ? 'Try another search term.' : 'Create a module to group related navigation entries.') + '</div>' + (modules.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-module>＋ Create first module</button>') + '</div></td></tr>';
             menuRows.innerHTML = filteredMenus.length ? filteredMenus.map(x => '<tr><td><div class="pm-primary">' + (x.parentMenuId ? '<span class="text-secondary me-1">↳</span>' : '') + esc(x.name) + '</div><div class="mt-1"><span class="pm-code">' + esc(x.code) + '</span></div></td><td>' + esc(modules.find(m => m.id === x.moduleId)?.name || 'Standalone') + '</td><td>' + esc(menus.find(m => m.id === x.parentMenuId)?.name || '—') + '</td><td><span class="pm-route" title="' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join('/') || 'No route configured') + '">' + esc(x.routeUrl || [x.area, x.controller, x.action].filter(Boolean).join(' / ') || 'No route configured') + '</span></td><td>' + x.sortOrder + '</td><td>' + status(x.isActive) + '</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-edit-menu="' + x.id + '">Edit</button> <button class="btn btn-sm btn-outline-warning" data-delete-menu="' + x.id + '" data-delete-type="soft">Soft delete</button> <button class="btn btn-sm btn-outline-danger" data-delete-menu="' + x.id + '" data-delete-type="hard">Hard delete</button></td></tr>').join('') : '<tr><td colspan="7"><div class="pm-empty"><div class="pm-empty-icon">☷</div><div class="fw-semibold text-dark mb-1">' + (menus.length ? 'No matching menu entries' : 'No menu entries created yet') + '</div><div class="small mb-3">' + (menus.length ? 'Try another search term.' : 'Add your first menu entry to connect the project to a page or route.') + '</div>' + (menus.length ? '' : '<button class="btn btn-primary btn-sm" data-empty-add-menu>＋ Create first menu</button>') + '</div></td></tr>';
             document.getElementById('moduleSummary').textContent = filteredModules.length + ' of ' + modules.length + ' modules'; document.getElementById('menuSummary').textContent = filteredMenus.length + ' of ' + menus.length + ' menu entries';
         }
@@ -910,7 +910,29 @@
         }
 
         document.getElementById('addModule').addEventListener('click', () => openEditor('modules')); document.getElementById('addMenu').addEventListener('click', () => openEditor('items')); document.getElementById('quickAddMenu').addEventListener('click', () => { if (!selectedProject()) { notice('Choose a project before adding a menu.', 'warning'); return; } document.querySelector('#menus-tab').click(); openEditor('items'); });
-        moduleRows.addEventListener('click', e => { if (e.target.closest('[data-empty-add-module]')) return openEditor('modules'); const b = e.target.closest('[data-edit-module]'); if (b) openEditor('modules', modules.find(x => x.id === Number(b.dataset.editModule))); });
+        moduleRows.addEventListener('click', async e => {
+            if (e.target.closest('[data-empty-add-module]')) return openEditor('modules');
+            const del = e.target.closest('[data-delete-module]');
+            if (del) {
+                const item = modules.find(x => x.id === Number(del.dataset.deleteModule));
+                if (!item || !selectedProject()) return;
+                const type = del.dataset.deleteType;
+                const prompt = type === 'soft'
+                    ? 'Soft delete module "' + item.name + '"? Its menu entries will also be deactivated and records retained.'
+                    : 'Permanently delete module "' + item.name + '"? Hard delete is allowed only when it has no menu entries.';
+                if (!window.confirm(prompt)) return;
+                try {
+                    del.disabled = true;
+                    const result = await send('@Url.Action("DeleteModule", "MenuManagement", new { area = "PlatformAdmin" })?moduleId=' + item.id + '&projectId=' + selectedProject() + '&deleteType=' + type, {});
+                    notice(result.message || 'Module updated.', 'success');
+                    await refresh();
+                } catch (error) { notice(error.message || 'Unable to delete module.', 'danger'); }
+                finally { del.disabled = false; }
+                return;
+            }
+            const b = e.target.closest('[data-edit-module]');
+            if (b) openEditor('modules', modules.find(x => x.id === Number(b.dataset.editModule)));
+        });
         menuRows.addEventListener('click', async e => {
             if (e.target.closest('[data-empty-add-menu]')) return openEditor('items');
             const del = e.target.closest('[data-delete-menu]');
