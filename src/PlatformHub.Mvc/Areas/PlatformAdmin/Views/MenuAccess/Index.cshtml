@@ -379,6 +379,9 @@
             node.textContent = message;
             node.className = 'alert alert-' + type + ' policy-status py-2';
         };
+        function redirectToPlatformLogin() {
+            window.location.replace('/PlatformAdmin/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
+        }
         async function get(url) {
             let response;
             try {
@@ -386,9 +389,13 @@
             } catch {
                 throw new Error('Could not reach the MVC server. Check that PlatformHub.Mvc is running.');
             }
+            if (response.redirected && /\/PlatformAdmin\/Account\/Login/i.test(response.url)) {
+                redirectToPlatformLogin();
+                throw new Error('Your session expired. Redirecting to Platform Admin login…');
+            }
             const data = await response.json().catch(() => ({}));
             if (response.status === 401) {
-                window.location.replace('/PlatformAdmin/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname + window.location.search));
+                redirectToPlatformLogin();
                 throw new Error('Your session expired. Redirecting to Platform Admin login…');
             }
             if (!response.ok) {
@@ -420,7 +427,15 @@
                 throw new Error('Could not reach PlatformHub. Check the MVC and API applications, then try again.');
             }
 
+            if (response.redirected && /\/PlatformAdmin\/Account\/Login/i.test(response.url)) {
+                redirectToPlatformLogin();
+                throw new Error('Your session expired. Redirecting to Platform Admin login…');
+            }
             const data = await response.json().catch(() => ({}));
+            if (response.status === 401) {
+                redirectToPlatformLogin();
+                throw new Error('Your session expired. Redirecting to Platform Admin login…');
+            }
             if (!response.ok) {
                 if (response.status === 400 && data.errors) {
                     const details = Object.values(data.errors).flat().filter(Boolean).join(' ');
