@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlatformHub.Mvc.Areas.PlatformAdmin.Models;
@@ -18,6 +20,17 @@ public sealed class TenantsController(PlatformApiClient api) : Controller
 
         var tenantResult = await api.GetWithStatusAsync<List<TenantViewModel>>(
             "api/v1/platform/tenants", token, ct);
+
+        // The MVC cookie can remain valid after the embedded Platform API JWT expires.
+        // Do not render /Error/401 in that case: clear the stale MVC session and send
+        // the user directly to the Platform Admin sign-in page.
+        if (tenantResult.StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            TempData["ErrorMessage"] = "Your session expired. Please sign in again.";
+            return RedirectToAction("Login", "Account", new { area = "PlatformAdmin" });
+        }
+
         if (tenantResult.Value is null)
         {
             // Do not disguise an API outage as an empty tenant directory.

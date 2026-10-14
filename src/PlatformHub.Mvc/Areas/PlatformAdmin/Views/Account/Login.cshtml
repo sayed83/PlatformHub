@@ -13,6 +13,11 @@
                 <h2 class="mb-1">Platform Admin</h2>
                 <p class="text-secondary">Authorized platform administrators only.</p>
 
+                @if (TempData["ErrorMessage"] is string signInMessage && !string.IsNullOrWhiteSpace(signInMessage))
+                {
+                    <div class="alert alert-warning" role="alert">@signInMessage</div>
+                }
+
                 <div asp-validation-summary="All" class="text-danger" role="alert"></div>
 
                 <form asp-area="PlatformAdmin"
