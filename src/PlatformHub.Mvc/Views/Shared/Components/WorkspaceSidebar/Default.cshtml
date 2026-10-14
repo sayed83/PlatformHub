@@ -50,14 +50,18 @@
                     var isPlatformAdmin = Context.User.FindFirst("ph_platform_admin")?.Value == "true";
                     var isGlobalUsersRoute = string.Equals(item.Controller, "Users", StringComparison.OrdinalIgnoreCase)
                         && string.Equals(item.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
+                    var isGlobalRolesRoute = string.Equals(item.Controller, "Roles", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(item.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
                     var href = !isPlatformAdmin && isGlobalUsersRoute
                         ? "/WorkspaceUsers"
-                        : !string.IsNullOrWhiteSpace(item.RouteUrl)
-                            ? item.RouteUrl!
-                            : !string.IsNullOrWhiteSpace(item.Controller)
-                                ? "/" + (string.IsNullOrWhiteSpace(item.Area) ? "" : item.Area + "/") +
-                                  item.Controller + "/" + (string.IsNullOrWhiteSpace(item.Action) ? "Index" : item.Action)
-                                : "#";
+                        : !isPlatformAdmin && isGlobalRolesRoute
+                            ? "/WorkspaceRoles"
+                            : !string.IsNullOrWhiteSpace(item.RouteUrl)
+                                ? item.RouteUrl!
+                                : !string.IsNullOrWhiteSpace(item.Controller)
+                                    ? "/" + (string.IsNullOrWhiteSpace(item.Area) ? "" : item.Area + "/") +
+                                      item.Controller + "/" + (string.IsNullOrWhiteSpace(item.Action) ? "Index" : item.Action)
+                                    : "#";
                     var isActive = !string.IsNullOrWhiteSpace(href) && href != "#" &&
                         path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
                     <a class="nav-link @(isActive ? "active" : "")"

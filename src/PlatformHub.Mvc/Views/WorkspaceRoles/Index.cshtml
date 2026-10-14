@@ -1,0 +1,79 @@
+@model IReadOnlyList<PlatformHub.Mvc.Controllers.WorkspaceRoleRowViewModel>
+@{
+    ViewData["Title"] = "Workspace Roles";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var search = ViewData["Search"] as string ?? "";
+}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="text-uppercase small fw-semibold text-secondary mb-1">Workspace · Access control</div>
+            <h1 class="h3 mb-1">Roles &amp; Permissions</h1>
+            <p class="text-secondary mb-0">Roles assigned within your active workspace scope.</p>
+        </div>
+        <span class="badge text-bg-primary">@Model.Count role(s)</span>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form method="get" action="/WorkspaceRoles" class="row g-2 mb-3">
+                <div class="col-12 col-md-8 col-lg-6">
+                    <label class="form-label" for="search">Search roles</label>
+                    <input class="form-control" id="search" name="search" value="@search"
+                           placeholder="Role name or code" maxlength="100" />
+                </div>
+                <div class="col-auto align-self-end">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                    <a class="btn btn-outline-secondary" href="/WorkspaceRoles">Clear</a>
+                </div>
+            </form>
+
+            @if (Model.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <h2 class="h5">No roles found</h2>
+                    <p class="text-secondary mb-0">No active roles are assigned within this workspace, or your search returned no matches.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Role</th><th>Code</th><th>Users in scope</th><th>Permissions</th><th>Landing page</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var role in Model)
+                        {
+                            <tr>
+                                <td><div class="fw-semibold">@role.Name</div><small class="text-secondary">@role.Description</small></td>
+                                <td><code>@role.Code</code></td>
+                                <td><span class="badge text-bg-light border">@role.UserCount</span></td>
+                                <td>
+                                    @if (role.Permissions.Count == 0) { <span class="text-secondary">No permissions</span> }
+                                    else
+                                    {
+                                        <details>
+                                            <summary>@role.Permissions.Count permission(s)</summary>
+                                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                                @foreach (var permission in role.Permissions)
+                                                {
+                                                    <span class="badge rounded-pill text-bg-light border">@permission</span>
+                                                }
+                                            </div>
+                                        </details>
+                                    }
+                                </td>
+                                <td><small class="text-secondary">@(string.IsNullOrWhiteSpace(role.BaseRedirectUrl) ? "Workspace default" : role.BaseRedirectUrl)</small></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="alert alert-info mt-3 mb-0">
+        <strong>Security:</strong> This page is read-only. Role definitions and permission changes remain restricted to the existing authorized role-management workflow. Only roles assigned in your active scope are shown.
+    </div>
+</div>
