@@ -212,6 +212,68 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         });
     }
 
+    [HttpPut("roles/{roleId:long}/status")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        var isSuperAdmin = IsSuperAdmin();
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "The protected Platform Super Admin role cannot be deactivated." });
+        if (role.IsSystemRole && !isSuperAdmin)
+            return Forbid();
+        if (!request.IsActive && role.IsSystemRole && role.Code == "PLATFORM_ADMIN")
+            return Conflict(new { message = "The built-in Platform Admin role cannot be deactivated." });
+
+        role.IsActive = request.IsActive;
+        await db.SaveChangesAsync(cancellationToken);
+        var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
+            .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
+        if (affectedUserIds.Length > 0)
+            await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
+        return Ok(new { message = $"Role {(role.IsActive ? "activated" : "deactivated")}. Existing sessions for assigned users were revoked.", role.Id, role.IsActive });
+    }
+
+    [HttpGet("roles/{roleId:long}/hard-delete-details")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> GetRoleHardDeleteDetails(long roleId, CancellationToken cancellationToken)
+    {
+        if (!IsSuperAdmin()) return Forbid();
+        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        var assignments = await db.UserRoleAssignments.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, x.TenantId, TenantName = x.Tenant == null ? null : x.Tenant.Name, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name, x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name })
+            .ToListAsync(cancellationToken);
+        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.PermissionId, x.Permission.Code, PermissionName = x.Permission.Name, x.Permission.Module }).OrderBy(x => x.Module).ThenBy(x => x.PermissionName).ToListAsync(cancellationToken);
+        var menuAccess = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.Id, x.ProjectId, ProjectName = x.Project.Name, x.MenuItemId, MenuName = x.MenuItem.Name, x.IsAllowed }).ToListAsync(cancellationToken);
+        return Ok(new { role.Id, role.Code, role.Name, role.Description, role.IsSystemRole, role.IsActive, role.BaseRedirectUrl, Assignments = assignments, Permissions = permissions, MenuAccess = menuAccess, CanDelete = !role.IsSystemRole && role.Code != PlatformRbacSeeder.SuperAdminCode && assignments.Count == 0 });
+    }
+
+    [HttpDelete("roles/{roleId:long}")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> HardDeleteRole(long roleId, CancellationToken cancellationToken)
+    {
+        if (!IsSuperAdmin()) return Forbid();
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "Built-in and protected roles cannot be permanently deleted." });
+        if (await db.UserRoleAssignments.AnyAsync(x => x.RoleId == roleId, cancellationToken))
+            return Conflict(new { message = "This role still has user assignments. Remove or reassign them before hard deletion." });
+
+        var rolePermissions = await db.RolePermissions.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
+        var menuAccess = await db.RoleWiseMenuAccesses.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
+        db.RolePermissions.RemoveRange(rolePermissions);
+        db.RoleWiseMenuAccesses.RemoveRange(menuAccess);
+        db.Roles.Remove(role);
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = $"Role '{role.Name}' was permanently deleted." });
+    }
+
     [HttpPut("roles/{roleId:long}/permissions")]
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> SetRolePermissions(long roleId, [FromBody] SetRolePermissionsRequest request, CancellationToken cancellationToken)
