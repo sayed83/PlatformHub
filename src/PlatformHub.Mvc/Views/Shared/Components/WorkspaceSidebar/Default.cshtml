@@ -1,21 +1,7 @@
 @model IReadOnlyList<PlatformHub.Mvc.Models.WorkspaceMenuItemViewModel>
 @{
     var path = Context.Request.Path.Value ?? "/";
-    // PlatformAdmin pages are intentionally reserved for platform administrators.
-    // A workspace role's User.View permission does not grant cross-tenant platform access.
-    // Hide misconfigured workspace menu entries that point into the PlatformAdmin area;
-    // tenant/branch user management must use a dedicated scope-validated workspace endpoint.
-    var isPlatformAdmin = Context.User.FindFirst("ph_platform_admin")?.Value == "true";
-    var sidebarMenus = Model
-        .Where(x => !string.Equals(x.Code, "WORKSPACE_OVERVIEW", StringComparison.OrdinalIgnoreCase))
-        .Where(x => isPlatformAdmin ||
-            !string.Equals(x.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase))
-        .Where(x => isPlatformAdmin ||
-            !(string.IsNullOrWhiteSpace(x.RouteUrl) &&
-              !string.IsNullOrWhiteSpace(x.Controller) &&
-              string.Equals(x.Controller, "Users", StringComparison.OrdinalIgnoreCase) &&
-              string.Equals(x.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase)))
-        .ToList();
+    var sidebarMenus = Model.Where(x => !string.Equals(x.Code, "WORKSPACE_OVERVIEW", StringComparison.OrdinalIgnoreCase)).ToList();
     string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "layout-dashboard" or "dashboard" => "▦",
