@@ -1,32 +1,7 @@
 @model IReadOnlyList<PlatformHub.Mvc.Models.WorkspaceMenuItemViewModel>
 @{
     var path = Context.Request.Path.Value ?? "/";
-    var isPlatformAdmin = Context.User.FindFirst("ph_platform_admin")?.Value == "true";
-    var sidebarMenus = Model
-        .Where(x => !string.Equals(x.Code, "WORKSPACE_OVERVIEW", StringComparison.OrdinalIgnoreCase))
-        // Platform-wide administration screens must not appear in a tenant user's
-        // sidebar. Users and Roles are mapped to their scoped workspace pages below.
-        .Where(x => isPlatformAdmin ||
-            !string.Equals(x.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase) ||
-            (string.Equals(x.Controller, "Users", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(x.Controller, "Roles", StringComparison.OrdinalIgnoreCase)))
-        .Where(x => isPlatformAdmin ||
-            !IsPlatformAdminRoute(x.RouteUrl) &&
-            !IsPlatformAdministrationController(x.Controller))
-        .ToList();
-
-    bool IsPlatformAdminRoute(string? route)
-    {
-        if (string.IsNullOrWhiteSpace(route)) return false;
-        var pathOnly = route.Split('?', '#')[0].TrimEnd('/');
-        return pathOnly.StartsWith("/PlatformAdmin/", StringComparison.OrdinalIgnoreCase) ||
-               pathOnly.StartsWith("~/PlatformAdmin/", StringComparison.OrdinalIgnoreCase);
-    }
-
-    bool IsPlatformAdministrationController(string? controller) =>
-        controller is not null &&
-        new[] { "Tenants", "Branches", "Projects", "PermissionCatalog", "Permissions" }
-            .Contains(controller, StringComparer.OrdinalIgnoreCase);
+    var sidebarMenus = Model.Where(x => !string.Equals(x.Code, "WORKSPACE_OVERVIEW", StringComparison.OrdinalIgnoreCase)).ToList();
     string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "layout-dashboard" or "dashboard" => "▦",
@@ -72,7 +47,7 @@
                 <div class="ph-nav-label">@module.Key</div>
                 foreach (var item in module.OrderBy(x => x.SortOrder).ThenBy(x => x.Name))
                 {
-
+                    var isPlatformAdmin = Context.User.FindFirst("ph_platform_admin")?.Value == "true";
                     var isGlobalUsersRoute = string.Equals(item.Controller, "Users", StringComparison.OrdinalIgnoreCase)
                         && string.Equals(item.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
                     var isGlobalRolesRoute = string.Equals(item.Controller, "Roles", StringComparison.OrdinalIgnoreCase)
