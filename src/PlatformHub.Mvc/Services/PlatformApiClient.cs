@@ -271,9 +271,15 @@ public sealed class PlatformApiClient(
         var contentHeaders = request.Content?.Headers.ToDictionary(x => x.Key, x => x.Value.ToArray());
 
         var response = await client.SendAsync(request, ct);
-        if (response.StatusCode != HttpStatusCode.Unauthorized || context is null || isAuthEndpoint ||
-            string.IsNullOrWhiteSpace(refreshToken) || !long.TryParse(userIdText, out var userId))
+        if (response.StatusCode != HttpStatusCode.Unauthorized || context is null || isAuthEndpoint)
             return response;
+
+        if (string.IsNullOrWhiteSpace(refreshToken) || !long.TryParse(userIdText, out var userId))
+        {
+            if (context.User.Identity?.IsAuthenticated == true)
+                context.Items["PlatformHub.SessionExpired"] = true;
+            return response;
+        }
 
         response.Dispose();
         using var refreshResponse = await client.PostAsJsonAsync(
@@ -286,7 +292,10 @@ public sealed class PlatformApiClient(
             var isConcurrentRotation = TryReadApiMessage(refreshError)?.Contains(
                 "already been rotated", StringComparison.OrdinalIgnoreCase) == true;
             if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized && !isConcurrentRotation)
+            {
+                context.Items["PlatformHub.SessionExpired"] = true;
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         }
 
@@ -294,6 +303,8 @@ public sealed class PlatformApiClient(
         if (tokens is null || string.IsNullOrWhiteSpace(tokens.AccessToken) || string.IsNullOrWhiteSpace(tokens.RefreshToken))
         {
             logger.LogError("Platform API refresh returned an incomplete token response for UserId={UserId}", userId);
+            context.Items["PlatformHub.SessionExpired"] = true;
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
         }
 

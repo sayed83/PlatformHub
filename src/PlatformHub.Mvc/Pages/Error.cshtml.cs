@@ -16,6 +16,7 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     public string EnvironmentName { get; private set; } = string.Empty;
     public string LoginUrl { get; private set; } = "/Account/Login";
     public string LoginButtonText { get; private set; } = "User panel login";
+    public string LogoutUrl { get; private set; } = "/Account/Logout";
     public string? TechnicalDetails { get; private set; }
     public string Title { get; private set; } = "Something went wrong";
     public string Description { get; private set; } = "PlatformHub could not complete this request.";
@@ -26,7 +27,9 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     {
         StatusCode = statusCode ?? 500;
         TraceId = HttpContext.TraceIdentifier;
+        var reExecuteFeature = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
         RequestPath = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Path
+            ?? reExecuteFeature?.OriginalPath
             ?? HttpContext.Request.Path.Value
             ?? string.Empty;
         RequestMethod = HttpContext.Request.Method;
@@ -34,9 +37,22 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         EnvironmentName = environment.EnvironmentName;
 
         // Route back to the login page belonging to the panel where the request originated.
-        var isPlatformAdminPanel = RequestPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase)
-            || HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true";
+        var originalPath = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>()?.OriginalPath
+            ?? RequestPath;
+        // The authenticated panel claim is authoritative. Workspace menu items may still
+        // point to a legacy /PlatformAdmin route, which must not change the login panel.
+        var isPlatformAdminPanel = HttpContext.User.Identity?.IsAuthenticated == true
+            ? HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true"
+            : originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase);
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
+        LogoutUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Logout" : "/Account/Logout";
+
+        // Authentication expiry should send the user to sign-in; other failures stay on Error Center.
+        if (StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            Response.Redirect(LoginUrl);
+            return;
+        }
         LoginButtonText = isPlatformAdminPanel ? "Platform Admin login" : "User panel login";
         var exception = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Error;
         if (environment.IsDevelopment())
@@ -46,8 +62,10 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
                 TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n\n{exception}";
             else if (!string.IsNullOrWhiteSpace(capturedApiDetails))
                 TechnicalDetails = capturedApiDetails;
-            else if (StatusCode >= 500)
-                TechnicalDetails = "No exception object was captured for this response. Use the reference ID to find the corresponding MVC/API log entry. For API connection errors, verify Api:BaseUrl and confirm the API is running.";
+            else
+                TechnicalDetails = StatusCode >= 500
+                    ? "No exception object was captured for this response. Use the reference ID to find the corresponding MVC/API log entry. For API connection errors, verify Api:BaseUrl and confirm the API is running."
+                    : $"No exception object was captured for this HTTP {StatusCode} response. The original request path is '{RequestPath}'. Check the route, endpoint mapping, and resource identifier.";
         }
 
         if (StatusCode is < 400 or > 599) StatusCode = 500;

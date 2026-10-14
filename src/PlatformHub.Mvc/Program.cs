@@ -79,6 +79,21 @@ app.Use(async (context, next) =>
 
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
+// API token expiry is an authentication event, not an application error.
+// Redirect to the appropriate panel login only when refresh has genuinely failed.
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Items["PlatformHub.SessionExpired"] is true && !context.Response.HasStarted)
+    {
+        var isPlatformAdmin = context.Request.Path.StartsWithSegments("/PlatformAdmin")
+            || context.User.FindFirst("ph_platform_admin")?.Value == "true";
+        context.Response.Clear();
+        context.Response.Redirect(isPlatformAdmin ? "/PlatformAdmin/Account/Login" : "/Account/Login");
+    }
+});
+
 if (!app.Environment.IsDevelopment())
     app.UseHsts();
 
