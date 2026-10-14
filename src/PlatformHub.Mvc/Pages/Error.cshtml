@@ -88,7 +88,10 @@
         }
         <nav class="ph-error-buttons" aria-label="Error recovery">
             <button type="button" class="btn btn-primary" onclick="window.location.reload()">Try again</button>
-            <a class="btn btn-outline-secondary" href="@Model.LoginUrl">@Model.LoginButtonText</a>
+            <form method="post" action="@Model.LogoutUrl" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">@Model.LoginButtonText</button>
+            </form>
             <a class="btn btn-outline-secondary" href="/">Go to home</a>
             <button type="button" class="btn btn-outline-secondary" onclick="if(history.length>1)history.back();else window.location.href='/'">Go back</button>
         </nav>
