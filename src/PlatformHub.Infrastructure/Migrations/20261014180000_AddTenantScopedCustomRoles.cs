@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using PlatformHub.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace PlatformHub.Infrastructure.Migrations;
 
+[DbContext(typeof(PlatformDbContext))]
+[Migration("20261014180000_AddTenantScopedCustomRoles")]
 public partial class AddTenantScopedCustomRoles : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
