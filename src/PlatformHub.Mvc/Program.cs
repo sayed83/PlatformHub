@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using PlatformHub.Mvc.Services;
 
@@ -80,17 +81,33 @@ app.Use(async (context, next) =>
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
-// API token expiry is an authentication event, not an application error.
-// Redirect to the appropriate panel login only when refresh has genuinely failed.
+// Authentication failures in the normal user panel should return the user to its own
+// login page. This also handles MVC actions that translate an API 401/403 into an MVC
+// status code (for example, WorkspaceRolesController), before the Error Center is shown.
+// Platform Admin remains on its separate authentication flow.
 app.Use(async (context, next) =>
 {
     await next();
-    if (context.Items["PlatformHub.SessionExpired"] is true && !context.Response.HasStarted)
+
+    var isPlatformAdmin = context.Request.Path.StartsWithSegments("/PlatformAdmin")
+        || context.User.FindFirst("ph_platform_admin")?.Value == "true";
+
+    var isUserPanelAuthFailure = !isPlatformAdmin
+        && context.Response.StatusCode is StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden
+        && !context.Request.Path.StartsWithSegments("/Account/Login")
+        && !context.Request.Path.StartsWithSegments("/Account/Denied")
+        && !context.Request.Path.StartsWithSegments("/Account/Logout");
+
+    if (context.Items["PlatformHub.SessionExpired"] is true || isUserPanelAuthFailure)
     {
-        var isPlatformAdmin = context.Request.Path.StartsWithSegments("/PlatformAdmin")
-            || context.User.FindFirst("ph_platform_admin")?.Value == "true";
-        context.Response.Clear();
-        context.Response.Redirect(isPlatformAdmin ? "/PlatformAdmin/Account/Login" : "/Account/Login");
+        if (!context.Response.HasStarted)
+        {
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            context.Response.Clear();
+            context.Response.Redirect(isPlatformAdmin
+                ? "/PlatformAdmin/Account/Login"
+                : "/Account/Login");
+        }
     }
 });
 
