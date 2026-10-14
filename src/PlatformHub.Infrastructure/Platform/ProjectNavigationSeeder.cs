@@ -36,7 +36,7 @@ public static class ProjectNavigationSeeder
         new("PROJECT_LIST", "Projects", "ORGANIZATION", "Project.View", "PlatformAdmin", "Projects", "Index", null, "panels-top-left", 30),
         new("USER_LIST", "Users", "ACCESS", "User.View", "PlatformAdmin", "Users", "Index", null, "users", 10),
         new("ROLE_LIST", "Roles", "ACCESS", "Role.View", "PlatformAdmin", "Roles", "Index", null, "shield", 20),
-        new("PERMISSION_CATALOG", "Permission Catalog", "ACCESS", "Permission.View", "PlatformAdmin", "Permissions", "Index", null, "key-round", 30),
+        //new("PERMISSION_CATALOG", "Permission Catalog", "ACCESS", "Permission.View", "PlatformAdmin", "Permissions", "Index", null, "key-round", 30),
         new("INVENTORY_ITEMS", "Inventory Items", "INVENTORY", "Inventory.Item.View", null, "Inventory", "Items", null, "package", 10)
     ];
 
