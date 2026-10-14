@@ -204,7 +204,7 @@
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@role.Id" />
                                                 <input type="hidden" name="isActive" value="@(!role.IsActive)" />
-                                                <button type="submit" class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")" data-confirm="@(role.IsActive ? "Deactivate" : "Activate") role @role.Name?">@(role.IsActive ? "Deactivate" : "Activate")</button>
+                                                <button type="button" class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")" data-role-status-open data-role-id="@role.Id" data-role-name="@role.Name" data-role-active="@role.IsActive.ToString().ToLowerInvariant()">@(role.IsActive ? "Deactivate" : "Activate")</button>
                                             </form>
                                             @if (isSuperAdmin && !role.IsSystemRole)
                                             {
@@ -351,7 +351,26 @@
     });
     cancelEdit?.addEventListener('click', resetRoleEditor);
 
-    document.querySelectorAll('form button[data-confirm]').forEach(button => button.addEventListener('click', event => { if (!confirm(button.dataset.confirm)) event.preventDefault(); }));
+    const roleStatusModal = document.getElementById('roleStatusModal');
+    const roleStatusTitle = document.getElementById('roleStatusTitle');
+    const roleStatusMessage = document.getElementById('roleStatusMessage');
+    const roleStatusId = document.getElementById('roleStatusId');
+    const roleStatusValue = document.getElementById('roleStatusValue');
+    const roleStatusConfirm = document.getElementById('roleStatusConfirm');
+    function closeRoleStatusDialog() { if (roleStatusModal?.open) roleStatusModal.close(); else roleStatusModal?.classList.add('d-none'); }
+    document.querySelectorAll('[data-role-status-open]').forEach(button => button.addEventListener('click', () => {
+        const active = button.dataset.roleActive === 'true';
+        roleStatusId.value = button.dataset.roleId || '';
+        roleStatusValue.value = active ? 'false' : 'true';
+        roleStatusTitle.textContent = active ? 'Deactivate role?' : 'Activate role?';
+        roleStatusMessage.textContent = active ? 'Are you sure you want to deactivate ' + button.dataset.roleName + '? Users assigned to this role may lose access.' : 'Are you sure you want to activate ' + button.dataset.roleName + '? This will make the role available again.';
+        roleStatusConfirm.textContent = active ? 'Deactivate role' : 'Activate role';
+        roleStatusConfirm.className = active ? 'btn btn-warning' : 'btn btn-success';
+        if (roleStatusModal.showModal) roleStatusModal.showModal(); else roleStatusModal.classList.remove('d-none');
+    }));
+    document.getElementById('roleStatusCancel')?.addEventListener('click', closeRoleStatusDialog);
+    document.getElementById('roleStatusClose')?.addEventListener('click', closeRoleStatusDialog);
+    roleStatusModal?.addEventListener('click', event => { if (event.target === roleStatusModal) closeRoleStatusDialog(); });
     roleSearch?.addEventListener('input', filterRoles);
     roleTypeFilter?.addEventListener('change', filterRoles);
 
@@ -412,5 +431,28 @@
         document.getElementById('permissionCatalogEmpty')?.classList.toggle('d-none', count !== 0);
     });
 })();
+
+    <dialog id="roleStatusModal" class="role-status-dialog" aria-labelledby="roleStatusTitle">
+        <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="roleStatusId" name="id" />
+            <input type="hidden" id="roleStatusValue" name="isActive" />
+            <div class="role-status-icon" aria-hidden="true">?</div>
+            <h2 id="roleStatusTitle" class="h4 fw-bold">Change role status</h2>
+            <p id="roleStatusMessage" class="text-secondary">Confirm this status change.</p>
+            <div class="d-flex justify-content-end flex-wrap gap-2 mt-4">
+                <button type="button" id="roleStatusClose" class="btn btn-outline-secondary">Cancel</button>
+                <button type="submit" id="roleStatusConfirm" class="btn btn-success">Confirm</button>
+            </div>
+        </form>
+    </dialog>
+    <style>
+        .role-status-dialog{width:min(92vw,480px);border:0;border-radius:18px;padding:28px;box-shadow:0 24px 80px #0f172a35;color:#17283e}
+        .role-status-dialog::backdrop{background:rgba(15,23,42,.58);backdrop-filter:blur(3px)}
+        .role-status-dialog .role-status-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#eaf1ff;color:#2563eb;font-size:24px;font-weight:800;margin-bottom:18px}
+        .role-status-dialog p{line-height:1.6;margin-bottom:0}
+        @media(max-width:480px){.role-status-dialog{padding:22px}}
+    </style>
+
 </script>
 }
