@@ -93,7 +93,8 @@ app.Use(async (context, next) =>
         || context.User.FindFirst("ph_platform_admin")?.Value == "true";
 
     var isUserPanelAuthFailure = !isPlatformAdmin
-        && context.Response.StatusCode is StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden
+        && (context.Response.StatusCode == StatusCodes.Status401Unauthorized
+            || context.Response.StatusCode == StatusCodes.Status403Forbidden)
         && !context.Request.Path.StartsWithSegments("/Account/Login")
         && !context.Request.Path.StartsWithSegments("/Account/Denied")
         && !context.Request.Path.StartsWithSegments("/Account/Logout");
