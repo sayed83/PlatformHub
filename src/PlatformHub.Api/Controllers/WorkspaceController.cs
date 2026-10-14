@@ -50,7 +50,14 @@ public sealed class WorkspaceController(
 
         var roleIds = assignments.Select(a => a.RoleId).Distinct();
         var roles = await db.Roles.AsNoTracking()
-            .Where(r => (r.TenantId == null && r.IsSystemRole || r.TenantId == tenantId) && (r.IsActive || r.TenantId == tenantId))
+            .Where(r =>
+                // Platform Admin roles belong exclusively to the separate Platform Admin panel.
+                // Workspace users may see global non-platform system roles and roles owned by their tenant.
+                (r.TenantId == null && r.IsSystemRole
+                    && r.Code != "PLATFORM_ADMIN"
+                    && r.Code != PlatformRbacSeeder.SuperAdminCode
+                    || r.TenantId == tenantId)
+                && (r.IsActive || r.TenantId == tenantId))
             .OrderBy(r => r.Name)
             .Select(r => new
             {
