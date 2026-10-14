@@ -52,7 +52,6 @@ public sealed class WorkspaceController(
         var roles = await db.Roles.AsNoTracking()
             .Where(r =>
                 // Platform Admin roles belong exclusively to the separate Platform Admin panel.
-                // Workspace users may see global non-platform system roles and roles owned by their tenant.
                 (r.TenantId == null && r.IsSystemRole
                     && r.Code != "PLATFORM_ADMIN"
                     && r.Code != PlatformRbacSeeder.SuperAdminCode
