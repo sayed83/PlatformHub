@@ -200,5 +200,6 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
 
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
     private string? AccessToken() => User.FindFirst("ph_api_access_token")?.Value;
-    public sealed record ApiOperationResult(string Message, long RoleId, int PermissionCount);\n    public sealed record RoleStatusResult(string Message, long Id, string Code, string Name, bool IsActive);
+    public sealed record ApiOperationResult(string Message, long RoleId, int PermissionCount);
+    public sealed record RoleStatusResult(string Message, long Id, string Code, string Name, bool IsActive);
 }
