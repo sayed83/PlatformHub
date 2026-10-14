@@ -1,6 +1,21 @@
 @model IReadOnlyList<PlatformHub.Mvc.Models.WorkspaceMenuItemViewModel>
 @{
     var path = Context.Request.Path.Value ?? "/";
+    string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "layout-dashboard" or "dashboard" => "▦",
+        "building-2" or "building" => "▣",
+        "git-branch" or "branches" => "⑂",
+        "panels-top-left" or "project" => "◈",
+        "users" or "user" => "♙",
+        "shield-check" or "shield" => "⚿",
+        "key-round" or "key" => "⚷",
+        "package" or "inventory" => "▤",
+        "settings" or "settings-2" => "⚙",
+        "book-open" or "book" => "▤",
+        "graduation-cap" => "♧",
+        _ => "•"
+    };
 }
 <div class="ph-user-sidebar-inner">
     <div class="ph-nav-label">Workspace</div>
@@ -43,7 +58,7 @@
                        href="@href"
                        target="@(item.IsExternal ? "_blank" : null)"
                        rel="@(item.IsExternal ? "noopener noreferrer" : null)">
-                        <span class="ph-nav-icon" aria-hidden="true">@(!string.IsNullOrWhiteSpace(item.Icon) ? item.Icon : "•")</span>
+                        <span class="ph-nav-icon" aria-hidden="true">@MenuIcon(item.Icon)</span>
                         <span>@item.Name</span>
                     </a>
                 }
