@@ -117,6 +117,87 @@ public sealed class WorkspaceController(
     }
 
 
+
+    [HttpGet("menu-access")]
+    public async Task<IActionResult> GetWorkspaceMenuAccess(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromQuery] string targetType,
+        [FromQuery] long targetId,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (!projectId.HasValue || projectId.Value <= 0 || targetId <= 0 ||
+            (targetType != "role" && targetType != "user"))
+            return BadRequest(new { message = "A valid project, target type, and target ID are required." });
+
+        var permission = targetType == "role" ? "Role.Update" : "User.Update";
+        if (!await scopedAccess.CanAccessAsync(userId, permission, tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        if (targetType == "role")
+        {
+            var inScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
+                a.RoleId == targetId && a.Role.IsActive &&
+                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+            if (!inScope) return NotFound(new { message = "Role is not assigned in this workspace scope." });
+        }
+        else
+        {
+            var inScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
+                a.UserId == targetId && !a.User.IsPlatformAdmin && a.Role.IsActive &&
+                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+            if (!inScope) return NotFound(new { message = "User is not assigned in this workspace scope." });
+        }
+
+        var menus = await db.MenuItems.AsNoTracking()
+            .Where(m => m.ProjectId == projectId.Value && m.IsActive)
+            .OrderBy(m => m.SortOrder).ThenBy(m => m.Name)
+            .Select(m => new { m.Id, m.Code, m.Name, m.ModuleId, ModuleName = m.Module == null ? null : m.Module.Name, m.ParentMenuId })
+            .ToListAsync(cancellationToken);
+
+        if (targetType == "role")
+        {
+            var values = await db.RoleWiseMenuAccesses.AsNoTracking()
+                .Where(a => a.ProjectId == projectId.Value && a.RoleId == targetId)
+                .ToDictionaryAsync(a => a.MenuItemId, a => a.IsAllowed, cancellationToken);
+            return Ok(menus.Select(m => new
+            {
+                m.Id, m.Code, m.Name, m.ModuleId, m.ModuleName, m.ParentMenuId,
+                IsAllowed = values.TryGetValue(m.Id, out var value) && value,
+                HasExplicitDecision = values.ContainsKey(m.Id)
+            }));
+        }
+        else
+        {
+            var values = await db.UserWiseMenuAccesses.AsNoTracking()
+                .Where(a => a.ProjectId == projectId.Value && a.UserId == targetId)
+                .ToDictionaryAsync(a => a.MenuItemId, a => a.IsAllowed, cancellationToken);
+            var roleIds = await db.UserRoleAssignments.AsNoTracking()
+                .Where(a => a.UserId == targetId && a.Role.IsActive &&
+                    (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                    (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                    (a.ProjectId == null || a.ProjectId == projectId.Value))
+                .Select(a => a.RoleId).Distinct().ToListAsync(cancellationToken);
+            var roleAllowedIds = await db.RoleWiseMenuAccesses.AsNoTracking()
+                .Where(a => a.ProjectId == projectId.Value && roleIds.Contains(a.RoleId) && a.IsAllowed)
+                .Select(a => a.MenuItemId).Distinct().ToListAsync(cancellationToken);
+            return Ok(menus.Select(m => new
+            {
+                m.Id, m.Code, m.Name, m.ModuleId, m.ModuleName, m.ParentMenuId,
+                IsAllowed = values.TryGetValue(m.Id, out var value) ? value : roleAllowedIds.Contains(m.Id),
+                HasExplicitDecision = values.ContainsKey(m.Id)
+            }));
+        }
+    }
+
     public sealed record MenuAccessUpdateRequest(long MenuItemId, bool IsAllowed);
 
     [HttpPut("roles/{roleId:long}/menu-access")]
