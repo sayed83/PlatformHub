@@ -2,6 +2,7 @@
 @model JsonElement
 @{
     ViewData["Title"] = "Hard delete details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
     var itemType = (string)(ViewData["ItemType"] ?? "menu");
     var itemId = (long)(ViewData["ItemId"] ?? 0L);
     var projectId = (long)(ViewData["ProjectId"] ?? 0L);
@@ -10,13 +11,29 @@
     var canDelete = Model.TryGetProperty("canHardDelete", out var allowed) && allowed.ValueKind == JsonValueKind.True;
     string Val(JsonElement e, string key, string fallback = "—") => e.TryGetProperty(key, out var v) && v.ValueKind != JsonValueKind.Null ? v.ToString() : fallback;
 }
+<style>
+.hd-page{max-width:1200px;margin:0 auto}
+.hd-hero{border-radius:1rem;padding:1.5rem 1.75rem;color:#fff;background:linear-gradient(115deg,#17283b,#284d7a);box-shadow:0 10px 28px rgba(15,35,60,.12)}
+.hd-kicker{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#b9d0f7}
+.hd-record{border:1px solid #e1e8f1;border-radius:1rem;background:#fff;box-shadow:0 3px 10px rgba(15,35,60,.04)}
+.hd-record-head{border-bottom:1px solid #e7edf5;background:#f8faff;padding:.9rem 1.15rem;font-weight:700}
+.hd-record-body{padding:1.25rem}
+.hd-table th{background:#f7f9fc;color:#61738b;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.hd-table td,.hd-table th{padding:.8rem 1rem;vertical-align:middle}
+.hd-metric{border:1px solid #e1e8f1;border-radius:.8rem;padding:.8rem 1rem;background:#f8faff}
+.hd-warning{border:1px solid #f1d38a;border-radius:.8rem;background:#fff8e6;color:#704d00;padding:1rem}
+.hd-danger{border:1px solid #f1b9bf;border-radius:.8rem;background:#fff0f1;color:#842029;padding:1rem}
+.hd-actions{position:sticky;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid #e1e8f1;border-radius:.9rem;padding:1rem;box-shadow:0 -4px 18px rgba(15,35,60,.06)}
+@media(max-width:767.98px){.hd-hero{padding:1.25rem}.hd-table{min-width:650px}}
+</style>
+<div class="hd-page">
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
-        <div><div class="text-uppercase small fw-bold text-secondary mb-2">Platform Admin · Project Navigation</div><h1 class="h3">Hard delete confirmation</h1><p class="text-secondary">Review related records before permanently deleting this @(itemType == "module" ? "module" : "menu entry").</p></div>
+    <div class="hd-hero d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div><div class="hd-kicker mb-2">Platform Admin · Project Navigation</div><h1 class="h3 text-white mb-2">Hard delete confirmation</h1><p class="mb-0 text-white-50">Review related records before permanently deleting this @(itemType == "module" ? "module" : "menu entry").</p></div>
         <a class="btn btn-outline-secondary" href="@returnUrl">← Back without deleting</a>
     </div>
     @if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+    <div class="hd-record mb-4"><div class="hd-record-body">
         <h2 class="h5">@Val(item, "name")</h2><div class="text-secondary small">Code: <code>@Val(item, "code")</code> · ID: @itemId · Project ID: @projectId</div>
         @if (itemType == "menu") { <div class="mt-2 small">Module: @Val(item, "moduleName", "Standalone") · Parent: @Val(item, "parentMenuName")</div><div class="small">Route: @Val(item, "routeUrl")</div> }
         <div class="mt-2">Status: @Val(item, "isActive")</div>
@@ -24,9 +41,9 @@
     @if (itemType == "module")
     {
         var records = Model.GetProperty("relatedMenus");
-        <div class="card border-0 shadow-sm mb-4"><div class="card-header bg-white fw-semibold">Related menu entries (@records.GetArrayLength())</div>
+        <div class="hd-record mb-4"><div class="hd-record-head">Related menu entries (@records.GetArrayLength())</div>
         @if (records.GetArrayLength() == 0) { <div class="card-body text-secondary">No menu entries reference this module.</div> }
-        else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Menu</th><th>Code</th><th>Status</th><th>Role access</th><th>User access</th><th>Child menus</th></tr></thead><tbody>
+        else { <div class="table-responsive"><table class="table table-sm align-middle mb-0 hd-table"><thead><tr><th>Menu</th><th>Code</th><th>Status</th><th>Role access</th><th>User access</th><th>Child menus</th></tr></thead><tbody>
         @foreach (var row in records.EnumerateArray()) { <tr><td>@Val(row,"name")</td><td><code>@Val(row,"code")</code></td><td>@Val(row,"isActive")</td><td>@Val(row,"roleAccessCount","0")</td><td>@Val(row,"userAccessCount","0")</td><td>@Val(row,"childMenuCount","0")</td></tr> }
         </tbody></table></div> }</div>
     }
@@ -35,20 +52,21 @@
         @foreach (var group in new[] { ("Child menus", "childMenus"), ("Role-wise access records", "roleAccess"), ("User-wise access records", "userAccess") })
         {
             var records = Model.GetProperty(group.Item2);
-            <div class="card border-0 shadow-sm mb-3"><div class="card-header bg-white fw-semibold">@group.Item1 (@records.GetArrayLength())</div>
+            <div class="hd-record mb-3"><div class="hd-record-head">@group.Item1 (@records.GetArrayLength())</div>
             @if (records.GetArrayLength() == 0) { <div class="card-body text-secondary">No related records.</div> }
-            else { <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr>@foreach (var p in records[0].EnumerateObject().Where(p => p.Name != "id")) { <th>@System.Text.RegularExpressions.Regex.Replace(p.Name, "([a-z])([A-Z])", "$1 $2")</th> }</tr></thead><tbody>
+            else { <div class="table-responsive"><table class="table table-sm align-middle mb-0 hd-table"><thead><tr>@foreach (var p in records[0].EnumerateObject().Where(p => p.Name != "id")) { <th>@System.Text.RegularExpressions.Regex.Replace(p.Name, "([a-z])([A-Z])", "$1 $2")</th> }</tr></thead><tbody>
             @foreach (var row in records.EnumerateArray()) { <tr>@foreach (var p in row.EnumerateObject().Where(p => p.Name != "id")) { <td>@(p.Value.ValueKind == JsonValueKind.Null ? "—" : p.Value.ToString())</td> }</tr> }
             </tbody></table></div> }</div>
         }
     }
-    @if (!canDelete) { <div class="alert alert-warning"><strong>Hard delete is blocked.</strong> @Val(Model, "reason", "Related records must be resolved first.") Soft delete remains available to preserve history.</div> }
-    else { <div class="alert alert-danger"><strong>This action is permanent.</strong> The record cannot be restored after deletion.</div> }
-    <div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-secondary" href="@returnUrl">Cancel and return</a>
+    @if (!canDelete) { <div class="hd-warning mb-3"><strong>Hard delete is blocked.</strong> @Val(Model, "reason", "Related records must be resolved first.") Soft delete remains available to preserve history.</div> }
+    else { <div class="hd-danger mb-3"><strong>This action is permanent.</strong> The record cannot be restored after deletion.</div> }
+    <div class="hd-actions d-flex gap-2 flex-wrap align-items-center"><a class="btn btn-outline-secondary" href="@returnUrl">Cancel and return</a>
     @if (canDelete) {
         <form method="post" action="@Url.Action("ConfirmHardDelete", "MenuManagement", new { area = "PlatformAdmin" })" onsubmit="return confirm('Permanently delete this record? This cannot be undone.');">
             @Html.AntiForgeryToken()<input type="hidden" name="itemType" value="@itemType" /><input type="hidden" name="itemId" value="@itemId" /><input type="hidden" name="projectId" value="@projectId" /><input type="hidden" name="returnUrl" value="@returnUrl" />
             <button class="btn btn-danger" type="submit">Permanently delete</button>
         </form>
     }</div>
+</div>
 </div>
