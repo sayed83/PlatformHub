@@ -122,7 +122,7 @@
                 columns: [
                     { title: 'Tenant', field: 'name', minWidth: 220, formatter: function (cell) {
                         const row = cell.getRow().getData();
-                        return '<div class="fw-semibold">' + window.PlatformHubGrid.escape(row.name) + '</div><div class="small text-secondary">Tenant ID: ' + row.id + '</div>';
+                        return '<a class="fw-semibold text-decoration-none" href="/PlatformAdmin/Tenants/Details/' + Number(row.id) + '">' + window.PlatformHubGrid.escape(row.name) + '</a><div class="small text-secondary">Tenant ID: ' + row.id + '</div>';
                     }},
                     { title: 'Tenant code', field: 'code', width: 180, formatter: function (cell) { return '<code>' + window.PlatformHubGrid.escape(cell.getValue()) + '</code>'; }},
                     { title: 'Status', field: 'status', width: 140, formatter: function (cell) {
