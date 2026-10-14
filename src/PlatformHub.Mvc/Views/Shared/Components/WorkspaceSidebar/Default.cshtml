@@ -10,7 +10,9 @@
             !string.Equals(x.Area, "PlatformAdmin", StringComparison.OrdinalIgnoreCase) ||
             (string.Equals(x.Controller, "Users", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(x.Controller, "Roles", StringComparison.OrdinalIgnoreCase)))
-        .Where(x => isPlatformAdmin || !IsPlatformAdminRoute(x.RouteUrl))
+        .Where(x => isPlatformAdmin ||
+            !IsPlatformAdminRoute(x.RouteUrl) &&
+            !IsPlatformAdministrationController(x.Controller))
         .ToList();
 
     bool IsPlatformAdminRoute(string? route)
@@ -20,6 +22,11 @@
         return pathOnly.StartsWith("/PlatformAdmin/", StringComparison.OrdinalIgnoreCase) ||
                pathOnly.StartsWith("~/PlatformAdmin/", StringComparison.OrdinalIgnoreCase);
     }
+
+    bool IsPlatformAdministrationController(string? controller) =>
+        controller is not null &&
+        new[] { "Tenants", "Branches", "Projects", "PermissionCatalog", "Permissions" }
+            .Contains(controller, StringComparer.OrdinalIgnoreCase);
     string MenuIcon(string? icon) => (icon ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "layout-dashboard" or "dashboard" => "▦",
