@@ -7,25 +7,208 @@
 }
 
 <style>
-    .rp-hero{background:linear-gradient(125deg,#17283e,#243f63);color:#fff;border-radius:1rem;padding:1.6rem 1.75rem;position:relative;overflow:hidden}
-    .rp-hero:after{content:"";position:absolute;width:230px;height:230px;border:35px solid rgba(255,255,255,.06);border-radius:50%;right:-55px;top:-100px}
-    .rp-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8fb8ff}
-    .rp-stat{border:1px solid #e4eaf3;border-radius:.9rem;background:#fff;padding:1rem;height:100%}
-    .rp-stat-label{font-size:.8rem;color:#65758b}.rp-stat-value{font-size:1.65rem;font-weight:750;line-height:1.25;color:#17283e}
-    .rp-panel{border:1px solid #e3eaf3;border-radius:1rem;background:#fff;overflow:hidden}
-    .rp-panel-head{padding:1rem 1.2rem;border-bottom:1px solid #e8edf5;background:#fbfcfe}
-    .rp-role-card{border:1px solid #e1e8f1;border-radius:.85rem;overflow:hidden;background:#fff}
-    .rp-role-head{padding:1rem 1.1rem;display:flex;align-items:center;gap:1rem}
-    .rp-role-mark{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:.8rem;background:#edf3ff;color:#2563eb;font-size:1.2rem;flex:0 0 44px}
-    .rp-role-details{border-top:1px solid #e8edf5;background:#f8faff;padding:1rem 1.1rem}
-    .rp-permission{height:100%;display:flex;gap:.65rem;align-items:flex-start;padding:.7rem .75rem;border:1px solid #e1e8f1;border-radius:.7rem;background:#fff;transition:border-color .15s,background .15s}
-    .rp-permission:has(input:checked){border-color:#a9c7ff;background:#f4f8ff}
-    .rp-permission .form-check-input{flex:0 0 auto;margin-top:.22rem}
-    .rp-permission code{font-size:.72rem;overflow-wrap:anywhere;color:#64748b}
-    .rp-section-label{font-size:.72rem;letter-spacing:.08em;font-weight:800;text-transform:uppercase;color:#60718a}
-    .rp-sticky-tools{position:sticky;top:0;z-index:2;background:#fff;padding:.75rem 0}
-    .rp-empty{border:1px dashed #cbd5e1;border-radius:.8rem;padding:2rem;text-align:center;color:#64748b}
-    @@media(max-width:767.98px){.rp-hero{padding:1.25rem}.rp-role-head{align-items:flex-start;flex-wrap:wrap}.rp-role-actions{width:100%}.rp-role-actions .btn{width:100%}}
+    .rp-hero {
+        background: linear-gradient(125deg,#17283e,#243f63);
+        color: #fff;
+        border-radius: 1rem;
+        padding: 1.6rem 1.75rem;
+        position: relative;
+        overflow: hidden
+    }
+
+        .rp-hero:after {
+            content: "";
+            position: absolute;
+            width: 230px;
+            height: 230px;
+            border: 35px solid rgba(255,255,255,.06);
+            border-radius: 50%;
+            right: -55px;
+            top: -100px
+        }
+
+    .rp-eyebrow {
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+        color: #8fb8ff
+    }
+
+    .rp-stat {
+        border: 1px solid #e4eaf3;
+        border-radius: .9rem;
+        background: #fff;
+        padding: 1rem;
+        height: 100%
+    }
+
+    .rp-stat-label {
+        font-size: .8rem;
+        color: #65758b
+    }
+
+    .rp-stat-value {
+        font-size: 1.65rem;
+        font-weight: 750;
+        line-height: 1.25;
+        color: #17283e
+    }
+
+    .rp-panel {
+        border: 1px solid #e3eaf3;
+        border-radius: 1rem;
+        background: #fff;
+        overflow: hidden
+    }
+
+    .rp-panel-head {
+        padding: 1rem 1.2rem;
+        border-bottom: 1px solid #e8edf5;
+        background: #fbfcfe
+    }
+
+    .rp-role-card {
+        border: 1px solid #e1e8f1;
+        border-radius: .85rem;
+        overflow: hidden;
+        background: #fff
+    }
+
+    .rp-role-head {
+        padding: 1rem 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem
+    }
+
+    .rp-role-mark {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: .8rem;
+        background: #edf3ff;
+        color: #2563eb;
+        font-size: 1.2rem;
+        flex: 0 0 44px
+    }
+
+    .rp-role-details {
+        border-top: 1px solid #e8edf5;
+        background: #f8faff;
+        padding: 1rem 1.1rem
+    }
+
+    .rp-permission {
+        height: 100%;
+        display: flex;
+        gap: .65rem;
+        align-items: flex-start;
+        padding: .7rem .75rem;
+        border: 1px solid #e1e8f1;
+        border-radius: .7rem;
+        background: #fff;
+        transition: border-color .15s,background .15s
+    }
+
+        .rp-permission:has(input:checked) {
+            border-color: #a9c7ff;
+            background: #f4f8ff
+        }
+
+        .rp-permission .form-check-input {
+            flex: 0 0 auto;
+            margin-top: .22rem
+        }
+
+        .rp-permission code {
+            font-size: .72rem;
+            overflow-wrap: anywhere;
+            color: #64748b
+        }
+
+    .rp-section-label {
+        font-size: .72rem;
+        letter-spacing: .08em;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #60718a
+    }
+
+    .rp-sticky-tools {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #fff;
+        padding: .75rem 0
+    }
+
+    .rp-empty {
+        border: 1px dashed #cbd5e1;
+        border-radius: .8rem;
+        padding: 2rem;
+        text-align: center;
+        color: #64748b
+    }
+
+    @@media(max-width:767.98px) {
+        .rp-hero {
+            padding: 1.25rem
+        }
+
+        .rp-role-head {
+            align-items: flex-start;
+            flex-wrap: wrap
+        }
+
+        .rp-role-actions {
+            width: 100%
+        }
+
+            .rp-role-actions .btn {
+                width: 100%
+            }
+    }
+
+    .role-status-dialog {
+        width: min(92vw,480px);
+        border: 0;
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 24px 80px #0f172a35;
+        color: #17283e
+    }
+
+        .role-status-dialog::backdrop {
+            background: rgba(15,23,42,.58);
+            backdrop-filter: blur(3px)
+        }
+
+        .role-status-dialog .role-status-icon {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: #eaf1ff;
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 18px
+        }
+
+        .role-status-dialog p {
+            line-height: 1.6;
+            margin-bottom: 0
+        }
+
+    @@media(max-width:480px) {
+        .role-status-dialog {
+            padding: 22px
+        }
+    }
 </style>
 
 <div class="d-flex align-items-center justify-content-between gap-3 mb-3 flex-wrap">
@@ -173,10 +356,24 @@
                                 <div class="flex-grow-1 min-w-0">
                                     <div class="d-flex align-items-center gap-2 flex-wrap">
                                         <h3 class="h6 fw-bold mb-0">@role.Name</h3>
-                                        @if (role.IsSystemRole) { <span class="badge rounded-pill text-bg-dark">Built-in</span> }
-                                        else { <span class="badge rounded-pill text-bg-primary">Custom</span> }
-                                        @if (role.IsActive) { <span class="badge rounded-pill text-bg-success">Active</span> }
-                                        else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }
+                                        @if (role.IsSystemRole)
+                                        {
+                                            <span class="badge rounded-pill text-bg-dark">Built-in</span>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="badge rounded-pill text-bg-primary">Custom</span>
+                                        }
+                                        @if (role.IsActive)
+                                        {
+                                            <span class="badge rounded-pill text-bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="badge rounded-pill text-bg-secondary">Inactive</span>
+                                        }
                                     </div>
                                     <div class="d-flex gap-2 align-items-center flex-wrap mt-1">
                                         <code class="small">@role.Code</code>
@@ -195,22 +392,19 @@
                                     else if (canConfigure)
                                     {
                                         <div class="d-flex gap-2 flex-wrap justify-content-end">
-                                            @if (!isSuperRole && (!role.IsSystemRole || isSuperAdmin))
-                                            {
-                                                <button type="button" class="btn btn-outline-secondary btn-sm" data-edit-role data-id="@role.Id" data-code="@role.Code" data-name="@role.Name" data-description="@role.Description" data-redirect="@role.BaseRedirectUrl">Edit details</button>
-                                            }
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" data-edit-role data-id="@role.Id" data-code="@role.Code" data-name="@role.Name" data-description="@role.Description" data-redirect="@role.BaseRedirectUrl">Edit details</button>
                                             <button type="button" class="btn btn-outline-primary btn-sm" data-role-toggle="@role.Id" aria-expanded="false" aria-controls="role-permissions-@role.Id">Configure <span aria-hidden="true">⌄</span></button>
-                                            <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@role.Id" />
-                                                <button type="submit"
-                                                        name="isActive"
-                                                        value="@(role.IsActive ? "false" : "true")"
-                                                        class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")"
-                                                        data-confirm="@(role.IsActive ? "Deactivate" : "Activate") role @role.Name?">
-                                                    @(role.IsActive ? "Deactivate" : "Activate")
-                                                </button>
-                                            </form>
+
+                                            @* Opens the confirmation dialog; the dialog form posts id + isActive *@
+                                            <button type="button"
+                                                    class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")"
+                                                    data-role-status-open
+                                                    data-role-id="@role.Id"
+                                                    data-role-name="@role.Name"
+                                                    data-role-active="@(role.IsActive ? "true" : "false")">
+                                                @(role.IsActive ? "Deactivate" : "Activate")
+                                            </button>
+
                                             @if (isSuperAdmin && !role.IsSystemRole)
                                             {
                                                 <a asp-area="PlatformAdmin" asp-controller="Roles" asp-action="HardDeleteDetails" asp-route-id="@role.Id" class="btn btn-outline-danger btn-sm">Hard delete</a>
@@ -297,169 +491,179 @@
     </div>
 </div>
 
+@* Status confirmation dialog: lives in the page body, NOT inside the script tag *@
+<dialog id="roleStatusModal" class="role-status-dialog" aria-labelledby="roleStatusTitle">
+    <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" id="roleStatusId" name="id" />
+        <input type="hidden" id="roleStatusValue" name="isActive" />
+        <div class="role-status-icon" aria-hidden="true">?</div>
+        <h2 id="roleStatusTitle" class="h4 fw-bold">Change role status</h2>
+        <p id="roleStatusMessage" class="text-secondary">Confirm this status change.</p>
+        <div class="d-flex justify-content-end flex-wrap gap-2 mt-4">
+            <button type="button" id="roleStatusClose" class="btn btn-outline-secondary">Cancel</button>
+            <button type="submit" id="roleStatusConfirm" class="btn btn-success">Confirm</button>
+        </div>
+    </form>
+</dialog>
+
 @section Scripts {
-<script>
-(() => {
-    const roleSearch = document.getElementById('roleSearch');
-    const roleTypeFilter = document.getElementById('roleTypeFilter');
-    const roleCards = [...document.querySelectorAll('.role-card')];
-    const roleEmpty = document.getElementById('roleEmpty');
+    <script>
+        (() => {
+            const roleSearch = document.getElementById('roleSearch');
+            const roleTypeFilter = document.getElementById('roleTypeFilter');
+            const roleCards = [...document.querySelectorAll('.role-card')];
+            const roleEmpty = document.getElementById('roleEmpty');
 
-    function filterRoles() {
-        const query = (roleSearch?.value || '').trim().toLowerCase();
-        const type = roleTypeFilter?.value || 'all';
-        let visible = 0;
-        roleCards.forEach(card => {
-            const matchesText = (card.dataset.search || '').includes(query);
-            const matchesType = type === 'all' || type === card.dataset.type || type === card.dataset.active;
-            const show = matchesText && matchesType;
-            card.classList.toggle('d-none', !show);
-            if (show) visible++;
-        });
-        roleEmpty?.classList.toggle('d-none', visible !== 0);
-    }
-    const editor = document.getElementById('roleEditorForm');
-    const editId = document.getElementById('EditingRoleId');
-    const codeInput = document.getElementById('roleCode');
-    const nameInput = document.getElementById('roleName');
-    const descriptionInput = document.getElementById('roleDescription');
-    const redirectInput = document.getElementById('roleBaseRedirectUrl');
-    const formTitle = document.getElementById('roleFormTitle');
-    const formHelp = document.getElementById('roleFormHelp');
-    const submitButton = document.getElementById('roleSubmitButton');
-    const cancelEdit = document.getElementById('roleCancelEdit');
+            function filterRoles() {
+                const query = (roleSearch?.value || '').trim().toLowerCase();
+                const type = roleTypeFilter?.value || 'all';
+                let visible = 0;
+                roleCards.forEach(card => {
+                    const matchesText = (card.dataset.search || '').includes(query);
+                    const matchesType = type === 'all' || type === card.dataset.type || type === card.dataset.active;
+                    const show = matchesText && matchesType;
+                    card.classList.toggle('d-none', !show);
+                    if (show) visible++;
+                });
+                roleEmpty?.classList.toggle('d-none', visible !== 0);
+            }
+            roleSearch?.addEventListener('input', filterRoles);
+            roleTypeFilter?.addEventListener('change', filterRoles);
 
-    function resetRoleEditor() {
-        editor?.reset();
-        if (editId) editId.value = '0';
-        if (codeInput) { codeInput.readOnly = false; codeInput.disabled = false; }
-        if (formTitle) formTitle.textContent = 'Create custom role';
-        if (formHelp) formHelp.textContent = 'Start with a clear name and purpose. Assign permissions after creation.';
-        if (submitButton) submitButton.textContent = '＋ Create role';
-        cancelEdit?.classList.add('d-none');
-    }
-    document.querySelectorAll('[data-edit-role]').forEach(button => {
-        button.addEventListener('click', event => {
-            event.stopPropagation();
-            if (editId) editId.value = button.dataset.id || '0';
-            if (codeInput) { codeInput.value = button.dataset.code || ''; codeInput.readOnly = true; }
-            if (nameInput) nameInput.value = button.dataset.name || '';
-            if (descriptionInput) descriptionInput.value = button.dataset.description || '';
-            if (redirectInput) redirectInput.value = button.dataset.redirect || '';
-            if (formTitle) formTitle.textContent = 'Update role';
-            if (formHelp) formHelp.textContent = 'Modify the selected role details. The role code cannot be changed.';
-            if (submitButton) submitButton.textContent = 'Save role changes';
-            cancelEdit?.classList.remove('d-none');
-            document.getElementById('createRole')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            nameInput?.focus({ preventScroll: true });
-        });
-    });
-    cancelEdit?.addEventListener('click', resetRoleEditor);
+            // ---- Role editor ----
+            const editor = document.getElementById('roleEditorForm');
+            const editId = document.getElementById('EditingRoleId');
+            const codeInput = document.getElementById('roleCode');
+            const nameInput = document.getElementById('roleName');
+            const descriptionInput = document.getElementById('roleDescription');
+            const redirectInput = document.getElementById('roleBaseRedirectUrl');
+            const formTitle = document.getElementById('roleFormTitle');
+            const formHelp = document.getElementById('roleFormHelp');
+            const submitButton = document.getElementById('roleSubmitButton');
+            const cancelEdit = document.getElementById('roleCancelEdit');
 
-    const roleStatusModal = document.getElementById('roleStatusModal');
-    const roleStatusTitle = document.getElementById('roleStatusTitle');
-    const roleStatusMessage = document.getElementById('roleStatusMessage');
-    const roleStatusId = document.getElementById('roleStatusId');
-    const roleStatusValue = document.getElementById('roleStatusValue');
-    const roleStatusConfirm = document.getElementById('roleStatusConfirm');
-    function closeRoleStatusDialog() { if (roleStatusModal?.open) roleStatusModal.close(); else roleStatusModal?.classList.add('d-none'); }
-    document.querySelectorAll('[data-role-status-open]').forEach(button => button.addEventListener('click', () => {
-        const active = button.dataset.roleActive === 'true';
-        roleStatusId.value = button.dataset.roleId || '';
-        roleStatusValue.value = active ? 'false' : 'true';
-        roleStatusTitle.textContent = active ? 'Deactivate role?' : 'Activate role?';
-        roleStatusMessage.textContent = active ? 'Are you sure you want to deactivate ' + button.dataset.roleName + '? Users assigned to this role may lose access.' : 'Are you sure you want to activate ' + button.dataset.roleName + '? This will make the role available again.';
-        roleStatusConfirm.textContent = active ? 'Deactivate role' : 'Activate role';
-        roleStatusConfirm.className = active ? 'btn btn-warning' : 'btn btn-success';
-        if (roleStatusModal.showModal) roleStatusModal.showModal(); else roleStatusModal.classList.remove('d-none');
-    }));
-    document.getElementById('roleStatusCancel')?.addEventListener('click', closeRoleStatusDialog);
-    document.getElementById('roleStatusClose')?.addEventListener('click', closeRoleStatusDialog);
-    roleStatusModal?.addEventListener('click', event => { if (event.target === roleStatusModal) closeRoleStatusDialog(); });
-    roleSearch?.addEventListener('input', filterRoles);
-    roleTypeFilter?.addEventListener('change', filterRoles);
-
-    document.querySelectorAll('[data-role-toggle]').forEach(button => {
-        button.addEventListener('click', () => {
-            const panel = document.getElementById('role-permissions-' + button.dataset.roleToggle);
-            if (!panel) return;
-            const open = panel.classList.toggle('d-none') === false;
-            button.setAttribute('aria-expanded', String(open));
-            button.innerHTML = open ? 'Close settings <span aria-hidden="true">⌃</span>' : 'Configure <span aria-hidden="true">⌄</span>';
-        });
-    });
-
-    function updateCount(panel) {
-        const count = panel.querySelectorAll('.role-permission-checkbox:checked').length;
-        const output = panel.querySelector('.selected-permission-count');
-        if (output) output.textContent = count;
-    }
-    document.querySelectorAll('.rp-role-details').forEach(panel => {
-        const roleId = panel.id.replace('role-permissions-', '');
-        panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.addEventListener('change', () => updateCount(panel)));
-        panel.querySelector('.role-permission-search')?.addEventListener('input', event => {
-            const query = event.target.value.trim().toLowerCase();
-            panel.querySelectorAll('.permission-option').forEach(option => option.classList.toggle('d-none', !(option.dataset.search || '').includes(query)));
-            panel.querySelectorAll('.permission-group').forEach(group => {
-                const options = [...group.querySelectorAll('.permission-option')];
-                group.classList.toggle('d-none', options.length > 0 && options.every(option => option.classList.contains('d-none')));
+            function resetRoleEditor() {
+                editor?.reset();
+                if (editId) editId.value = '0';
+                if (codeInput) { codeInput.readOnly = false; codeInput.disabled = false; }
+                if (formTitle) formTitle.textContent = 'Create custom role';
+                if (formHelp) formHelp.textContent = 'Start with a clear name and purpose. Assign permissions after creation.';
+                if (submitButton) submitButton.textContent = '＋ Create role';
+                cancelEdit?.classList.add('d-none');
+            }
+            document.querySelectorAll('[data-edit-role]').forEach(button => {
+                button.addEventListener('click', event => {
+                    event.stopPropagation();
+                    if (editId) editId.value = button.dataset.id || '0';
+                    if (codeInput) { codeInput.value = button.dataset.code || ''; codeInput.readOnly = true; }
+                    if (nameInput) nameInput.value = button.dataset.name || '';
+                    if (descriptionInput) descriptionInput.value = button.dataset.description || '';
+                    if (redirectInput) redirectInput.value = button.dataset.redirect || '';
+                    if (formTitle) formTitle.textContent = 'Update role';
+                    if (formHelp) formHelp.textContent = 'Modify the selected role details. The role code cannot be changed.';
+                    if (submitButton) submitButton.textContent = 'Save role changes';
+                    cancelEdit?.classList.remove('d-none');
+                    document.getElementById('createRole')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    nameInput?.focus({ preventScroll: true });
+                });
             });
-        });
-        function setChecks(selector, predicate, checked) {
-            panel.querySelectorAll(selector).forEach(box => {
-                if (predicate(box)) box.checked = checked;
+            cancelEdit?.addEventListener('click', resetRoleEditor);
+
+            // ---- Status confirmation dialog ----
+            const roleStatusModal = document.getElementById('roleStatusModal');
+            const roleStatusTitle = document.getElementById('roleStatusTitle');
+            const roleStatusMessage = document.getElementById('roleStatusMessage');
+            const roleStatusId = document.getElementById('roleStatusId');
+            const roleStatusValue = document.getElementById('roleStatusValue');
+            const roleStatusConfirm = document.getElementById('roleStatusConfirm');
+
+            function closeRoleStatusDialog() {
+                if (!roleStatusModal) return;
+                if (roleStatusModal.open) roleStatusModal.close();
+            }
+
+            document.querySelectorAll('[data-role-status-open]').forEach(button => button.addEventListener('click', () => {
+                const active = button.dataset.roleActive === 'true';
+                const name = button.dataset.roleName || 'this role';
+                roleStatusId.value = button.dataset.roleId || '';
+                // New value is the opposite of the current state
+                roleStatusValue.value = active ? 'false' : 'true';
+                roleStatusTitle.textContent = active ? 'Deactivate role?' : 'Activate role?';
+                roleStatusMessage.textContent = active
+                    ? 'Are you sure you want to deactivate ' + name + '? Users assigned to this role may lose access.'
+                    : 'Are you sure you want to activate ' + name + '? This will make the role available again.';
+                roleStatusConfirm.textContent = active ? 'Deactivate role' : 'Activate role';
+                roleStatusConfirm.className = active ? 'btn btn-warning' : 'btn btn-success';
+                roleStatusModal.showModal();
+            }));
+
+            document.getElementById('roleStatusClose')?.addEventListener('click', closeRoleStatusDialog);
+            // Close only when the backdrop is clicked (not the dialog's own padding)
+            roleStatusModal?.addEventListener('click', event => {
+                const r = roleStatusModal.getBoundingClientRect();
+                const inside = event.clientX >= r.left && event.clientX <= r.right &&
+                    event.clientY >= r.top && event.clientY <= r.bottom;
+                if (!inside) closeRoleStatusDialog();
             });
-            updateCount(panel);
-        }
-        panel.querySelector('[data-select-all]')?.addEventListener('click', () =>
-            setChecks('.role-permission-checkbox', () => true, true));
-        panel.querySelector('[data-clear-all]')?.addEventListener('click', () =>
-            setChecks('.role-permission-checkbox', () => true, false));
-        panel.querySelectorAll('[data-select-group]').forEach(button => button.addEventListener('click', () =>
-            setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, true)));
-        panel.querySelectorAll('[data-clear-group]').forEach(button => button.addEventListener('click', () =>
-            setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, false)));
-    });
 
-    const catalogSearch = document.getElementById('permissionCatalogSearch');
-    catalogSearch?.addEventListener('input', () => {
-        const query = catalogSearch.value.trim().toLowerCase();
-        let count = 0;
-        document.querySelectorAll('.permission-catalog-item').forEach(item => {
-            const show = (item.dataset.search || '').includes(query);
-            item.classList.toggle('d-none', !show);
-            if (show) count++;
-        });
-        document.querySelectorAll('.permission-catalog-group').forEach(group => {
-            group.classList.toggle('d-none', group.querySelectorAll('.permission-catalog-item:not(.d-none)').length === 0);
-        });
-        document.getElementById('permissionCatalogEmpty')?.classList.toggle('d-none', count !== 0);
-    });
-})();
+            // ---- Permission panels ----
+            document.querySelectorAll('[data-role-toggle]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const panel = document.getElementById('role-permissions-' + button.dataset.roleToggle);
+                    if (!panel) return;
+                    const open = panel.classList.toggle('d-none') === false;
+                    button.setAttribute('aria-expanded', String(open));
+                    button.innerHTML = open ? 'Close settings <span aria-hidden="true">⌃</span>' : 'Configure <span aria-hidden="true">⌄</span>';
+                });
+            });
 
+            function updateCount(panel) {
+                const count = panel.querySelectorAll('.role-permission-checkbox:checked').length;
+                const output = panel.querySelector('.selected-permission-count');
+                if (output) output.textContent = count;
+            }
+            document.querySelectorAll('.rp-role-details').forEach(panel => {
+                panel.querySelectorAll('.role-permission-checkbox').forEach(box => box.addEventListener('change', () => updateCount(panel)));
+                panel.querySelector('.role-permission-search')?.addEventListener('input', event => {
+                    const query = event.target.value.trim().toLowerCase();
+                    panel.querySelectorAll('.permission-option').forEach(option => option.classList.toggle('d-none', !(option.dataset.search || '').includes(query)));
+                    panel.querySelectorAll('.permission-group').forEach(group => {
+                        const options = [...group.querySelectorAll('.permission-option')];
+                        group.classList.toggle('d-none', options.length > 0 && options.every(option => option.classList.contains('d-none')));
+                    });
+                });
+                function setChecks(selector, predicate, checked) {
+                    panel.querySelectorAll(selector).forEach(box => {
+                        if (predicate(box)) box.checked = checked;
+                    });
+                    updateCount(panel);
+                }
+                panel.querySelector('[data-select-all]')?.addEventListener('click', () =>
+                    setChecks('.role-permission-checkbox', () => true, true));
+                panel.querySelector('[data-clear-all]')?.addEventListener('click', () =>
+                    setChecks('.role-permission-checkbox', () => true, false));
+                panel.querySelectorAll('[data-select-group]').forEach(button => button.addEventListener('click', () =>
+                    setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, true)));
+                panel.querySelectorAll('[data-clear-group]').forEach(button => button.addEventListener('click', () =>
+                    setChecks('.role-permission-checkbox', box => box.dataset.module === button.dataset.module, false)));
+            });
 
-}
-    <dialog id="roleStatusModal" class="role-status-dialog" aria-labelledby="roleStatusTitle">
-        <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" id="roleStatusId" name="id" />
-            <input type="hidden" id="roleStatusValue" name="isActive" />
-            <div class="role-status-icon" aria-hidden="true">?</div>
-            <h2 id="roleStatusTitle" class="h4 fw-bold">Change role status</h2>
-            <p id="roleStatusMessage" class="text-secondary">Confirm this status change.</p>
-            <div class="d-flex justify-content-end flex-wrap gap-2 mt-4">
-                <button type="button" id="roleStatusClose" class="btn btn-outline-secondary">Cancel</button>
-                <button type="submit" id="roleStatusConfirm" class="btn btn-success">Confirm</button>
-            </div>
-        </form>
-    </dialog>
-    <style>
-        .role-status-dialog{width:min(92vw,480px);border:0;border-radius:18px;padding:28px;box-shadow:0 24px 80px #0f172a35;color:#17283e}
-        .role-status-dialog::backdrop{background:rgba(15,23,42,.58);backdrop-filter:blur(3px)}
-        .role-status-dialog .role-status-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#eaf1ff;color:#2563eb;font-size:24px;font-weight:800;margin-bottom:18px}
-        .role-status-dialog p{line-height:1.6;margin-bottom:0}
-        @media(max-width:480px){.role-status-dialog{padding:22px}}
-    </style>
-
-</script>
+            // ---- Permission catalog search ----
+            const catalogSearch = document.getElementById('permissionCatalogSearch');
+            catalogSearch?.addEventListener('input', () => {
+                const query = catalogSearch.value.trim().toLowerCase();
+                let count = 0;
+                document.querySelectorAll('.permission-catalog-item').forEach(item => {
+                    const show = (item.dataset.search || '').includes(query);
+                    item.classList.toggle('d-none', !show);
+                    if (show) count++;
+                });
+                document.querySelectorAll('.permission-catalog-group').forEach(group => {
+                    group.classList.toggle('d-none', group.querySelectorAll('.permission-catalog-item:not(.d-none)').length === 0);
+                });
+                document.getElementById('permissionCatalogEmpty')?.classList.toggle('d-none', count !== 0);
+            });
+        })();
+    </script>
 }
