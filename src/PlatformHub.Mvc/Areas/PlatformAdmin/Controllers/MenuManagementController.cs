@@ -92,6 +92,79 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         return BadRequest(new { message = error ?? "Unable to save menu." });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> HardDeleteDetails(string itemType, long itemId, long projectId, string? returnUrl, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (itemType is not ("module" or "menu") || itemId <= 0 || projectId <= 0) return BadRequest();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var endpoint = itemType == "module"
+            ? $"api/v1/project-menus/modules/{itemId}/hard-delete-details?projectId={projectId}"
+            : $"api/v1/project-menus/items/{itemId}/hard-delete-details?projectId={projectId}";
+        var result = await api.GetWithStatusAsync<System.Text.Json.JsonElement?>(endpoint, token, ct);
+        if (result.StatusCode == 401) return Unauthorized();
+        if (result.Value is null) return StatusCode(result.StatusCode ?? 502, result.Error ?? "Unable to load related records.");
+        ViewData["ReturnUrl"] = Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Action(nameof(Index));
+        ViewData["ItemType"] = itemType;
+        ViewData["ItemId"] = itemId;
+        ViewData["ProjectId"] = projectId;
+        return View("HardDeleteDetails", result.Value.Value);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmHardDelete(string itemType, long itemId, long projectId, string? returnUrl, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (itemType is not ("module" or "menu") || itemId <= 0 || projectId <= 0) return BadRequest();
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Challenge();
+        var endpoint = itemType == "module"
+            ? $"api/v1/project-menus/modules/{itemId}/delete"
+            : $"api/v1/project-menus/items/{itemId}/delete";
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
+            endpoint, new { projectId, deleteType = "hard" }, ct, token);
+        if (data is not null)
+        {
+            TempData["SuccessMessage"] = "The " + itemType + " was permanently deleted.";
+            return Redirect(Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action(nameof(Index))!);
+        }
+        TempData["ErrorMessage"] = error ?? "Hard delete failed. Related records may still exist.";
+        return RedirectToAction(nameof(HardDeleteDetails), new { itemType, itemId, projectId, returnUrl });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteModule(long moduleId, long projectId, string deleteType, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (moduleId <= 0 || projectId <= 0 || deleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, module and delete type are required." });
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
+            $"api/v1/project-menus/modules/{moduleId}/delete",
+            new { projectId, deleteType }, ct, token);
+        if (data is not null) return Json(data);
+        if (IsApiUnauthorized(error)) return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to delete module." });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMenu(long menuItemId, long projectId, string deleteType, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (menuItemId <= 0 || projectId <= 0 || deleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, menu and delete type are required." });
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
+            $"api/v1/project-menus/items/{menuItemId}/delete",
+            new { projectId, deleteType }, ct, token);
+        if (data is not null) return Json(data);
+        if (IsApiUnauthorized(error)) return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to delete menu." });
+    }
+
     private static bool IsApiUnauthorized(string? error) =>
         error?.Contains("HTTP 401", StringComparison.OrdinalIgnoreCase) == true ||
         error?.Contains("HTTP 403", StringComparison.OrdinalIgnoreCase) == true;
