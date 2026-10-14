@@ -1,0 +1,44 @@
+@model PlatformHub.Mvc.Controllers.WorkspacePermissionPageViewModel
+@{
+    ViewData["Title"] = "Menu Permissions";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var selected = Model.TargetType == "role" ? Model.Roles : Model.Users;
+}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div><div class="text-uppercase small fw-semibold text-secondary mb-1">Workspace · Access control</div><h1 class="h3 mb-1">Menu Permissions</h1><p class="text-secondary mb-0">Configure role defaults or individual user overrides for the active project.</p></div>
+        <span class="badge text-bg-primary">@Model.Menus.Count menu(s)</span>
+    </div>
+    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+    @if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
+    @if (ViewData["Error"] is string loadError) { <div class="alert alert-danger">@loadError</div> }
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+        <form method="get" action="/WorkspacePermissions" class="row g-3 align-items-end">
+            <div class="col-12 col-md-4"><label class="form-label" for="targetType">Permission level</label><select class="form-select" id="targetType" name="targetType" onchange="this.form.targetId.value='';this.form.submit()"><option value="role" selected="@(Model.TargetType == "role")">Role-wise defaults</option><option value="user" selected="@(Model.TargetType == "user")">User-wise overrides</option></select></div>
+            <div class="col-12 col-md-6"><label class="form-label" for="targetId">@(Model.TargetType == "role" ? "Role" : "User")</label><select class="form-select" id="targetId" name="targetId" required>
+                @foreach (var target in selected) { var label = Model.TargetType == "role" ? $"{target.Name} ({target.Code})" : $"{target.DisplayName} ({target.UserName})"; <option value="@target.Id" selected="@(Model.TargetId == target.Id)">@label</option> }
+            </select></div>
+            <div class="col-12 col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Load permissions</button></div>
+        </form>
+    </div></div>
+    @if (Model.TargetId is null) { <div class="alert alert-info">No eligible @(Model.TargetType == "role" ? "roles" : "users") are assigned in this scope.</div> }
+    else if (Model.Menus.Count == 0) { <div class="alert alert-info">No active menus exist for this project, or you do not have permission to manage them.</div> }
+    else {
+        <div class="card border-0 shadow-sm"><div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">@(Model.TargetType == "role" ? "Role menu access" : "Individual user overrides")</h2><span class="small text-secondary">Project ID: @Model.ProjectId</span></div>
+            <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Module</th><th>Menu</th><th>Code</th><th>Access</th><th>Decision</th><th></th></tr></thead><tbody>
+            @foreach (var menu in Model.Menus) {
+                <tr><td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td><td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td><td>@(Model.TargetType == "user" && !menu.HasExplicitDecision ? "Inherited from role" : "Explicit")</td><td>
+                    <form method="post" action="/WorkspacePermissions/save" class="d-flex flex-wrap gap-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="TargetType" value="@Model.TargetType" /><input type="hidden" name="TargetId" value="@Model.TargetId" /><input type="hidden" name="MenuItemId" value="@menu.Id" />
+                        <input type="hidden" name="IsAllowed" value="@(!menu.IsAllowed ? "true" : "false")" />
+                        <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit">@(menu.IsAllowed ? "Deny" : "Allow")</button>
+                    </form>
+                </td></tr>
+            }
+            </tbody></table></div>
+            @if (Model.TargetType == "user") { <p class="small text-secondary mb-0">User-specific Allow/Deny decisions override role defaults. This first increment saves explicit decisions; resetting an override to inherit is not yet included.</p> }
+        </div></div>
+    }
+</div>
