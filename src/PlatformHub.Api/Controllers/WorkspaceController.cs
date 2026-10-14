@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
 using PlatformHub.Infrastructure.Platform;
 
