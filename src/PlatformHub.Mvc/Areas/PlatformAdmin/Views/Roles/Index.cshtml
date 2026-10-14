@@ -203,8 +203,13 @@
                                             <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="SetStatus" method="post" class="d-inline">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@role.Id" />
-                                                <input type="hidden" name="isActive" value="@(!role.IsActive)" />
-                                                <button type="submit" class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")" data-confirm="@(role.IsActive ? "Deactivate" : "Activate") role @role.Name?">@(role.IsActive ? "Deactivate" : "Activate")</button>
+                                                <button type="submit"
+                                                        name="isActive"
+                                                        value="@(role.IsActive ? "false" : "true")"
+                                                        class="btn btn-sm @(role.IsActive ? "btn-outline-warning" : "btn-outline-success")"
+                                                        data-confirm="@(role.IsActive ? "Deactivate" : "Activate") role @role.Name?">
+                                                    @(role.IsActive ? "Deactivate" : "Activate")
+                                                </button>
                                             </form>
                                             @if (isSuperAdmin && !role.IsSystemRole)
                                             {
