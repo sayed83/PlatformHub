@@ -37,7 +37,6 @@ public static class ProjectNavigationSeeder
         new("USER_LIST", "Users", "ACCESS", "User.View", "PlatformAdmin", "Users", "Index", null, "users", 10),
         new("ROLE_LIST", "Roles", "ACCESS", "Role.View", "PlatformAdmin", "Roles", "Index", null, "shield", 20),
         new("PERMISSION_CATALOG", "Permission Catalog", "ACCESS", "Permission.View", "PlatformAdmin", "Permissions", "Index", null, "key-round", 30),
-        new("WORKSPACE_MENU_PERMISSIONS", "Menu Permissions", "ACCESS", "Role.Update", null, "WorkspacePermissions", "Index", "/WorkspacePermissions", "key-round", 40),
         new("INVENTORY_ITEMS", "Inventory Items", "INVENTORY", "Inventory.Item.View", null, "Inventory", "Items", null, "package", 10)
     ];
 
@@ -131,17 +130,6 @@ public static class ProjectNavigationSeeder
                 {
                     var hasRequiredPermission = permissionIdsByCode.TryGetValue(seed.ViewPermission, out var requiredPermissionId)
                         && rolePermissionIds.Contains(requiredPermissionId);
-
-                    // Menu Permissions manages either role defaults or user overrides.
-                    // Show it to scoped administrators who can update either access type.
-                    if (seed.Code == "WORKSPACE_MENU_PERMISSIONS")
-                    {
-                        var updatePermissionIds = permissionIdsByCode
-                            .Where(p => p.Key is "Role.Update" or "User.Update")
-                            .Select(p => p.Value)
-                            .ToHashSet();
-                        hasRequiredPermission = rolePermissionIds.Any(updatePermissionIds.Contains);
-                    }
 
                     if (!hasRequiredPermission)
                         continue;
