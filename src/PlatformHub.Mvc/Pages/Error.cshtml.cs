@@ -26,18 +26,21 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
     {
         StatusCode = statusCode ?? 500;
         TraceId = HttpContext.TraceIdentifier;
+        var reExecuteFeature = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
         RequestPath = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Path
+            ?? reExecuteFeature?.OriginalPath
             ?? HttpContext.Request.Path.Value
             ?? string.Empty;
-        RequestMethod = HttpContext.Request.Method;
+        RequestMethod = reExecuteFeature?.OriginalPath is not null ? reExecuteFeature.OriginalPath : HttpContext.Request.Method;
         QueryString = HttpContext.Request.QueryString.HasValue ? HttpContext.Request.QueryString.Value! : string.Empty;
         EnvironmentName = environment.EnvironmentName;
 
         // Route back to the login page belonging to the panel where the request originated.
         var originalPath = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>()?.OriginalPath
             ?? RequestPath;
-        var isPlatformAdminPanel = originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase)
-            || HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true";
+        // Prefer the path that actually failed. The current identity alone must not
+        // turn a workspace error into a Platform Admin login link.
+        var isPlatformAdminPanel = originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase);
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
 
         // Authentication expiry should send the user to sign-in; other failures stay on Error Center.
@@ -55,8 +58,10 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
                 TechnicalDetails = $"{exception.GetType().FullName}: {exception.Message}\n\n{exception}";
             else if (!string.IsNullOrWhiteSpace(capturedApiDetails))
                 TechnicalDetails = capturedApiDetails;
-            else if (StatusCode >= 500)
-                TechnicalDetails = "No exception object was captured for this response. Use the reference ID to find the corresponding MVC/API log entry. For API connection errors, verify Api:BaseUrl and confirm the API is running.";
+            else
+                TechnicalDetails = StatusCode >= 500
+                    ? "No exception object was captured for this response. Use the reference ID to find the corresponding MVC/API log entry. For API connection errors, verify Api:BaseUrl and confirm the API is running."
+                    : $"No exception object was captured for this HTTP {StatusCode} response. The original request path is '{RequestPath}'. Check the route, endpoint mapping, and resource identifier.";
         }
 
         if (StatusCode is < 400 or > 599) StatusCode = 500;
