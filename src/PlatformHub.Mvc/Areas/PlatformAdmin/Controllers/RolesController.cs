@@ -90,6 +90,44 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveRole(RoleManagementViewModel model, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+
+        if (model.EditingRoleId > 0)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Please correct the role name and description before updating.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var updated = await api.PutAsync<ApiOperationResult>(
+                $"api/v1/platform/access/roles/{model.EditingRoleId}",
+                new { model.Name, model.Description, model.BaseRedirectUrl }, ct, token);
+            TempData[updated is null ? "ErrorMessage" : "SuccessMessage"] = updated?.Message
+                ?? "Role could not be updated. Protected roles cannot be edited, and your account needs Role.Update permission.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "Please provide a valid role code and name.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var created = await api.PostAsync<RoleRowViewModel>(
+            "api/v1/platform/access/roles",
+            new { model.Code, model.Name, model.Description, model.BaseRedirectUrl }, ct, token);
+        TempData[created is null ? "ErrorMessage" : "SuccessMessage"] = created is null
+            ? "Role could not be created. Check that the role code is unique and you have Role.Create permission."
+            : $"Role '{created.Name}' created.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePermissions(RoleManagementViewModel model, CancellationToken ct)
     {
         if (!IsPlatformAdmin()) return Forbid();
