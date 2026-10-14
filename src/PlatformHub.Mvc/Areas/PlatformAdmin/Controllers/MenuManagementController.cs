@@ -92,6 +92,22 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
         return BadRequest(new { message = error ?? "Unable to save menu." });
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMenu(long menuItemId, long projectId, string deleteType, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (menuItemId <= 0 || projectId <= 0 || deleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, menu and delete type are required." });
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement>(
+            $"api/v1/project-menus/items/{menuItemId}/delete",
+            new { projectId, deleteType }, ct, token);
+        if (data is not null) return Json(data);
+        if (IsApiUnauthorized(error)) return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to delete menu." });
+    }
+
     private static bool IsApiUnauthorized(string? error) =>
         error?.Contains("HTTP 401", StringComparison.OrdinalIgnoreCase) == true ||
         error?.Contains("HTTP 403", StringComparison.OrdinalIgnoreCase) == true;
