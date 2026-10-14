@@ -75,7 +75,7 @@ public sealed class PlatformController(IPlatformService platform, PlatformDbCont
     {
         if (!await CanManageTenantAsync(id, "Tenant.Deactivate", cancellationToken)) return Forbid();
         if (request.HardDelete && !await IsPlatformAdminAsync(cancellationToken)) return Forbid();
-        try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return Ok(new { success = true });
+        try { await platform.DeleteTenantAsync(id, request.HardDelete, cancellationToken); return Ok(new { success = true }); }
         catch (ArgumentException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
