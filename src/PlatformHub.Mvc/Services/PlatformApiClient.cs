@@ -172,10 +172,11 @@ public sealed class PlatformApiClient(
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Response body omitted",
-                    path, (int)response.StatusCode);
-                return (default, (int)response.StatusCode,
-                    TryReadApiMessage(body) ?? $"Platform API returned HTTP {(int)response.StatusCode}.");
+                var apiMessage = TryReadApiMessage(body) ?? $"Platform API returned HTTP {(int)response.StatusCode}.";
+                logger.LogWarning("Platform API GET {Path} failed with HTTP {StatusCode}. Error={Error}",
+                    path, (int)response.StatusCode, apiMessage);
+                SetDevelopmentErrorDetails($"API request: GET {path}\nHTTP status: {(int)response.StatusCode} ({response.ReasonPhrase})\nAPI message: {apiMessage}");
+                return (default, (int)response.StatusCode, apiMessage);
             }
 
             if (string.IsNullOrWhiteSpace(body))
@@ -186,18 +187,29 @@ public sealed class PlatformApiClient(
         catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Could not connect to Platform API for GET {Path}", path);
+            SetDevelopmentErrorDetails($"API request: GET {path}\nException: {ex.GetType().FullName}\nMessage: {ex.Message}\n\n{ex}");
             return (default, 502, "Cannot reach Platform API. Check that the API is running and Api:BaseUrl is correct.");
         }
         catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
             logger.LogError(ex, "Platform API GET {Path} timed out", path);
+            SetDevelopmentErrorDetails($"API request: GET {path}\nException: {ex.GetType().FullName}\nMessage: {ex.Message}\n\n{ex}");
             return (default, 504, "Platform API request timed out.");
         }
         catch (JsonException ex)
         {
             logger.LogError(ex, "Platform API returned invalid JSON for GET {Path}", path);
+            SetDevelopmentErrorDetails($"API request: GET {path}\nException: {ex.GetType().FullName}\nMessage: {ex.Message}\n\n{ex}");
             return (default, 502, "Platform API returned invalid JSON.");
         }
+    }
+
+    private void SetDevelopmentErrorDetails(string details)
+    {
+        var context = httpContextAccessor.HttpContext;
+        if (context is not null && context.RequestServices
+                .GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+            context.Items["PlatformHub.ErrorDetails"] = details;
     }
 
     public async Task<T?> GetAsync<T>(
