@@ -74,6 +74,11 @@ public static class ProjectNavigationSeeder
             var menuRows = await db.MenuItems
                 .Where(m => m.ProjectId == projectId)
                 .ToListAsync(ct);
+
+            // This permission editor belongs to Platform Admin, not the workspace sidebar.
+            var obsoleteWorkspacePermissionMenu = menuRows.SingleOrDefault(m => m.Code == "WORKSPACE_MENU_PERMISSIONS");
+            if (obsoleteWorkspacePermissionMenu is not null)
+                obsoleteWorkspacePermissionMenu.IsActive = false;
             var roles = await db.Roles.AsNoTracking()
                 .Where(r => r.IsActive && r.Code != PlatformRbacSeeder.SuperAdminCode)
                 .Select(r => new { r.Id, r.Code })
