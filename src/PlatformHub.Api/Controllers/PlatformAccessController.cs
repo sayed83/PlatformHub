@@ -163,6 +163,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     }
 
     [HttpGet("roles")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetRoles(CancellationToken cancellationToken)
     {
@@ -210,6 +211,107 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         {
             role.Id, role.Code, role.Name, role.Description, role.IsSystemRole, role.IsActive, role.BaseRedirectUrl
         });
+    }
+
+    [HttpPut("roles/{roleId:long}")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> UpdateRole(long roleId, [FromBody] UpdateRoleRequest request, CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "The protected Platform Super Admin role cannot be edited." });
+        if (role.IsSystemRole && !IsSuperAdmin())
+            return Forbid();
+
+        var name = request.Name?.Trim();
+        var description = request.Description?.Trim();
+        var redirect = request.BaseRedirectUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 150
+            || (description?.Length ?? 0) > 500 || (redirect?.Length ?? 0) > 500)
+            return BadRequest(new { message = "Role name is required (max 150 characters); description and redirect URL must not exceed 500 characters." });
+
+        role.Name = name;
+        role.Description = string.IsNullOrWhiteSpace(description) ? null : description;
+        role.BaseRedirectUrl = string.IsNullOrWhiteSpace(redirect) ? null : redirect;
+        await db.SaveChangesAsync(cancellationToken);
+
+        var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
+            .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
+        if (affectedUserIds.Length > 0)
+            await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
+        return Ok(new { message = $"Role '{role.Name}' updated successfully.", role.Id, role.Code, role.Name, role.Description, role.BaseRedirectUrl });
+    }
+
+    [HttpPut("roles/{roleId:long}/status")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
+    {
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        var isSuperAdmin = IsSuperAdmin();
+        if (role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "The protected Platform Super Admin role cannot be deactivated." });
+        if (role.IsSystemRole && !isSuperAdmin)
+            return Forbid();
+
+        role.IsActive = request.IsActive;
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Read the persisted value back instead of assuming SaveChanges changed it.
+        var persistedStatus = await db.Roles.AsNoTracking()
+            .Where(x => x.Id == roleId)
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsActive })
+            .SingleAsync(cancellationToken);
+        if (persistedStatus.IsActive != request.IsActive)
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "The role status was not persisted. Check the Platform database connection and database triggers." });
+
+        var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
+            .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
+        if (affectedUserIds.Length > 0)
+            await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
+        return Ok(new { message = $"Role '{persistedStatus.Name}' {(persistedStatus.IsActive ? "activated" : "deactivated")} successfully.", persistedStatus.Id, persistedStatus.Code, persistedStatus.Name, persistedStatus.IsActive });
+    }
+
+    [HttpGet("roles/{roleId:long}/hard-delete-details")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> GetRoleHardDeleteDetails(long roleId, CancellationToken cancellationToken)
+    {
+        if (!IsSuperAdmin()) return Forbid();
+        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        var assignments = await db.UserRoleAssignments.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, x.TenantId, TenantName = x.Tenant == null ? null : x.Tenant.Name, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name, x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name })
+            .ToListAsync(cancellationToken);
+        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.PermissionId, x.Permission.Code, PermissionName = x.Permission.Name, x.Permission.Module }).OrderBy(x => x.Module).ThenBy(x => x.PermissionName).ToListAsync(cancellationToken);
+        var menuAccess = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.RoleId == roleId)
+            .Select(x => new { x.Id, x.ProjectId, ProjectName = x.Project.Name, x.MenuItemId, MenuName = x.MenuItem.Name, x.IsAllowed }).ToListAsync(cancellationToken);
+        return Ok(new { role.Id, role.Code, role.Name, role.Description, role.IsSystemRole, role.IsActive, role.BaseRedirectUrl, Assignments = assignments, Permissions = permissions, MenuAccess = menuAccess, CanDelete = !role.IsSystemRole && role.Code != PlatformRbacSeeder.SuperAdminCode && assignments.Count == 0 });
+    }
+
+    [HttpDelete("roles/{roleId:long}")]
+    [Authorize(Policy = "Role.Update")]
+    public async Task<IActionResult> HardDeleteRole(long roleId, CancellationToken cancellationToken)
+    {
+        if (!IsSuperAdmin()) return Forbid();
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        if (role is null) return NotFound(new { message = "Role not found." });
+        if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
+            return Conflict(new { message = "Built-in and protected roles cannot be permanently deleted." });
+        if (await db.UserRoleAssignments.AnyAsync(x => x.RoleId == roleId, cancellationToken))
+            return Conflict(new { message = "This role still has user assignments. Remove or reassign them before hard deletion." });
+
+        var rolePermissions = await db.RolePermissions.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
+        var menuAccess = await db.RoleWiseMenuAccesses.Where(x => x.RoleId == roleId).ToListAsync(cancellationToken);
+        db.RolePermissions.RemoveRange(rolePermissions);
+        db.RoleWiseMenuAccesses.RemoveRange(menuAccess);
+        db.Roles.Remove(role);
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = $"Role '{role.Name}' was permanently deleted." });
     }
 
     [HttpPut("roles/{roleId:long}/permissions")]
@@ -475,6 +577,8 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
 public sealed record AssignRoleRequest(long RoleId, long? TenantId, long? BranchId, long? ProjectId);
 public sealed record CreateRoleRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
 public sealed record SetRolePermissionsRequest(IReadOnlyList<long> PermissionIds);
+public sealed record SetRoleStatusRequest(bool IsActive);
+public sealed record UpdateRoleRequest(string Name, string? Description, string? BaseRedirectUrl);
 
 public sealed record CreatePlatformUserRequest(string UserName, string DisplayName, string Password, string? BaseRedirectUrl, bool IsPlatformAdmin = false);
 public sealed record UpdatePlatformUserRequest(string DisplayName, bool IsActive, string? BaseRedirectUrl);

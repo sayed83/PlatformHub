@@ -1,0 +1,95 @@
+@model PlatformHub.Mvc.Areas.PlatformAdmin.Models.RoleHardDeleteViewModel
+@{
+    ViewData["Title"] = "Role hard delete details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<style>
+.rh-page{max-width:1200px;margin:0 auto}.rh-hero{background:linear-gradient(120deg,#17283e,#274a76);color:#fff;border-radius:1rem;padding:1.5rem 1.75rem}
+.rh-kicker{font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:#a9c9ff}
+.rh-card{border:1px solid #e2e9f2;border-radius:.9rem;background:#fff;overflow:hidden;margin-bottom:1rem}
+.rh-card-head{padding:.9rem 1.1rem;background:#f8faff;border-bottom:1px solid #e2e9f2;font-weight:700}
+.rh-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;background:#f8faff;white-space:nowrap}
+.rh-table td,.rh-table th{padding:.75rem .9rem;vertical-align:middle}
+.rh-actions{position:sticky;bottom:0;background:rgba(255,255,255,.96);padding:1rem;border:1px solid #e2e9f2;border-radius:.9rem;box-shadow:0 -4px 20px #17283e12}
+@@media(max-width:767px){.rh-hero{padding:1.2rem}.rh-table{min-width:680px}}
+</style>
+<div class="rh-page py-3">
+    <div class="rh-hero mb-4">
+        <div class="rh-kicker mb-2">Platform Admin · Role directory</div>
+        <h1 class="h3 fw-bold mb-2">Hard delete role</h1>
+        <p class="mb-0 text-white-50">Review all related records before permanently removing this role and its configuration.</p>
+    </div>
+    <a asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index" class="btn btn-link px-0 mb-3">← Back to Roles &amp; permissions</a>
+    <section class="rh-card">
+        <div class="rh-card-head">Role details</div>
+        <div class="p-3 p-lg-4">
+            <div class="row g-3">
+                <div class="col-md-6"><div class="small text-secondary">Role name</div><div class="fw-bold fs-5">@Model.Name</div></div>
+                <div class="col-md-6"><div class="small text-secondary">Role code</div><code>@Model.Code</code></div>
+                <div class="col-md-4"><div class="small text-secondary">Role ID</div><div>@Model.Id</div></div>
+                <div class="col-md-4"><div class="small text-secondary">Type</div><div>@(Model.IsSystemRole ? "Built-in / system role" : "Custom role")</div></div>
+                <div class="col-md-4"><div class="small text-secondary">Status</div><span class="badge @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Active" : "Inactive")</span></div>
+                <div class="col-12"><div class="small text-secondary">Description</div><div>@(string.IsNullOrWhiteSpace(Model.Description) ? "No description" : Model.Description)</div></div>
+                <div class="col-12"><div class="small text-secondary">Base redirect URL</div><code>@(string.IsNullOrWhiteSpace(Model.BaseRedirectUrl) ? "Not set" : Model.BaseRedirectUrl)</code></div>
+            </div>
+        </div>
+    </section>
+    <div class="row g-3 mb-3">
+        <div class="col-4"><div class="rh-card p-3 mb-0"><div class="small text-secondary">User assignments</div><div class="fs-3 fw-bold">@Model.Assignments.Count</div></div></div>
+        <div class="col-4"><div class="rh-card p-3 mb-0"><div class="small text-secondary">Permissions</div><div class="fs-3 fw-bold">@Model.Permissions.Count</div></div></div>
+        <div class="col-4"><div class="rh-card p-3 mb-0"><div class="small text-secondary">Menu access rules</div><div class="fs-3 fw-bold">@Model.MenuAccess.Count</div></div></div>
+    </div>
+    <section class="rh-card">
+        <div class="rh-card-head">User assignments (@Model.Assignments.Count)</div>
+        @if (Model.Assignments.Count == 0) { <div class="p-3 text-secondary">No users are assigned to this role.</div> }
+        else
+        {
+            <div class="table-responsive"><table class="table rh-table mb-0"><thead><tr><th>User</th><th>User ID</th><th>Tenant</th><th>Branch</th><th>Project</th></tr></thead><tbody>
+            @foreach (var row in Model.Assignments) { <tr><td><div class="fw-semibold">@row.DisplayName</div><small class="text-secondary">@row.UserName</small></td><td>@row.UserId</td><td>@(row.TenantName ?? "—") <small class="text-secondary">@(row.TenantId?.ToString() ?? "")</small></td><td>@(row.BranchName ?? "—") <small class="text-secondary">@(row.BranchId?.ToString() ?? "")</small></td><td>@(row.ProjectName ?? "—") <small class="text-secondary">@(row.ProjectId?.ToString() ?? "")</small></td></tr> }
+            </tbody></table></div>
+        }
+    </section>
+    <section class="rh-card">
+        <div class="rh-card-head">Role permissions (@Model.Permissions.Count)</div>
+        @if (Model.Permissions.Count == 0) { <div class="p-3 text-secondary">No permission records.</div> }
+        else
+        {
+            <div class="table-responsive"><table class="table rh-table mb-0"><thead><tr><th>Module</th><th>Permission</th><th>Code</th><th>ID</th></tr></thead><tbody>
+            @foreach (var row in Model.Permissions) { <tr><td>@row.Module</td><td>@row.PermissionName</td><td><code>@row.Code</code></td><td>@row.PermissionId</td></tr> }
+            </tbody></table></div>
+        }
+    </section>
+    <section class="rh-card">
+        <div class="rh-card-head">Role-wise menu access (@Model.MenuAccess.Count)</div>
+        @if (Model.MenuAccess.Count == 0) { <div class="p-3 text-secondary">No role-wise menu access records.</div> }
+        else
+        {
+            <div class="table-responsive"><table class="table rh-table mb-0"><thead><tr><th>Project</th><th>Project ID</th><th>Menu</th><th>Menu ID</th><th>Allowed</th></tr></thead><tbody>
+            @foreach (var row in Model.MenuAccess) { <tr><td>@row.ProjectName</td><td>@row.ProjectId</td><td>@row.MenuName</td><td>@row.MenuItemId</td><td><span class="badge @(row.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(row.IsAllowed ? "Allowed" : "Denied")</span></td></tr> }
+            </tbody></table></div>
+        }
+    </section>
+    @if (Model.IsSystemRole)
+    {
+        <div class="alert alert-danger"><strong>Deletion blocked.</strong> Built-in/system roles cannot be permanently deleted. The protected Platform Super Admin role must remain available.</div>
+    }
+    else if (Model.Assignments.Count > 0)
+    {
+        <div class="alert alert-warning"><strong>Deletion blocked.</strong> Reassign or remove all user assignments before permanently deleting this role. Permission and menu-access records are shown above and will also be removed if deletion is allowed.</div>
+    }
+    else
+    {
+        <div class="alert alert-danger"><strong>Permanent action.</strong> This cannot be undone. The role, its role-permission mappings, and role-wise menu access rules will be deleted.</div>
+    }
+    <div class="rh-actions d-flex flex-wrap align-items-center gap-2">
+        <a asp-area="PlatformAdmin" asp-controller="Roles" asp-action="Index" class="btn btn-outline-secondary">Cancel and return</a>
+        @if (Model.CanDelete && !Model.IsSystemRole && Model.Assignments.Count == 0)
+        {
+            <form asp-area="PlatformAdmin" asp-controller="Roles" asp-action="HardDelete" method="post" class="ms-auto" onsubmit="return confirm('Permanently delete role @Model.Code and all listed role configuration? This cannot be undone.');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-danger">Permanently delete role</button>
+            </form>
+        }
+    </div>
+</div>

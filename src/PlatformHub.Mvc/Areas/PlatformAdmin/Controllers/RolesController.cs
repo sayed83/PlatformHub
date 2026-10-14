@@ -90,6 +90,44 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveRole(RoleManagementViewModel model, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+
+        if (model.EditingRoleId > 0)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Please correct the role name and description before updating.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var updated = await api.PutAsync<ApiOperationResult>(
+                $"api/v1/platform/access/roles/{model.EditingRoleId}",
+                new { model.Name, model.Description, model.BaseRedirectUrl }, ct, token);
+            TempData[updated is null ? "ErrorMessage" : "SuccessMessage"] = updated?.Message
+                ?? "Role could not be updated. Protected roles cannot be edited, and your account needs Role.Update permission.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "Please provide a valid role code and name.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var created = await api.PostAsync<RoleRowViewModel>(
+            "api/v1/platform/access/roles",
+            new { model.Code, model.Name, model.Description, model.BaseRedirectUrl }, ct, token);
+        TempData[created is null ? "ErrorMessage" : "SuccessMessage"] = created is null
+            ? "Role could not be created. Check that the role code is unique and you have Role.Create permission."
+            : $"Role '{created.Name}' created.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SavePermissions(RoleManagementViewModel model, CancellationToken ct)
     {
         if (!IsPlatformAdmin()) return Forbid();
@@ -108,6 +146,50 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetStatus(long id, bool isActive, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var result = await api.PutAsync<RoleStatusResult>($"api/v1/platform/access/roles/{id}/status", new { IsActive = isActive }, ct, token);
+        if (result is null)
+            TempData["ErrorMessage"] = "The API did not confirm the role status change. Check API logs and refresh the page before retrying.";
+        else if (result.IsActive != isActive)
+            TempData["ErrorMessage"] = $"The API returned a different status for role '{result.Name}'. Expected {(isActive ? "Active" : "Inactive")}, received {(result.IsActive ? "Active" : "Inactive")}.";
+        else
+            TempData["SuccessMessage"] = result.Message;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> HardDeleteDetails(long id, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin() || !User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var result = await api.GetWithStatusAsync<RoleHardDeleteViewModel>($"api/v1/platform/access/roles/{id}/hard-delete-details", token, ct);
+        if (result.Value is null)
+        {
+            TempData["ErrorMessage"] = result.Error ?? "Could not load role deletion details.";
+            return RedirectToAction(nameof(Index));
+        }
+        return View("HardDeleteDetails", result.Value);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> HardDelete(long id, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin() || !User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var deleted = await api.DeleteAsync($"api/v1/platform/access/roles/{id}", ct, token);
+        TempData[deleted ? "SuccessMessage" : "ErrorMessage"] = deleted
+            ? "Role permanently deleted."
+            : "Role could not be deleted. Built-in roles and roles with user assignments are protected.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<RoleManagementViewModel?> LoadAsync(string token, CancellationToken ct)
     {
         var roles = await api.GetAsync<List<RoleRowViewModel>>("api/v1/platform/access/roles", token, ct);
@@ -119,4 +201,5 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
     private bool IsPlatformAdmin() => User.FindFirst("ph_platform_admin")?.Value == "true";
     private string? AccessToken() => User.FindFirst("ph_api_access_token")?.Value;
     public sealed record ApiOperationResult(string Message, long RoleId, int PermissionCount);
+    public sealed record RoleStatusResult(string Message, long Id, string Code, string Name, bool IsActive);
 }
