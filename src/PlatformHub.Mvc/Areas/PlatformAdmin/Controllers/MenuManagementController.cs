@@ -100,7 +100,7 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
             return BadRequest(new { message = "A valid project, module and delete type are required." });
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
-        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement>(
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
             $"api/v1/project-menus/modules/{moduleId}/delete",
             new { projectId, deleteType }, ct, token);
         if (data is not null) return Json(data);
@@ -116,7 +116,7 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
             return BadRequest(new { message = "A valid project, menu and delete type are required." });
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
-        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement>(
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement?>(
             $"api/v1/project-menus/items/{menuItemId}/delete",
             new { projectId, deleteType }, ct, token);
         if (data is not null) return Json(data);
