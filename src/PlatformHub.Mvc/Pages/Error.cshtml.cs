@@ -34,9 +34,18 @@ public sealed class ErrorModel(ILogger<ErrorModel> logger, IWebHostEnvironment e
         EnvironmentName = environment.EnvironmentName;
 
         // Route back to the login page belonging to the panel where the request originated.
-        var isPlatformAdminPanel = RequestPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase)
+        var originalPath = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>()?.OriginalPath
+            ?? RequestPath;
+        var isPlatformAdminPanel = originalPath.StartsWith("/PlatformAdmin", StringComparison.OrdinalIgnoreCase)
             || HttpContext.User.FindFirst("ph_platform_admin")?.Value == "true";
         LoginUrl = isPlatformAdminPanel ? "/PlatformAdmin/Account/Login" : "/Account/Login";
+
+        // Authentication expiry should send the user to sign-in; other failures stay on Error Center.
+        if (StatusCode == StatusCodes.Status401Unauthorized)
+        {
+            Response.Redirect(LoginUrl);
+            return;
+        }
         LoginButtonText = isPlatformAdminPanel ? "Platform Admin login" : "User panel login";
         var exception = HttpContext.Features.Get<IExceptionHandlerPathFeature>()?.Error;
         if (environment.IsDevelopment())
