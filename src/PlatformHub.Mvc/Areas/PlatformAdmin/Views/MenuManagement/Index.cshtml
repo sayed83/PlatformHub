@@ -926,7 +926,7 @@
                     del.disabled = true;
                     const result = await send('@Url.Action("DeleteMenu", "MenuManagement", new { area = "PlatformAdmin" })?menuItemId=' + item.id + '&projectId=' + selectedProject() + '&deleteType=' + type, {});
                     notice(result.message || 'Menu updated.', 'success');
-                    await reloadAll();
+                    await refresh();
                 } catch (error) { notice(error.message || 'Unable to delete menu.', 'danger'); }
                 finally { del.disabled = false; }
                 return;
