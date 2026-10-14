@@ -248,13 +248,13 @@ public sealed class WorkspaceController(
         var seededCodes = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST",
             "USER_LIST", "ROLE_LIST", "PERMISSION_CATALOG", "INVENTORY_ITEMS", "WORKSPACE_MENU_PERMISSIONS" };
         if (seededCodes.Contains(menu.Code, StringComparer.OrdinalIgnoreCase))
-            return Conflict(new { message = "This is a seeded system menu. Use Soft delete to disable it; the system catalog must retain this entry." });
+            return Conflict(new { success = false, message = "This is a seeded system menu. Use Soft delete to disable it; the system catalog must retain this entry." });
 
         var hasChildren = await db.MenuItems.AnyAsync(m => m.ProjectId == projectId.Value && m.ParentMenuId == menu.Id, cancellationToken);
         var hasRoleAccess = await db.RoleWiseMenuAccesses.AnyAsync(a => a.MenuItemId == menu.Id, cancellationToken);
         var hasUserAccess = await db.UserWiseMenuAccesses.AnyAsync(a => a.MenuItemId == menu.Id, cancellationToken);
         if (hasChildren || hasRoleAccess || hasUserAccess)
-            return Conflict(new { message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
+            return Conflict(new { success = false, message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
 
         db.MenuItems.Remove(menu);
         await db.SaveChangesAsync(cancellationToken);
