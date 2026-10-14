@@ -163,6 +163,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     }
 
     [HttpGet("roles")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [Authorize(Policy = "Role.View")]
     public async Task<IActionResult> GetRoles(CancellationToken cancellationToken)
     {
@@ -257,12 +258,22 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
 
         role.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Read the persisted value back instead of assuming SaveChanges changed it.
+        var persistedStatus = await db.Roles.AsNoTracking()
+            .Where(x => x.Id == roleId)
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsActive })
+            .SingleAsync(cancellationToken);
+        if (persistedStatus.IsActive != request.IsActive)
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "The role status was not persisted. Check the Platform database connection and database triggers." });
+
         var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
             .Select(x => x.UserId).Distinct().ToArrayAsync(cancellationToken);
         if (affectedUserIds.Length > 0)
             await db.RefreshSessions.Where(x => affectedUserIds.Contains(x.UserId) && x.RevokedUtc == null)
                 .ExecuteUpdateAsync(update => update.SetProperty(x => x.RevokedUtc, DateTime.UtcNow), cancellationToken);
-        return Ok(new { message = $"Role {(role.IsActive ? "activated" : "deactivated")}. Existing sessions for assigned users were revoked.", role.Id, role.IsActive });
+        return Ok(new { message = $"Role '{persistedStatus.Name}' {(persistedStatus.IsActive ? "activated" : "deactivated")} successfully.", persistedStatus.Id, persistedStatus.Code, persistedStatus.Name, persistedStatus.IsActive });
     }
 
     [HttpGet("roles/{roleId:long}/hard-delete-details")]
