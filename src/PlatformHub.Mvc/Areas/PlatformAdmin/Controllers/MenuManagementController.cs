@@ -93,6 +93,22 @@ public sealed class MenuManagementController(PlatformApiClient api) : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteModule(long moduleId, long projectId, string deleteType, CancellationToken ct)
+    {
+        if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        if (moduleId <= 0 || projectId <= 0 || deleteType is not ("soft" or "hard"))
+            return BadRequest(new { message = "A valid project, module and delete type are required." });
+        var token = User.FindFirst("ph_api_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(token)) return Unauthorized();
+        var (data, error) = await api.PostWithErrorAsync<System.Text.Json.JsonElement>(
+            $"api/v1/project-menus/modules/{moduleId}/delete",
+            new { projectId, deleteType }, ct, token);
+        if (data is not null) return Json(data);
+        if (IsApiUnauthorized(error)) return Unauthorized(new { message = "Your Platform API session has expired. Please sign in again." });
+        return BadRequest(new { message = error ?? "Unable to delete module." });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteMenu(long menuItemId, long projectId, string deleteType, CancellationToken ct)
     {
         if (!User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
