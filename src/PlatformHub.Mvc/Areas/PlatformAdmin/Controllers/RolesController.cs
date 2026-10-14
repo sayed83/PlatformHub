@@ -108,6 +108,46 @@ public sealed class RolesController(PlatformApiClient api, ILogger<RolesControll
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetStatus(long id, bool isActive, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var result = await api.PutAsync<ApiOperationResult>($"api/v1/platform/access/roles/{id}/status", new { IsActive = isActive }, ct, token);
+        TempData[result is null ? "ErrorMessage" : "SuccessMessage"] = result?.Message
+            ?? "Role status could not be changed. The role may be protected or your account may lack Role.Update.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> HardDeleteDetails(long id, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin() || !User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var result = await api.GetWithStatusAsync<RoleHardDeleteViewModel>($"api/v1/platform/access/roles/{id}/hard-delete-details", token, ct);
+        if (result.Value is null)
+        {
+            TempData["ErrorMessage"] = result.Error ?? "Could not load role deletion details.";
+            return RedirectToAction(nameof(Index));
+        }
+        return View("HardDeleteDetails", result.Value);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> HardDelete(long id, CancellationToken ct)
+    {
+        if (!IsPlatformAdmin() || !User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN")) return Forbid();
+        var token = AccessToken();
+        if (token is null) return Challenge();
+        var deleted = await api.DeleteAsync($"api/v1/platform/access/roles/{id}", ct, token);
+        TempData[deleted ? "SuccessMessage" : "ErrorMessage"] = deleted
+            ? "Role permanently deleted."
+            : "Role could not be deleted. Built-in roles and roles with user assignments are protected.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task<RoleManagementViewModel?> LoadAsync(string token, CancellationToken ct)
     {
         var roles = await api.GetAsync<List<RoleRowViewModel>>("api/v1/platform/access/roles", token, ct);
