@@ -68,7 +68,7 @@
                 </dl>
             </aside>
         </div>
-        @if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails) || !string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        @if (Model.EnvironmentName.Equals("Development", StringComparison.OrdinalIgnoreCase))
         {
             <details class="ph-error-technical">
                 <summary>Actual error details (Development only)</summary>
@@ -79,6 +79,10 @@
                 @if (!string.IsNullOrWhiteSpace(Model.TechnicalDetails))
                 {
                     <pre>@Model.TechnicalDetails</pre>
+                }
+                else
+                {
+                    <p class="mt-3 mb-0 text-secondary">No additional exception details were captured for this request. Use the reference ID above to locate the corresponding MVC/API log entry.</p>
                 }
             </details>
         }
