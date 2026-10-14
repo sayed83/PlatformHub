@@ -52,7 +52,8 @@
         <div id="tenantDirectoryGrid" class="ph-tabulator-grid"></div>
     </div>
     <script>
-        window.addEventListener('DOMContentLoaded', function () {
+        (function () {
+            function initTenantGrid() {
             const rows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Tenants.Select(t => new { id = t.Id, name = t.Name, code = t.Code, status = t.IsActive ? "Active" : "Inactive" })));
             window.PlatformHubGrid.create({
                 element: '#tenantDirectoryGrid',
@@ -70,6 +71,9 @@
                     }}
                 ]
             });
-        });
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTenantGrid, { once: true });
+            else initTenantGrid();
+        })();
     </script>
 </section>
