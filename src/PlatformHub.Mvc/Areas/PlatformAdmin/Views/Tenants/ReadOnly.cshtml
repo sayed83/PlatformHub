@@ -48,64 +48,28 @@
         <h2 class="h5 fw-bold mb-1">Available tenants</h2>
         <p class="small text-secondary mb-0">Only tenant records returned for your account are displayed.</p>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover tv-table align-middle mb-0">
-            <thead class="table-light"><tr><th class="ps-3 ps-lg-4">Tenant</th><th>Tenant code</th><th>Status</th><th class="text-end pe-3 pe-lg-4">Information</th></tr></thead>
-            <tbody>
-            @if (Model.Tenants.Count == 0)
-            {
-                <tr><td colspan="4" class="text-center py-5">
-                    <div class="tv-avatar mx-auto mb-3" aria-hidden="true">▦</div>
-                    <div class="fw-semibold">No tenants available</div>
-                    <p class="small text-secondary mb-0 mt-1">No tenant records were returned for your current account and access scope. Ask your platform administrator to verify the Tenant.View permission and tenant assignment.</p>
-                </td></tr>
-            }
-            else
-            {
-                @foreach (var tenant in Model.Tenants.OrderBy(x => x.Name))
-                {
-                    <tr>
-                        <td class="ps-3 ps-lg-4">
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="tv-avatar">@((string.IsNullOrWhiteSpace(tenant.Name) ? tenant.Code : tenant.Name).Trim().Substring(0, 1).ToUpperInvariant())</span>
-                                <div><div class="fw-semibold">@tenant.Name</div><div class="small text-secondary">Tenant ID: @tenant.Id</div></div>
-                            </div>
-                        </td>
-                        <td><code>@tenant.Code</code></td>
-                        <td>
-                            @if (tenant.IsActive)
-                            {
-                                <span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success-emphasis">Active</span>
-                            }
-                            else
-                            {
-                                <span class="badge rounded-pill text-bg-secondary">Inactive</span>
-                            }
-                        </td>
-                        <td class="text-end pe-3 pe-lg-4">
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tenantInfo-@tenant.Id">View details</button>
-                            <div class="modal fade text-start" id="tenantInfo-@tenant.Id" tabindex="-1" aria-labelledby="tenantInfoTitle-@tenant.Id" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-                                    <div class="modal-header">
-                                        <div><h2 class="modal-title h5 fw-bold" id="tenantInfoTitle-@tenant.Id">@tenant.Name</h2><div class="small text-secondary">Read-only tenant information</div></div>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <dl class="row mb-0">
-                                            <dt class="col-sm-5 text-secondary">Tenant ID</dt><dd class="col-sm-7">@tenant.Id</dd>
-                                            <dt class="col-sm-5 text-secondary">Tenant name</dt><dd class="col-sm-7">@tenant.Name</dd>
-                                            <dt class="col-sm-5 text-secondary">Tenant code</dt><dd class="col-sm-7"><code>@tenant.Code</code></dd>
-                                            <dt class="col-sm-5 text-secondary">Status</dt><dd class="col-sm-7">@(tenant.IsActive ? "Active" : "Inactive")</dd>
-                                        </dl>
-                                    </div>
-                                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
-                                </div></div>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            }
-            </tbody>
-        </table>
+    <div class="p-3">
+        <div id="tenantDirectoryGrid" class="ph-tabulator-grid"></div>
     </div>
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            const rows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Tenants.Select(t => new { id = t.Id, name = t.Name, code = t.Code, status = t.IsActive ? "Active" : "Inactive" })));
+            window.PlatformHubGrid.create({
+                element: '#tenantDirectoryGrid',
+                data: rows,
+                placeholder: 'No tenants available in your current access scope.',
+                columns: [
+                    { title: 'Tenant', field: 'name', minWidth: 220, formatter: function (cell) {
+                        const row = cell.getRow().getData();
+                        return '<div class="fw-semibold">' + window.PlatformHubGrid.escape(row.name) + '</div><div class="small text-secondary">Tenant ID: ' + row.id + '</div>';
+                    }},
+                    { title: 'Tenant code', field: 'code', width: 180, formatter: function (cell) { return '<code>' + window.PlatformHubGrid.escape(cell.getValue()) + '</code>'; }},
+                    { title: 'Status', field: 'status', width: 140, formatter: function (cell) {
+                        const active = cell.getValue() === 'Active';
+                        return '<span class="badge rounded-pill ' + (active ? 'text-bg-success' : 'text-bg-secondary') + '">' + window.PlatformHubGrid.escape(cell.getValue()) + '</span>';
+                    }}
+                ]
+            });
+        });
+    </script>
 </section>
