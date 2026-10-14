@@ -163,6 +163,10 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim(AppClaimTypes.Permission, "Role.View"));
     options.AddPolicy("Permission.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Permission.View"));
+    options.AddPolicy("MenuAccess.View", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "MenuAccess.View"));
+    options.AddPolicy("MenuAccess.Update", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim(AppClaimTypes.Permission, "MenuAccess.Update"));
     options.AddPolicy("Platform.Dashboard.View", policy => policy.RequireAuthenticatedUser()
         .RequireClaim(AppClaimTypes.Permission, "Platform.Dashboard.View"));
     options.AddPolicy("Tenant.View", policy => policy.RequireAuthenticatedUser()
