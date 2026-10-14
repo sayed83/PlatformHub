@@ -1,0 +1,108 @@
+@using PlatformHub.Mvc.Areas.PlatformAdmin.Models
+@model TenantManagementViewModel
+@{
+    ViewData["Title"] = "Tenant details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var tenant = Model.Tenants.FirstOrDefault();
+    var canUpdate = User.HasClaim("ph_permission", "Tenant.Update");
+    var canDeactivate = User.HasClaim("ph_permission", "Tenant.Deactivate");
+}
+@if (tenant is null)
+{
+    <div class="alert alert-warning">This tenant could not be found or is outside your access scope.</div>
+    <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-primary">Back to tenants</a>
+}
+else
+{
+    <section class="border rounded-4 p-4 p-lg-5 mb-4" style="background:linear-gradient(120deg,#eaf2ff,#f8fbff);border-color:#dce6f3!important">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="rounded-3 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:3rem;height:3rem;background:#d7e7ff" aria-hidden="true">▦</div>
+                <div>
+                    <div class="small fw-bold text-primary text-uppercase mb-2">Organization · Tenant details</div>
+                    <h1 class="h3 fw-bold mb-1">@tenant.Name</h1>
+                    <div class="text-secondary">Tenant ID: @tenant.Id</div>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
+                @if (canUpdate)
+                {
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editTenantModal">Edit tenant</button>
+                }
+                @if (canDeactivate)
+                {
+                    <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="@(tenant.IsActive ? "Delete" : "Activate")" method="post" class="d-inline" data-confirm="@(tenant.IsActive ? "Deactivate this tenant?" : "Activate this tenant?")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@tenant.Id" />
+                        @if (tenant.IsActive) { <input type="hidden" name="hardDelete" value="false" /> }
+                        <button type="submit" class="btn @(tenant.IsActive ? "btn-outline-danger" : "btn-outline-success")">@(tenant.IsActive ? "Deactivate tenant" : "Activate tenant")</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </section>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-body px-4 py-3">
+            <h2 class="h5 fw-bold mb-1">Tenant information</h2>
+            <p class="small text-secondary mb-0">Details available to your account based on its permissions.</p>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-12 col-md-6">
+                    <div class="small text-secondary text-uppercase fw-semibold mb-1">Tenant name</div>
+                    <div class="fs-5 fw-semibold">@tenant.Name</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="small text-secondary text-uppercase fw-semibold mb-1">Tenant code</div>
+                    <div class="fs-5"><code>@tenant.Code</code></div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="small text-secondary text-uppercase fw-semibold mb-1">Tenant ID</div>
+                    <div>@tenant.Id</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="small text-secondary text-uppercase fw-semibold mb-1">Status</div>
+                    @if (tenant.IsActive) { <span class="badge rounded-pill text-bg-success">Active</span> }
+                    else { <span class="badge rounded-pill text-bg-secondary">Inactive</span> }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (canUpdate)
+    {
+        <div class="modal fade" id="editTenantModal" tabindex="-1" aria-labelledby="editTenantModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                <form asp-area="PlatformAdmin" asp-controller="Tenants" asp-action="Edit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@tenant.Id" />
+                    <div class="modal-header">
+                        <h2 class="modal-title h5" id="editTenantModalTitle">Edit tenant</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label" for="tenantCode">Tenant code</label>
+                        <input class="form-control mb-3" id="tenantCode" name="code" value="@tenant.Code" maxlength="50" required pattern="[A-Za-z0-9_-]+" />
+                        <label class="form-label" for="tenantName">Tenant name</label>
+                        <input class="form-control" id="tenantName" name="name" value="@tenant.Name" maxlength="200" required />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div></div>
+        </div>
+    }
+}
