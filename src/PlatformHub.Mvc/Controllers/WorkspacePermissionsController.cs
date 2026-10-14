@@ -32,8 +32,12 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
         }
 
         var suffix = $"tenantId={tenantId}" + (branchId.HasValue ? $"&branchId={branchId}" : "") + $"&projectId={projectId}";
-        var roles = await api.GetAsync<List<WorkspacePermissionTarget>>( $"api/v1/workspace/roles?{suffix}", token, ct) ?? new();
-        var users = await api.GetAsync<List<WorkspacePermissionTarget>>( $"api/v1/workspace/users?{suffix}", token, ct) ?? new();
+        var roles = targetType == "role"
+            ? await api.GetAsync<List<WorkspacePermissionTarget>>($"api/v1/workspace/roles?{suffix}", token, ct) ?? new()
+            : new List<WorkspacePermissionTarget>();
+        var users = targetType == "user"
+            ? await api.GetAsync<List<WorkspacePermissionTarget>>($"api/v1/workspace/users?{suffix}", token, ct) ?? new()
+            : new List<WorkspacePermissionTarget>();
         var targets = targetType == "role" ? roles : users;
         if (!targetId.HasValue || targets.All(x => x.Id != targetId.Value)) targetId = targets.FirstOrDefault()?.Id;
         var vm = new WorkspacePermissionPageViewModel
