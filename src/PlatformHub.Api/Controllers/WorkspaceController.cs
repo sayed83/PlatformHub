@@ -116,6 +116,103 @@ public sealed class WorkspaceController(
         return Ok(rows);
     }
 
+
+    public sealed record MenuAccessUpdateRequest(long MenuItemId, bool IsAllowed);
+
+    [HttpPut("roles/{roleId:long}/menu-access")]
+    public async Task<IActionResult> UpdateRoleMenuAccess(
+        long roleId,
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromBody] MenuAccessUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (roleId <= 0 || request.MenuItemId <= 0 || !projectId.HasValue || projectId.Value <= 0)
+            return BadRequest(new { message = "Role, menu, and active project are required." });
+
+        if (!await scopedAccess.CanAccessAsync(userId, "Role.Update", tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        var roleAssignedInScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
+            a.RoleId == roleId && a.Role.IsActive &&
+            (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+            (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+            (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+        if (!roleAssignedInScope) return NotFound(new { message = "Role is not assigned in this workspace scope." });
+
+        var menuExists = await db.MenuItems.AnyAsync(m => m.Id == request.MenuItemId &&
+            m.ProjectId == projectId.Value && m.IsActive, cancellationToken);
+        if (!menuExists) return NotFound(new { message = "Menu was not found in the active project." });
+
+        var access = await db.RoleWiseMenuAccesses.SingleOrDefaultAsync(a =>
+            a.ProjectId == projectId.Value && a.RoleId == roleId && a.MenuItemId == request.MenuItemId, cancellationToken);
+        if (access is null)
+            db.RoleWiseMenuAccesses.Add(new PlatformHub.Domain.Entities.RoleWiseMenuAccess
+            {
+                ProjectId = projectId.Value, RoleId = roleId,
+                MenuItemId = request.MenuItemId, IsAllowed = request.IsAllowed
+            });
+        else
+        {
+            access.IsAllowed = request.IsAllowed;
+            access.UpdatedUtc = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { success = true, request.MenuItemId, request.IsAllowed });
+    }
+
+    [HttpPut("users/{targetUserId:long}/menu-access")]
+    public async Task<IActionResult> UpdateUserMenuAccess(
+        long targetUserId,
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromBody] MenuAccessUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (targetUserId <= 0 || request.MenuItemId <= 0 || !projectId.HasValue || projectId.Value <= 0)
+            return BadRequest(new { message = "User, menu, and active project are required." });
+
+        if (!await scopedAccess.CanAccessAsync(userId, "User.Update", tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        var targetAssignedInScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
+            a.UserId == targetUserId && !a.User.IsPlatformAdmin && a.Role.IsActive &&
+            (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+            (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+            (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+        if (!targetAssignedInScope) return NotFound(new { message = "User is not assigned in this workspace scope." });
+
+        var menuExists = await db.MenuItems.AnyAsync(m => m.Id == request.MenuItemId &&
+            m.ProjectId == projectId.Value && m.IsActive, cancellationToken);
+        if (!menuExists) return NotFound(new { message = "Menu was not found in the active project." });
+
+        var access = await db.UserWiseMenuAccesses.SingleOrDefaultAsync(a =>
+            a.ProjectId == projectId.Value && a.UserId == targetUserId && a.MenuItemId == request.MenuItemId, cancellationToken);
+        if (access is null)
+            db.UserWiseMenuAccesses.Add(new PlatformHub.Domain.Entities.UserWiseMenuAccess
+            {
+                ProjectId = projectId.Value, UserId = targetUserId,
+                MenuItemId = request.MenuItemId, IsAllowed = request.IsAllowed
+            });
+        else
+        {
+            access.IsAllowed = request.IsAllowed;
+            access.UpdatedUtc = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { success = true, request.MenuItemId, request.IsAllowed });
+    }
+
     [HttpGet("scopes")]
     public async Task<IActionResult> GetAvailableScopes(CancellationToken cancellationToken)
     {
