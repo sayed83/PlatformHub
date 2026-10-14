@@ -917,9 +917,12 @@
                 const item = modules.find(x => x.id === Number(del.dataset.deleteModule));
                 if (!item || !selectedProject()) return;
                 const type = del.dataset.deleteType;
-                const prompt = type === 'soft'
-                    ? 'Soft delete module "' + item.name + '"? Its menu entries will also be deactivated and records retained.'
-                    : 'Permanently delete module "' + item.name + '"? Hard delete is allowed only when it has no menu entries.';
+                if (type === 'hard') {
+                    const returnUrl = window.location.pathname + window.location.search + '#modules-tab';
+                    window.location.href = '@Url.Action("HardDeleteDetails", "MenuManagement", new { area = "PlatformAdmin" })?itemType=module&itemId=' + item.id + '&projectId=' + selectedProject() + '&returnUrl=' + encodeURIComponent(returnUrl);
+                    return;
+                }
+                const prompt = 'Soft delete module "' + item.name + '"? Its menu entries will also be deactivated and records retained.';
                 if (!window.confirm(prompt)) return;
                 try {
                     del.disabled = true;
@@ -940,9 +943,12 @@
                 const item = menus.find(x => x.id === Number(del.dataset.deleteMenu));
                 if (!item || !selectedProject()) return;
                 const type = del.dataset.deleteType;
-                const prompt = type === 'soft'
-                    ? 'Soft delete "' + item.name + '"? It will be deactivated and permission history retained.'
-                    : 'Permanently delete "' + item.name + '"? Hard delete is blocked for seeded menus or menus with dependent records.';
+                if (type === 'hard') {
+                    const returnUrl = window.location.pathname + window.location.search + '#menus-tab';
+                    window.location.href = '@Url.Action("HardDeleteDetails", "MenuManagement", new { area = "PlatformAdmin" })?itemType=menu&itemId=' + item.id + '&projectId=' + selectedProject() + '&returnUrl=' + encodeURIComponent(returnUrl);
+                    return;
+                }
+                const prompt = 'Soft delete "' + item.name + '"? It will be deactivated and permission history retained.';
                 if (!window.confirm(prompt)) return;
                 try {
                     del.disabled = true;
