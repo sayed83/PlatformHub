@@ -91,16 +91,12 @@ public sealed class WorkspaceController(
                 || (assignment.ProjectId.HasValue && assignedProject is null))
                 continue;
 
-            var availableProjects = assignment.ProjectId.HasValue
-                ? (assignedProject is not null &&
-                   (assignedProject.TenantId == tenant.Id ||
-                    activeTenantProjectKeys.Contains((tenant.Id, assignedProject.Id)))
-                    ? new[] { assignedProject }
-                    : Array.Empty<dynamic>())
-                : projects.Where(project =>
-                    project.TenantId == tenant.Id ||
-                    activeTenantProjectKeys.Contains((tenant.Id, project.Id)))
-                    .Cast<dynamic>().ToArray();
+            var availableProjects = projects
+                .Where(project =>
+                    (!assignment.ProjectId.HasValue || project.Id == assignment.ProjectId.Value) &&
+                    (project.TenantId == tenant.Id ||
+                     activeTenantProjectKeys.Contains((tenant.Id, project.Id))))
+                .ToList();
 
             // If the assignment is tenant/branch scoped, offer each active project assigned
             // to the tenant. This lets branch admins select a project without changing the
