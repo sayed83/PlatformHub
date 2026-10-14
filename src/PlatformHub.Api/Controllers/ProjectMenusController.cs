@@ -216,7 +216,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         var userAccess = await db.UserWiseMenuAccesses.AsNoTracking().Where(x => x.MenuItemId == menuItemId)
             .Select(x => new { x.Id, UserName = x.User.UserName, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
         var seeded = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST", "USER_LIST",
-            "ROLE_LIST", "PERMISSION_CATALOG", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" }
+            "ROLE_LIST", "PERMISSION_CATALOG", "MENU_PERMISSION", "MENU_PERMISSIONS", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" }
             .Contains(menu.Code, StringComparer.OrdinalIgnoreCase);
         var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0;
         return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess, isSeededSystemMenu = seeded,
