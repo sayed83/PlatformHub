@@ -30,11 +30,25 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="TargetType" value="@Model.TargetType" />
                 <input type="hidden" name="TargetId" value="@Model.TargetId" />
-                <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" id="selectAllMenus">Select all</button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" id="clearMenus">Clear selection</button>
-                    <span class="small text-secondary me-auto" id="selectedMenuCount">0 selected</span>
-                    <button class="btn btn-sm btn-success" type="submit" name="BulkDecision" value="allow">Allow selected</button>
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="moduleFilter">Filter by module</label>
+                        <select class="form-select form-select-sm" id="moduleFilter">
+                            <option value="">All modules</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="menuSearch">Search menu</label>
+                        <input class="form-control form-control-sm" type="search" id="menuSearch" placeholder="Search menu name or code..." />
+                    </div>
+                    <div class="col-12 col-md-4 d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="selectAllMenus">Select all filtered</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="clearMenus">Clear filtered</button>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                        <span class="small text-secondary me-auto" id="filterResultCount">Showing all menus</span>
+                        <span class="small fw-semibold" id="selectedMenuCount">0 selected</span>
+                        <button class="btn btn-sm btn-success" type="submit" name="BulkDecision" value="allow">Allow selected</button>
                     <button class="btn btn-sm btn-danger" type="submit" name="BulkDecision" value="deny">Deny selected</button>
                     @if (Model.TargetType == "user")
                     {
@@ -77,20 +91,60 @@
                 const form = document.getElementById('menuPermissionForm');
                 if (!form) return;
                 const boxes = Array.from(form.querySelectorAll('.menu-permission-checkbox'));
+                const rows = Array.from(form.querySelectorAll('[data-menu-row]'));
                 const selectAll = document.getElementById('selectAllMenus');
                 const header = document.getElementById('selectAllHeader');
                 const clear = document.getElementById('clearMenus');
                 const count = document.getElementById('selectedMenuCount');
+                const moduleFilter = document.getElementById('moduleFilter');
+                const menuSearch = document.getElementById('menuSearch');
+                const resultCount = document.getElementById('filterResultCount');
+
+                // Build the module list from the active project's actual menu rows.
+                const modules = [...new Set(rows.map(row => (row.dataset.module || '').trim()).filter(Boolean))]
+                    .sort((a, b) => a.localeCompare(b));
+                modules.forEach(moduleName => {
+                    const option = document.createElement('option');
+                    option.value = moduleName;
+                    option.textContent = moduleName;
+                    moduleFilter.appendChild(option);
+                });
+
+                const visibleBoxes = () => rows
+                    .filter(row => row.dataset.filtered !== 'false')
+                    .map(row => row.querySelector('.menu-permission-checkbox'));
+
+                const applyFilters = () => {
+                    const selectedModule = moduleFilter.value.toLocaleLowerCase();
+                    const search = menuSearch.value.trim().toLocaleLowerCase();
+                    let visibleCount = 0;
+                    rows.forEach(row => {
+                        const moduleName = (row.dataset.module || '').toLocaleLowerCase();
+                        const rowText = row.innerText.toLocaleLowerCase();
+                        const matches = (!selectedModule || moduleName === selectedModule) &&
+                            (!search || rowText.includes(search));
+                        row.dataset.filtered = matches ? 'true' : 'false';
+                        row.hidden = !matches;
+                        if (matches) visibleCount++;
+                    });
+                    resultCount.textContent = 'Showing ' + visibleCount + ' of ' + rows.length + ' menus';
+                    update();
+                };
+
                 const update = () => {
                     const selected = boxes.filter(x => x.checked).length;
+                    const visible = visibleBoxes();
+                    const visibleSelected = visible.filter(x => x.checked).length;
                     count.textContent = selected + ' selected';
-                    header.checked = boxes.length > 0 && selected === boxes.length;
-                    header.indeterminate = selected > 0 && selected < boxes.length;
+                    header.checked = visible.length > 0 && visibleSelected === visible.length;
+                    header.indeterminate = visibleSelected > 0 && visibleSelected < visible.length;
                 };
-                const setAll = value => { boxes.forEach(x => x.checked = value); update(); };
-                selectAll.addEventListener('click', () => setAll(true));
-                clear.addEventListener('click', () => setAll(false));
-                header.addEventListener('change', () => setAll(header.checked));
+                const setVisible = value => { visibleBoxes().forEach(x => x.checked = value); update(); };
+                selectAll.addEventListener('click', () => setVisible(true));
+                clear.addEventListener('click', () => setVisible(false));
+                header.addEventListener('change', () => setVisible(header.checked));
+                moduleFilter.addEventListener('change', applyFilters);
+                menuSearch.addEventListener('input', applyFilters);
                 boxes.forEach(x => x.addEventListener('change', update));
                 form.addEventListener('submit', event => {
                     const submitter = event.submitter;
