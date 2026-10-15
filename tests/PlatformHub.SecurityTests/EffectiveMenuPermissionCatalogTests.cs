@@ -10,7 +10,7 @@ namespace PlatformHub.SecurityTests;
 public sealed class EffectiveMenuPermissionCatalogTests
 {
     [Fact]
-    public async Task Catalog_permission_grants_menu_and_explicit_user_deny_overrides_it()
+    public async Task Global_catalog_assignment_does_not_grant_menu_and_scoped_role_access_with_user_deny_does()
     {
         await using var db = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase($"effective-menu-catalog-{Guid.NewGuid():N}")
@@ -41,6 +41,16 @@ public sealed class EffectiveMenuPermissionCatalogTests
 
         var service = new EffectiveMenuAccessService(db);
         var visibleMenus = await service.GetForUserAsync(10, 12, 1);
+        Assert.DoesNotContain(visibleMenus, menu => menu.Id == 88);
+        Assert.False(await service.HasAccessAsync(10, 12, 1, "PRODUCTS"));
+
+        db.RoleWiseMenuAccesses.Add(new RoleWiseMenuAccess
+        {
+            Id = 1, ProjectId = 12, RoleId = 5, MenuItemId = 88, IsAllowed = true
+        });
+        await db.SaveChangesAsync();
+
+        visibleMenus = await service.GetForUserAsync(10, 12, 1);
         Assert.Contains(visibleMenus, menu => menu.Id == 88);
         Assert.True(await service.HasAccessAsync(10, 12, 1, "PRODUCTS"));
 
