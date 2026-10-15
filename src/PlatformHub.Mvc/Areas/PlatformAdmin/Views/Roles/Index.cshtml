@@ -4,6 +4,7 @@
     ViewData["Title"] = "Roles & Permissions";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
+    var assignablePermissions = Model.Permissions.Where(x => x.IsSystemPermission).ToList();
 }
 
 <style>
@@ -244,7 +245,7 @@
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Total roles</div><div class="rp-stat-value">@Model.Roles.Count</div><div class="small text-secondary mt-1">Available role profiles</div></div></div>
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Built-in roles</div><div class="rp-stat-value">@Model.Roles.Count(x => x.IsSystemRole)</div><div class="small text-secondary mt-1">System-managed</div></div></div>
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Custom roles</div><div class="rp-stat-value">@Model.Roles.Count(x => !x.IsSystemRole)</div><div class="small text-secondary mt-1">Created for your needs</div></div></div>
-    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Permission catalog</div><div class="rp-stat-value">@Model.Permissions.Count</div><div class="small text-secondary mt-1">Available permissions</div></div></div>
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Permission catalog</div><div class="rp-stat-value">@Model.Permissions.Count</div><div class="small text-secondary mt-1">@assignablePermissions.Count global API permissions; project-menu permissions are scoped separately</div></div></div>
 </div>
 
 <div class="row g-4">
@@ -293,7 +294,7 @@
                 <label for="permissionCatalogSearch" class="form-label small fw-semibold">Find a permission</label>
                 <input id="permissionCatalogSearch" type="search" class="form-control form-control-sm" placeholder="Search name or code..." />
                 <div id="permissionCatalog">
-                    @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
+                    @foreach (var group in assignablePermissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
                     {
                         <div class="permission-catalog-group mt-3">
                             <h3 class="rp-section-label mb-2">@group.Key <span class="fw-normal">(@group.Count())</span></h3>
@@ -434,7 +435,7 @@
                                         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
                                             <div>
                                                 <div class="fw-bold">Configure permissions</div>
-                                                <div class="small text-secondary">Choose only the access this role needs.</div>
+                                                <div class="small text-secondary">Choose global API actions for this role. Project-menu visibility is configured separately under Workspace → Menu Permissions for each project.</div>
                                             </div>
                                             <div class="d-flex gap-2 flex-wrap">
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="@role.Id">Select all</button>
