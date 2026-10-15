@@ -44,7 +44,7 @@
                 <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" id="selectAllHeader" aria-label="Select all menus" /></th><th>Module</th><th>Menu</th><th>Code</th><th>Effective access</th><th>Decision</th><th>Quick action</th></tr></thead><tbody>
                 @foreach (var menu in Model.Menus) {
                     var effectiveDecision = menu.IsAllowed ? "allow" : "deny";
-                    var singleDecision = Model.TargetType == "user" && !menu.HasExplicitDecision ? "allow" : (menu.IsAllowed ? "deny" : "allow");
+                    var singleDecision = menu.IsAllowed ? "deny" : "allow";
                     <tr data-menu-row data-module="@menu.ModuleName">
                         <td><input type="checkbox" class="form-check-input menu-permission-checkbox" name="SelectedMenuItemIds" value="@menu.Id" aria-label="Select @menu.Name" /></td>
                         <td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td>
