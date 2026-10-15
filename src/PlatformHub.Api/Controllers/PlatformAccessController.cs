@@ -218,7 +218,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> UpdateRole(long roleId, [FromBody] UpdateRoleRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
             return Conflict(new { message = "The protected Platform Super Admin role cannot be edited." });
@@ -249,7 +249,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Deactivate")]
     public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var isSuperAdmin = IsSuperAdmin();
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
@@ -282,7 +282,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> GetRoleHardDeleteDetails(long roleId, CancellationToken cancellationToken)
     {
         if (!IsSuperAdmin()) return Forbid();
-        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var assignments = await db.UserRoleAssignments.AsNoTracking().Where(x => x.RoleId == roleId)
             .Select(x => new { x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, x.TenantId, TenantName = x.Tenant == null ? null : x.Tenant.Name, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name, x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name })
@@ -299,7 +299,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> HardDeleteRole(long roleId, CancellationToken cancellationToken)
     {
         if (!IsSuperAdmin()) return Forbid();
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
             return Conflict(new { message = "Built-in and protected roles cannot be permanently deleted." });
@@ -319,7 +319,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> SetRolePermissions(long roleId, [FromBody] SetRolePermissionsRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var isSuperAdmin = User.HasClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode);
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
