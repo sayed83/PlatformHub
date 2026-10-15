@@ -188,9 +188,6 @@ public static class ProjectMenuPermissionSynchronizer
 
         if (staleAssignments.Count > 0)
         {
-            var assignmentIds = staleAssignments
-                .Select(x => (x.RoleId, x.PermissionId))
-                .ToHashSet();
             var links = await db.RolePermissions
                 .Where(rp => generatedPermissionIds.Contains(rp.PermissionId))
                 .ToListAsync(cancellationToken);
