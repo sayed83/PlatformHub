@@ -1,4 +1,6 @@
 using System.Net;
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
@@ -15,6 +17,14 @@ public sealed class PlatformApiClient(
     IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    // MVC can issue several API calls concurrently when an access token expires.
+    // Serialize refreshes and cache the rotation briefly so sibling requests using
+    // the same old cookie can reuse the newly rotated tokens instead of rendering
+    // empty data after an "already been rotated" 401.
+    private static readonly SemaphoreSlim RefreshGate = new(1, 1);
+    private static readonly ConcurrentDictionary<string, CachedApiTokens> RotatedTokens = new(StringComparer.Ordinal);
+    private sealed record CachedApiTokens(string AccessToken, string RefreshToken, DateTimeOffset ExpiresAt);
 
     public async Task<(T? Value, string? Error)> PostWithErrorAsync<T>(
         string path, object body, CancellationToken ct = default, string? token = null)
@@ -282,48 +292,90 @@ public sealed class PlatformApiClient(
         }
 
         response.Dispose();
-        using var refreshResponse = await client.PostAsJsonAsync(
-            "api/v1/auth/refresh", new { RefreshToken = refreshToken }, ct);
-        if (!refreshResponse.IsSuccessStatusCode)
+        var previousTokenKey = HashRefreshToken(refreshToken);
+        await RefreshGate.WaitAsync(ct);
+        try
         {
-            var refreshError = await refreshResponse.Content.ReadAsStringAsync(ct);
-            logger.LogWarning("Platform API refresh failed with HTTP {StatusCode} for UserId={UserId}",
-                (int)refreshResponse.StatusCode, userId);
-            var isConcurrentRotation = TryReadApiMessage(refreshError)?.Contains(
-                "already been rotated", StringComparison.OrdinalIgnoreCase) == true;
-            if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized && !isConcurrentRotation)
+            var now = DateTimeOffset.UtcNow;
+            foreach (var entry in RotatedTokens)
+                if (entry.Value.ExpiresAt <= now)
+                    RotatedTokens.TryRemove(entry.Key, out _);
+
+            if (RotatedTokens.TryGetValue(previousTokenKey, out var cached) && cached.ExpiresAt > now)
             {
+                await UpdateCookieTokensAsync(context, cached.AccessToken, cached.RefreshToken);
+                return await RetryWithAccessTokenAsync(client, method, uri, version, headers,
+                    contentBytes, contentHeaders, cached.AccessToken, ct);
+            }
+
+            using var refreshResponse = await client.PostAsJsonAsync(
+                "api/v1/auth/refresh", new { RefreshToken = refreshToken }, ct);
+            if (!refreshResponse.IsSuccessStatusCode)
+            {
+                var refreshError = await refreshResponse.Content.ReadAsStringAsync(ct);
+                logger.LogWarning("Platform API refresh failed with HTTP {StatusCode} for UserId={UserId}",
+                    (int)refreshResponse.StatusCode, userId);
+                var isConcurrentRotation = TryReadApiMessage(refreshError)?.Contains(
+                    "already been rotated", StringComparison.OrdinalIgnoreCase) == true;
+                if (refreshResponse.StatusCode == HttpStatusCode.Unauthorized && !isConcurrentRotation)
+                {
+                    context.Items["PlatformHub.SessionExpired"] = true;
+                    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            }
+
+            var tokens = await refreshResponse.Content.ReadFromJsonAsync<ApiLoginResponse>(JsonOptions, ct);
+            if (tokens is null || string.IsNullOrWhiteSpace(tokens.AccessToken) || string.IsNullOrWhiteSpace(tokens.RefreshToken))
+            {
+                logger.LogError("Platform API refresh returned an incomplete token response for UserId={UserId}", userId);
                 context.Items["PlatformHub.SessionExpired"] = true;
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized);
             }
-            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
-        }
 
-        var tokens = await refreshResponse.Content.ReadFromJsonAsync<ApiLoginResponse>(JsonOptions, ct);
-        if (tokens is null || string.IsNullOrWhiteSpace(tokens.AccessToken) || string.IsNullOrWhiteSpace(tokens.RefreshToken))
+            RotatedTokens[previousTokenKey] = new CachedApiTokens(
+                tokens.AccessToken, tokens.RefreshToken, DateTimeOffset.UtcNow.AddMinutes(1));
+            await UpdateCookieTokensAsync(context, tokens.AccessToken, tokens.RefreshToken);
+            return await RetryWithAccessTokenAsync(client, method, uri, version, headers,
+                contentBytes, contentHeaders, tokens.AccessToken, ct);
+        }
+        finally
         {
-            logger.LogError("Platform API refresh returned an incomplete token response for UserId={UserId}", userId);
-            context.Items["PlatformHub.SessionExpired"] = true;
-            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+            RefreshGate.Release();
         }
+    }
 
+    private async Task UpdateCookieTokensAsync(HttpContext context, string accessToken, string refreshToken)
+    {
         var auth = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         var identity = new ClaimsIdentity(context.User.Identity);
         foreach (var claim in identity.FindAll("ph_api_access_token").ToArray()) identity.RemoveClaim(claim);
         foreach (var claim in identity.FindAll("ph_api_refresh_token").ToArray()) identity.RemoveClaim(claim);
-        identity.AddClaim(new Claim("ph_api_access_token", tokens.AccessToken));
-        identity.AddClaim(new Claim("ph_api_refresh_token", tokens.RefreshToken));
+        identity.AddClaim(new Claim("ph_api_access_token", accessToken));
+        identity.AddClaim(new Claim("ph_api_refresh_token", refreshToken));
         var principal = new ClaimsPrincipal(identity);
         context.User = principal;
         await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
             auth.Properties ?? new AuthenticationProperties { IsPersistent = false, AllowRefresh = true });
+    }
 
+    private static async Task<HttpResponseMessage> RetryWithAccessTokenAsync(
+        HttpClient client,
+        HttpMethod method,
+        Uri? uri,
+        Version version,
+        IReadOnlyDictionary<string, string[]> headers,
+        byte[]? contentBytes,
+        IReadOnlyDictionary<string, string[]>? contentHeaders,
+        string accessToken,
+        CancellationToken ct)
+    {
         var retry = new HttpRequestMessage(method, uri) { Version = version };
         foreach (var header in headers)
             if (!string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
                 retry.Headers.TryAddWithoutValidation(header.Key, header.Value);
-        retry.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        retry.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         if (contentBytes is not null)
         {
             retry.Content = new ByteArrayContent(contentBytes);
@@ -334,5 +386,8 @@ public sealed class PlatformApiClient(
 
         return await client.SendAsync(retry, ct);
     }
+
+    private static string HashRefreshToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
 }
