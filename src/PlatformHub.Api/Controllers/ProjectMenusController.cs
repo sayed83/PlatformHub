@@ -100,8 +100,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         else { entity = new ProjectModule { ProjectId = request.ProjectId }; db.ProjectModules.Add(entity); }
         entity.Code = code; entity.Name = name; entity.Description = request.Description?.Trim();
         entity.Icon = request.Icon?.Trim(); entity.SortOrder = request.SortOrder; entity.IsActive = request.IsActive;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
         await ProjectMenuPermissionSynchronizer.SyncProjectAsync(db, entity.ProjectId, ct);
+        await transaction.CommitAsync(ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.Code, entity.Name, entity.Description, entity.Icon, entity.SortOrder, entity.IsActive });
     }
 
@@ -187,8 +189,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         }
 
         entity.IsExternal = request.IsExternal; entity.IsActive = request.IsActive;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
         await ProjectMenuPermissionSynchronizer.SyncAsync(db, entity.ProjectId, entity.Id, ct);
+        await transaction.CommitAsync(ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
