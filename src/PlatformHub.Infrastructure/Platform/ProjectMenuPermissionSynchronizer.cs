@@ -117,27 +117,86 @@ public static class ProjectMenuPermissionSynchronizer
         IReadOnlyCollection<(long Id, long ProjectId)> menuIds,
         CancellationToken cancellationToken)
     {
-        var generatedCodes = menuIds
-            .Select(menu => BuildViewPermissionCode(menu.ProjectId, menu.Id))
-            .Distinct()
-            .ToArray();
+        var menuByCode = menuIds
+            .Select(menu => new
+            {
+                Code = BuildViewPermissionCode(menu.ProjectId, menu.Id),
+                menu.ProjectId,
+                MenuItemId = menu.Id
+            })
+            .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
+        var generatedCodes = menuByCode.Keys.ToArray();
         if (generatedCodes.Length == 0)
             return;
 
-        var generatedPermissionIds = await db.Permissions.AsNoTracking()
+        var generatedPermissions = await db.Permissions.AsNoTracking()
             .Where(p => generatedCodes.Contains(p.Code) && !p.IsSystemPermission)
-            .Select(p => p.Id)
-            .ToArrayAsync(cancellationToken);
-        if (generatedPermissionIds.Length == 0)
+            .Select(p => new { p.Id, p.Code })
+            .ToListAsync(cancellationToken);
+        if (generatedPermissions.Count == 0)
             return;
 
+        var permissionById = generatedPermissions.ToDictionary(x => x.Id);
+        var generatedPermissionIds = permissionById.Keys.ToArray();
         var staleAssignments = await db.RolePermissions
             .Where(rp => generatedPermissionIds.Contains(rp.PermissionId))
+            .Select(rp => new { rp.RoleId, rp.PermissionId, RoleCode = rp.Role.Code })
             .ToListAsync(cancellationToken);
-        if (staleAssignments.Count == 0)
-            return;
 
-        db.RolePermissions.RemoveRange(staleAssignments);
+        // Preserve existing non-super-admin menu grants by moving them from the global
+        // role-permission join into the existing project-scoped role-menu table.
+        // Existing explicit deny rows are never overwritten.
+        var grantsToMigrate = staleAssignments
+            .Where(x => !string.Equals(x.RoleCode, PlatformRbacSeeder.SuperAdminCode, StringComparison.OrdinalIgnoreCase))
+            .Select(x =>
+            {
+                var permission = permissionById[x.PermissionId];
+                var menu = menuByCode[permission.Code];
+                return (x.RoleId, menu.ProjectId, menu.MenuItemId);
+            })
+            .Distinct()
+            .ToArray();
+
+        if (grantsToMigrate.Length > 0)
+        {
+            var roleIds = grantsToMigrate.Select(x => x.RoleId).Distinct().ToArray();
+            var projectIds = grantsToMigrate.Select(x => x.ProjectId).Distinct().ToArray();
+            var menuItemIds = grantsToMigrate.Select(x => x.MenuItemId).Distinct().ToArray();
+            var existingRows = await db.RoleWiseMenuAccesses
+                .Where(a => roleIds.Contains(a.RoleId) && projectIds.Contains(a.ProjectId) && menuItemIds.Contains(a.MenuItemId))
+                .Select(a => new { a.RoleId, a.ProjectId, a.MenuItemId })
+                .ToListAsync(cancellationToken);
+            var existingKeys = existingRows
+                .Select(x => (x.RoleId, x.ProjectId, x.MenuItemId))
+                .ToHashSet();
+
+            foreach (var grant in grantsToMigrate)
+            {
+                if (existingKeys.Add(grant))
+                {
+                    db.RoleWiseMenuAccesses.Add(new RoleWiseMenuAccess
+                    {
+                        RoleId = grant.RoleId,
+                        ProjectId = grant.ProjectId,
+                        MenuItemId = grant.MenuItemId,
+                        IsAllowed = true,
+                        UpdatedUtc = DateTime.UtcNow
+                    });
+                }
+            }
+        }
+
+        if (staleAssignments.Count > 0)
+        {
+            var assignmentIds = staleAssignments
+                .Select(x => (x.RoleId, x.PermissionId))
+                .ToHashSet();
+            var links = await db.RolePermissions
+                .Where(rp => generatedPermissionIds.Contains(rp.PermissionId))
+                .ToListAsync(cancellationToken);
+            db.RolePermissions.RemoveRange(links);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
