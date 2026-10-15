@@ -58,18 +58,46 @@ public sealed class WorkspaceController(
                     || r.TenantId == tenantId)
                 && (r.IsActive || r.TenantId == tenantId))
             .OrderBy(r => r.Name)
-            .Select(r => new
+            .Select(r => new WorkspaceRoleResponse
             {
-                r.Id, r.TenantId, 
-                r.Code, 
-                r.Name, 
-                r.Description, 
-                r.BaseRedirectUrl, 
-                r.IsActive, 
-                r.IsSystemRole,
+                Id = r.Id,
+                TenantId = r.TenantId,
+                Code = r.Code,
+                Name = r.Name,
+                Description = r.Description,
+                BaseRedirectUrl = r.BaseRedirectUrl,
+                IsActive = r.IsActive,
+                IsSystemRole = r.IsSystemRole,
                 UserCount = assignments.Where(a => a.RoleId == r.Id).Select(a => a.UserId).Distinct().Count(),
-                Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id).Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
+                // These are global API/action permissions only.
+                Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id)
+                    .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList(),
+                MenuPermissions = new List<string>()
             }).ToListAsync(cancellationToken);
+
+        // Menu visibility is project-scoped and intentionally separate from RolePermissions.
+        // Show only grants for the active project so this page does not imply cross-project access.
+        if (projectId.HasValue && roles.Count > 0)
+        {
+            var visibleRoleIds = roles.Select(r => r.Id).ToArray();
+            var menuGrants = await db.RoleWiseMenuAccesses.AsNoTracking()
+                .Where(a => a.ProjectId == projectId.Value &&
+                    visibleRoleIds.Contains(a.RoleId) &&
+                    a.IsAllowed && a.MenuItem.ProjectId == projectId.Value && a.MenuItem.IsActive)
+                .Select(a => new { a.RoleId, MenuName = a.MenuItem.Name, MenuCode = a.MenuItem.Code })
+                .ToListAsync(cancellationToken);
+
+            foreach (var role in roles)
+            {
+                role.MenuPermissions = menuGrants
+                    .Where(grant => grant.RoleId == role.Id)
+                    .Select(grant => $"{grant.MenuName} ({grant.MenuCode})")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
+
         return Ok(roles);
     }
 
@@ -99,7 +127,7 @@ public sealed class WorkspaceController(
         };
         db.Roles.Add(role); 
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { role.Id, role.TenantId, role.Code, role.Name, role.Description, role.BaseRedirectUrl, role.IsActive, role.IsSystemRole, UserCount = 0, Permissions = Array.Empty<string>() });
+        return Ok(new WorkspaceRoleResponse { Id = role.Id, TenantId = role.TenantId, Code = role.Code, Name = role.Name, Description = role.Description, BaseRedirectUrl = role.BaseRedirectUrl, IsActive = role.IsActive, IsSystemRole = role.IsSystemRole, UserCount = 0, Permissions = new List<string>(), MenuPermissions = new List<string>() });
     }
 
     [HttpPut("roles/{roleId:long}")]
@@ -621,4 +649,19 @@ public sealed class WorkspaceController(
             message = "Scope validated. Apply IScopedAccessService to each tenant-facing API operation."
         });
     }
+}
+
+public sealed class WorkspaceRoleResponse
+{
+    public long Id { get; set; }
+    public long? TenantId { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Description { get; set; }
+    public string? BaseRedirectUrl { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsSystemRole { get; set; }
+    public int UserCount { get; set; }
+    public List<string> Permissions { get; set; } = new();
+    public List<string> MenuPermissions { get; set; } = new();
 }

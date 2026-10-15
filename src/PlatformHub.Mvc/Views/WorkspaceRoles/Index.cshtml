@@ -56,18 +56,40 @@
                                 <td><code>@role.Code</code></td>
                                 <td><span class="badge text-bg-light border">@role.UserCount</span></td>
                                 <td>
-                                    @if (role.Permissions.Count == 0) { <span class="text-secondary">No permissions</span> }
+                                    @if (role.Permissions.Count == 0 && role.MenuPermissions.Count == 0)
+                                    {
+                                        <span class="text-secondary">No API or menu permissions</span>
+                                    }
                                     else
                                     {
-                                        <details>
-                                            <summary>@role.Permissions.Count permission(s)</summary>
-                                            <div class="d-flex flex-wrap gap-1 mt-2">
-                                                @foreach (var permission in role.Permissions)
-                                                {
-                                                    <span class="badge rounded-pill text-bg-light border">@permission</span>
-                                                }
-                                            </div>
-                                        </details>
+                                        @if (role.Permissions.Count > 0)
+                                        {
+                                            <details class="mb-1">
+                                                <summary><span class="badge text-bg-primary">Global API</span> @role.Permissions.Count permission(s)</summary>
+                                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                                    @foreach (var permission in role.Permissions)
+                                                    {
+                                                        <span class="badge rounded-pill text-bg-light border">@permission</span>
+                                                    }
+                                                </div>
+                                            </details>
+                                        }
+                                        @if (role.MenuPermissions.Count > 0)
+                                        {
+                                            <details>
+                                                <summary><span class="badge text-bg-info">This project menu</span> @role.MenuPermissions.Count allowed menu(s)</summary>
+                                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                                    @foreach (var permission in role.MenuPermissions)
+                                                    {
+                                                        <span class="badge rounded-pill text-bg-light border">@permission</span>
+                                                    }
+                                                </div>
+                                            </details>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-secondary d-block">No menu access in the active project</small>
+                                        }
                                     }
                                 </td>
                                 <td><small class="text-secondary">@(string.IsNullOrWhiteSpace(role.BaseRedirectUrl) ? "Workspace default" : role.BaseRedirectUrl)</small></td>
@@ -85,6 +107,6 @@
         </div>
     </div>
     <div class="alert alert-info mt-3 mb-0">
-        <strong>Security:</strong> Custom roles belong to this tenant only. Global system roles are read-only here. API endpoints enforce permissions and tenant scope independently of these controls.
+        <strong>Security:</strong> <span class="badge text-bg-primary">Global API</span> permissions control protected API actions. <span class="badge text-bg-info">This project menu</span> shows allowed menus for the active project only. Configure menu access separately under Workspace → Menu Permissions. Global system roles remain read-only here, and API endpoints enforce tenant/branch/project scope independently.
     </div>
 </div>

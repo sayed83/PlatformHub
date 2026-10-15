@@ -104,4 +104,5 @@ public sealed class WorkspaceRoleRowViewModel
     public string? BaseRedirectUrl { get; set; }
     public int UserCount { get; set; }
     public List<string> Permissions { get; set; } = new();
+    public List<string> MenuPermissions { get; set; } = new();
 }
