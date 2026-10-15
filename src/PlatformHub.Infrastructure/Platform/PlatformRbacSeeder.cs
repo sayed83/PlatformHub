@@ -54,9 +54,14 @@ public static class PlatformRbacSeeder
 
     public static async Task SeedAsync(PlatformDbContext db, CancellationToken cancellationToken = default)
     {
+        // These are the stable code-defined system/API permissions. Project-menu View
+        // permissions are synchronized separately from dbo.MenuItems by
+        // ProjectMenuPermissionSynchronizer and do not need an entry here.
         foreach (var item in PermissionCatalog)
         {
-            if (!await db.Permissions.AnyAsync(x => x.Code == item.Code, cancellationToken))
+            var permission = await db.Permissions
+                .SingleOrDefaultAsync(x => x.Code == item.Code, cancellationToken);
+            if (permission is null)
             {
                 db.Permissions.Add(new PlatformPermission
                 {
@@ -65,6 +70,12 @@ public static class PlatformRbacSeeder
                     Module = item.Module,
                     IsSystemPermission = true
                 });
+            }
+            else
+            {
+                permission.Name = item.Name;
+                permission.Module = item.Module;
+                permission.IsSystemPermission = true;
             }
         }
 
