@@ -147,6 +147,12 @@
                 moduleFilter.addEventListener('change', applyFilters);
                 menuSearch.addEventListener('input', applyFilters);
                 boxes.forEach(x => x.addEventListener('change', update));
+
+                // Apply the selected module and search immediately on initial render too.
+                // This keeps the table, result count, and select-all behavior in sync
+                // when a module value is already selected or the page is reloaded.
+                applyFilters();
+
                 form.addEventListener('submit', event => {
                     const submitter = event.submitter;
                     if (submitter && submitter.name === 'BulkDecision' && !boxes.some(x => x.checked)) {
