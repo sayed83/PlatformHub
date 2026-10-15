@@ -80,8 +80,36 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
     {
         if (User.FindFirst("ph_platform_admin")?.Value == "true")
             return Forbid();
-        if (request.TargetType is not ("role" or "user") || request.TargetId <= 0 || request.MenuItemId <= 0)
+        if (request.TargetType is not ("role" or "user") || request.TargetId <= 0)
             return BadRequest();
+
+        var menuIds = new List<long>();
+        var decision = request.BulkDecision;
+        if (!string.IsNullOrWhiteSpace(request.SingleAction))
+        {
+            var parts = request.SingleAction.Split(':', 2);
+            if (parts.Length != 2 || !long.TryParse(parts[1], out var menuId) ||
+                parts[0] is not ("allow" or "deny" or "inherit"))
+                return BadRequest();
+            if (request.TargetType == "role" && parts[0] == "inherit")
+                return BadRequest();
+            menuIds.Add(menuId);
+            decision = parts[0];
+        }
+        else
+        {
+            menuIds = request.SelectedMenuItemIds.Where(id => id > 0).Distinct().ToList();
+        }
+
+        if (menuIds.Count == 0 || decision is not ("allow" or "deny" or "inherit") ||
+            (request.TargetType == "role" && decision == "inherit"))
+        {
+            TempData["ErrorMessage"] = request.TargetType == "user"
+                ? "Select at least one menu and choose Allow, Deny, or Inherit from role."
+                : "Select at least one menu and choose Allow or Deny.";
+            return RedirectToAction(nameof(Index), new { targetType = request.TargetType, targetId = request.TargetId });
+        }
+
         var token = User.FindFirst("ph_api_access_token")?.Value;
         if (string.IsNullOrWhiteSpace(token)) return Challenge();
         if (!long.TryParse(User.FindFirst("ph_active_tenant_id")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var tenantId) || tenantId <= 0)
@@ -90,19 +118,20 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
         var branchId = ParseScope("ph_active_branch_id");
         var projectId = ParseScope("ph_active_project_id");
         if (!projectId.HasValue) return Forbid();
+
         var suffix = $"tenantId={tenantId}" + (branchId.HasValue ? $"&branchId={branchId}" : "") + $"&projectId={projectId}";
-        var path = request.TargetType == "role"
-            ? $"api/v1/workspace/roles/{request.TargetId}/menu-access?{suffix}"
-            : $"api/v1/workspace/users/{request.TargetId}/menu-access?{suffix}";
-        var saved = await api.PutAsync<WorkspacePermissionSaveResult>(path,
-            new { MenuItemId = request.MenuItemId, IsAllowed = request.IsAllowed }, ct, token);
-        if (saved is null)
-        {
-            TempData["ErrorMessage"] = "Permission was not saved. Check your scoped update permission and try again.";
-        }
-        else TempData["SuccessMessage"] = "Menu permission saved.";
+        var result = await api.PostWithErrorAsync<WorkspacePermissionSaveResult>(
+            $"api/v1/workspace/menu-access/bulk?{suffix}",
+            new { TargetType = request.TargetType, TargetId = request.TargetId, MenuItemIds = menuIds, Decision = decision },
+            ct, token);
+
+        if (result.Value is null)
+            TempData["ErrorMessage"] = result.Error ?? "Permission update failed. Verify your scoped update permission and try again.";
+        else
+            TempData["SuccessMessage"] = $"{menuIds.Count} menu permission(s) updated successfully.";
         return RedirectToAction(nameof(Index), new { targetType = request.TargetType, targetId = request.TargetId });
     }
+
 }
 
 public sealed class WorkspacePermissionTarget
@@ -138,8 +167,9 @@ public sealed class WorkspacePermissionSaveRequest
 {
     public string TargetType { get; set; } = "role";
     public long TargetId { get; set; }
-    public long MenuItemId { get; set; }
-    public bool IsAllowed { get; set; }
+    public List<long> SelectedMenuItemIds { get; set; } = new();
+    public string? BulkDecision { get; set; }
+    public string? SingleAction { get; set; }
 }
 public sealed class WorkspacePermissionSaveResult
 {

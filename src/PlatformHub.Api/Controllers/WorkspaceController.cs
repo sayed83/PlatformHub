@@ -314,6 +314,121 @@ public sealed class WorkspaceController(
         }
     }
 
+    public sealed record BulkMenuAccessRequest(string TargetType, long TargetId, List<long> MenuItemIds, string Decision);
+
+    [HttpPost("menu-access/bulk")]
+    public async Task<IActionResult> UpdateBulkWorkspaceMenuAccess(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromBody] BulkMenuAccessRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value,
+                NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+
+        if (tenantId <= 0 || !projectId.HasValue || projectId.Value <= 0 ||
+            request.TargetId <= 0 || request.MenuItemIds is null || request.MenuItemIds.Count == 0 ||
+            request.MenuItemIds.Any(id => id <= 0) ||
+            request.MenuItemIds.Distinct().Count() != request.MenuItemIds.Count ||
+            request.TargetType is not ("role" or "user") ||
+            request.Decision is not ("allow" or "deny" or "inherit") ||
+            (request.TargetType == "role" && request.Decision == "inherit"))
+            return BadRequest(new { message = "Select one or more menus and a valid permission decision." });
+
+        var permission = request.TargetType == "role" ? "Role.Update" : "User.Update";
+        if (!await scopedAccess.CanAccessAsync(userId, permission, tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        if (request.TargetType == "role")
+        {
+            if (!await IsRoleAvailableForWorkspaceAsync(request.TargetId, tenantId, cancellationToken))
+                return NotFound(new { message = "Role is not available to this tenant workspace." });
+        }
+        else
+        {
+            var userInScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
+                a.UserId == request.TargetId && !a.User.IsPlatformAdmin && a.Role.IsActive &&
+                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
+                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
+            if (!userInScope)
+                return NotFound(new { message = "User is not assigned in this workspace scope." });
+        }
+
+        var requestedIds = request.MenuItemIds.Distinct().ToArray();
+        var validIds = await db.MenuItems.AsNoTracking()
+            .Where(m => m.ProjectId == projectId.Value && m.IsActive && requestedIds.Contains(m.Id))
+            .Select(m => m.Id).ToListAsync(cancellationToken);
+        if (validIds.Count != requestedIds.Length)
+            return BadRequest(new { message = "One or more selected menus are inactive or do not belong to the active project." });
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (request.TargetType == "role")
+        {
+            var existing = await db.RoleWiseMenuAccesses
+                .Where(a => a.ProjectId == projectId.Value && a.RoleId == request.TargetId && requestedIds.Contains(a.MenuItemId))
+                .ToDictionaryAsync(a => a.MenuItemId, cancellationToken);
+            foreach (var menuId in requestedIds)
+            {
+                if (existing.TryGetValue(menuId, out var access))
+                {
+                    access.IsAllowed = request.Decision == "allow";
+                    access.UpdatedUtc = DateTime.UtcNow;
+                }
+                else
+                {
+                    db.RoleWiseMenuAccesses.Add(new PlatformHub.Domain.Entities.RoleWiseMenuAccess
+                    {
+                        ProjectId = projectId.Value,
+                        RoleId = request.TargetId,
+                        MenuItemId = menuId,
+                        IsAllowed = request.Decision == "allow",
+                        UpdatedUtc = DateTime.UtcNow
+                    });
+                }
+            }
+        }
+        else
+        {
+            var existing = await db.UserWiseMenuAccesses
+                .Where(a => a.ProjectId == projectId.Value && a.UserId == request.TargetId && requestedIds.Contains(a.MenuItemId))
+                .ToListAsync(cancellationToken);
+            if (request.Decision == "inherit")
+            {
+                db.UserWiseMenuAccesses.RemoveRange(existing);
+            }
+            else
+            {
+                var byMenu = existing.ToDictionary(a => a.MenuItemId);
+                foreach (var menuId in requestedIds)
+                {
+                    if (byMenu.TryGetValue(menuId, out var access))
+                    {
+                        access.IsAllowed = request.Decision == "allow";
+                        access.UpdatedUtc = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        db.UserWiseMenuAccesses.Add(new PlatformHub.Domain.Entities.UserWiseMenuAccess
+                        {
+                            ProjectId = projectId.Value,
+                            UserId = request.TargetId,
+                            MenuItemId = menuId,
+                            IsAllowed = request.Decision == "allow",
+                            UpdatedUtc = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { success = true, count = requestedIds.Length, decision = request.Decision });
+    }
+
     public sealed record MenuAccessUpdateRequest(long MenuItemId, bool IsAllowed);
     public sealed record MenuDeleteRequest(string TargetType, long TargetId, string DeleteType);
 
