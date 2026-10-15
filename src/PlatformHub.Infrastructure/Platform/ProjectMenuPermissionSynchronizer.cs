@@ -6,7 +6,7 @@ namespace PlatformHub.Infrastructure.Platform;
 
 /// <summary>
 /// Synchronizes project menus into the existing dbo.Permissions catalog.
-/// Menu codes and project codes are stable identifiers; display names may change.
+/// Permission codes use stable project/menu IDs; display names and menu codes may change.
 /// Generated menu permissions are view/navigation permissions. Business CRUD permissions
 /// remain explicit system/API permissions and must be enforced on their API endpoints.
 /// </summary>
