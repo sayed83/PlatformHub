@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
+using PlatformHub.Infrastructure.Platform;
 
 namespace PlatformHub.Api.Controllers;
 
@@ -12,6 +13,7 @@ namespace PlatformHub.Api.Controllers;
 public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBase
 {
     [HttpGet("projects")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive)
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.TenantId, TenantName = x.Tenant == null ? "Shared catalogue" : x.Tenant.Name, x.Code, x.Name })
@@ -19,6 +21,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
 
 
     [HttpGet("next-sort-order")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> NextSortOrder(
         [FromQuery] long projectId,
         [FromQuery] long? moduleId,
@@ -43,6 +46,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("summary")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Summary([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0)
@@ -62,6 +66,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("modules")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Modules([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0) return BadRequest(new { message = "Select a valid project." });
@@ -72,6 +77,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("modules")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> SaveModule([FromBody] SaveModuleRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -99,6 +105,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("items")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Items(
         [FromQuery] long projectId,
         [FromQuery] long? moduleId,
@@ -123,6 +130,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("items")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> SaveItem([FromBody] SaveMenuItemRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -179,10 +187,12 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
 
         entity.IsExternal = request.IsExternal; entity.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
+        await ProjectMenuPermissionSynchronizer.SyncAsync(db, entity.ProjectId, entity.Id, ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
     [HttpGet("modules/{moduleId:long}/hard-delete-details")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> ModuleHardDeleteDetails(long moduleId, [FromQuery] long projectId, CancellationToken ct)
     {
         var module = await db.ProjectModules.AsNoTracking()
@@ -201,6 +211,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("items/{menuItemId:long}/hard-delete-details")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> MenuHardDeleteDetails(long menuItemId, [FromQuery] long projectId, CancellationToken ct)
     {
         var menu = await db.MenuItems.AsNoTracking().Where(x => x.Id == menuItemId && x.ProjectId == projectId)
@@ -226,8 +237,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("modules/{moduleId:long}/delete")]
+    [Authorize(Policy = "Project.Deactivate")]
     public async Task<IActionResult> DeleteModule(long moduleId, [FromBody] DeleteModuleRequest request, CancellationToken ct)
     {
+        if (request.DeleteType == "hard" && !User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         if (moduleId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
             return BadRequest(new { message = "A valid project, module and delete type are required." });
 
@@ -253,8 +266,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("items/{menuItemId:long}/delete")]
+    [Authorize(Policy = "Project.Deactivate")]
     public async Task<IActionResult> DeleteItem(long menuItemId, [FromBody] DeleteMenuItemRequest request, CancellationToken ct)
     {
+        if (request.DeleteType == "hard" && !User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         if (menuItemId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
             return BadRequest(new { message = "A valid project, menu and delete type are required." });
 
