@@ -9,7 +9,7 @@ namespace PlatformHub.SecurityTests;
 public sealed class ProjectMenuPermissionSynchronizerTests
 {
     [Fact]
-    public async Task Sync_creates_menu_view_permission_and_grants_it_to_protected_super_admin()
+    public async Task Sync_creates_menu_view_permission_but_assigns_only_global_api_permissions_to_super_admin()
     {
         await using var db = CreateDb();
         db.Projects.Add(new Project
@@ -19,6 +19,11 @@ public sealed class ProjectMenuPermissionSynchronizerTests
         db.MenuItems.Add(new MenuItem
         {
             Id = 88, ProjectId = 12, Code = "PRODUCTS", Name = "Products", IsActive = true
+        });
+        db.Permissions.Add(new PlatformPermission
+        {
+            Id = 1, Code = "Inventory.Item.View", Name = "View inventory items",
+            Module = "Inventory", IsSystemPermission = true
         });
         db.Roles.Add(new PlatformRole
         {
@@ -34,11 +39,12 @@ public sealed class ProjectMenuPermissionSynchronizerTests
         Assert.Equal("View Products", permission.Name);
         Assert.Equal("Inventory / General", permission.Module);
         Assert.False(permission.IsSystemPermission);
-        Assert.True(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == permission.Id));
+        Assert.False(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == permission.Id));
+        Assert.True(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == 1));
     }
 
     [Fact]
-    public async Task Sync_updates_display_metadata_without_changing_permission_code_or_assignments()
+    public async Task Sync_updates_display_metadata_and_removes_stale_global_menu_assignments()
     {
         await using var db = CreateDb();
         db.Projects.Add(new Project { Id = 12, Code = "INVENTORY", Name = "Inventory", IsActive = true });
@@ -59,7 +65,7 @@ public sealed class ProjectMenuPermissionSynchronizerTests
 
         var updated = await db.Permissions.SingleAsync(x => x.Code == code);
         Assert.Equal("View Product Catalogue", updated.Name);
-        Assert.True(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == updated.Id));
+        Assert.False(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == updated.Id));
         Assert.Equal(1, await db.Permissions.CountAsync(x => x.Code == code));
     }
 
