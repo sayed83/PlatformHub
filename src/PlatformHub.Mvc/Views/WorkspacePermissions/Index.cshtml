@@ -9,22 +9,48 @@
         <div><div class="text-uppercase small fw-semibold text-secondary mb-1">Workspace · Access control</div><h1 class="h3 mb-1">Menu Permissions</h1><p class="text-secondary mb-0">Configure role defaults or individual user overrides for the active project.</p></div>
         <span class="badge text-bg-primary">@Model.Menus.Count menu(s)</span>
     </div>
-    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
-    @if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
-    @if (ViewData["Error"] is string loadError) { <div class="alert alert-danger">@loadError</div> }
-    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
-        <form method="get" action="/WorkspacePermissions" class="row g-3 align-items-end">
-            <div class="col-12 col-md-4"><label class="form-label" for="targetType">Permission level</label><select class="form-select" id="targetType" name="targetType" onchange="this.form.targetId.value='';this.form.submit()"><option value="role" selected="@(Model.TargetType == "role")">Role-wise defaults</option><option value="user" selected="@(Model.TargetType == "user")">User-wise overrides</option></select></div>
-            <div class="col-12 col-md-6"><label class="form-label" for="targetId">@(Model.TargetType == "role" ? "Role" : "User")</label><select class="form-select" id="targetId" name="targetId" required>
-                @foreach (var target in selected) { var label = Model.TargetType == "role" ? $"{target.Name} ({target.Code})" : $"{target.DisplayName} ({target.UserName})"; <option value="@target.Id" selected="@(Model.TargetId == target.Id)">@label</option> }
-            </select></div>
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+    @if (ViewData["Error"] is string loadError)
+    {
+        <div class="alert alert-danger">@loadError</div>
+    }
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" action="/WorkspacePermissions" class="row g-3 align-items-end">
+                <div class="col-12 col-md-4"><label class="form-label" for="targetType">Permission level</label><select class="form-select" id="targetType" name="targetType" onchange="this.form.targetId.value='';this.form.submit()"><option value="role" selected="@(Model.TargetType == "role")">Role-wise defaults</option><option value="user" selected="@(Model.TargetType == "user")">User-wise overrides</option></select></div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="targetId">@(Model.TargetType == "role" ? "Role" : "User")</label><select class="form-select" id="targetId" name="targetId" required>
+                    @foreach (var target in selected)
+                    {
+                        var label = Model.TargetType == "role" ? $"{target.Name} ({target.Code})" : $"{target.DisplayName} ({target.UserName})";
+                        <option value="@target.Id" selected="@(Model.TargetId == target.Id)">@label</option>
+                    }
+                </select>
+            </div>
             <div class="col-12 col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Load permissions</button></div>
         </form>
-    </div></div>
-    @if (Model.TargetId is null && ViewData["Error"] is not string) { <div class="alert alert-info">No eligible @(Model.TargetType == "role" ? "roles" : "users") are assigned in this scope.</div> }
-    else if (Model.Menus.Count == 0) { <div class="alert alert-info">No active menus exist for this project, or you do not have permission to manage them.</div> }
-    else {
-        <div class="card border-0 shadow-sm"><div class="card-body">
+    </div>
+</div>
+@if (Model.TargetId is null && ViewData["Error"] is not string)
+{
+    <div class="alert alert-info">No eligible @(Model.TargetType == "role" ? "roles" : "users") are assigned in this scope.</div>
+}
+else if (Model.Menus.Count == 0)
+{
+
+    <div class="alert alert-info">No active menus exist for this project, or you do not have permission to manage them.</div>
+}
+else
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
             <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><div><h2 class="h5 mb-1">@(Model.TargetType == "role" ? "Role menu access" : "Individual user overrides")</h2><p class="small text-secondary mb-0">Select multiple menus or select all, then apply one permission decision in a single save.</p></div><span class="small text-secondary">Project ID: @Model.ProjectId</span></div>
             <form method="post" action="/WorkspacePermissions/save" id="menuPermissionForm">
                 @Html.AntiForgeryToken()
@@ -33,13 +59,13 @@
                 <div class="row g-2 align-items-end mb-3">
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="moduleFilter">Filter by module</label>
-                        <select class="form-select form-select-sm" id="moduleFilter">
+                        <select class="form-select form-select-sm" id="moduleFilter" autocomplete="off">
                             <option value="">All modules</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="menuSearch">Search menu</label>
-                        <input class="form-control form-control-sm" type="search" id="menuSearch" placeholder="Search menu name or code..." />
+                        <input class="form-control form-control-sm" type="search" id="menuSearch" autocomplete="off" placeholder="Search menu name or code..." />
                     </div>
                     <div class="col-12 col-md-4 d-flex flex-wrap gap-2">
                         <button class="btn btn-sm btn-outline-secondary" type="button" id="selectAllMenus">Select all filtered</button>
@@ -49,45 +75,58 @@
                         <span class="small text-secondary me-auto" id="filterResultCount">Showing all menus</span>
                         <span class="small fw-semibold" id="selectedMenuCount">0 selected</span>
                         <button class="btn btn-sm btn-success" type="submit" name="BulkDecision" value="allow">Allow selected</button>
-                    <button class="btn btn-sm btn-danger" type="submit" name="BulkDecision" value="deny">Deny selected</button>
+                        <button class="btn btn-sm btn-danger" type="submit" name="BulkDecision" value="deny">Deny selected</button>
                         @if (Model.TargetType == "user")
                         {
                             <button class="btn btn-sm btn-outline-primary" type="submit" name="BulkDecision" value="inherit">Inherit from role</button>
                         }
                     </div>
                 </div>
-                <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" id="selectAllHeader" aria-label="Select all menus" /></th><th>Module</th><th>Menu</th><th>Code</th><th>Effective access</th><th>Decision</th><th>Quick action</th></tr></thead><tbody>
-                @foreach (var menu in Model.Menus) {
-                    var effectiveDecision = menu.IsAllowed ? "allow" : "deny";
-                    var singleDecision = menu.IsAllowed ? "deny" : "allow";
-                    <tr data-menu-row data-module="@menu.ModuleName">
-                        <td><input type="checkbox" class="form-check-input menu-permission-checkbox" name="SelectedMenuItemIds" value="@menu.Id" aria-label="Select @menu.Name" /></td>
-                        <td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td>
-                        <td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td>
-                        <td>
-                            @if (Model.TargetType == "user" && !menu.HasExplicitDecision)
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" id="selectAllHeader" aria-label="Select all menus" /></th><th>Module</th><th>Menu</th><th>Code</th><th>Effective access</th><th>Decision</th><th>Quick action</th></tr></thead>
+                        <tbody>
+                            @foreach (var menu in Model.Menus)
                             {
-                                <span class="badge text-bg-info">Inherited</span>
+                                var effectiveDecision = menu.IsAllowed ? "allow" : "deny";
+                                var singleDecision = menu.IsAllowed ? "deny" : "allow";
+                                var moduleName = (menu.ModuleName ?? string.Empty).Trim();
+                                <tr data-menu-row data-module="@moduleName">
+                                    <td><input type="checkbox" class="form-check-input menu-permission-checkbox" name="SelectedMenuItemIds" value="@menu.Id" aria-label="Select @menu.Name" /></td>
+                                    <td>@moduleName</td>
+                                    <td>@menu.Name</td>
+                                    <td><code>@menu.Code</code></td>
+                                    <td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td>
+                                    <td>
+                                        @if (Model.TargetType == "user" && !menu.HasExplicitDecision)
+                                        {
+                                            <span class="badge text-bg-info">Inherited</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@(menu.HasExplicitDecision ? "Explicit" : "Role default")</span>
+                                        }
+                                    </td>
+                                    <td class="text-nowrap">
+                                        @if (Model.TargetType == "user" && menu.HasExplicitDecision)
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary" type="submit" name="SingleAction" value="inherit:@menu.Id">Inherit</button>
+                                        }
+                                        <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit" name="SingleAction" value="@singleDecision:@menu.Id">@(menu.IsAllowed ? "Deny" : "Allow")</button>
+                                    </td>
+                                </tr>
                             }
-                            else
-                            {
-                                <span>@(menu.HasExplicitDecision ? "Explicit" : "Role default")</span>
-                            }
-                        </td>
-                        <td class="text-nowrap">
-                            @if (Model.TargetType == "user" && menu.HasExplicitDecision)
-                            {
-                                <button class="btn btn-sm btn-outline-primary" type="submit" name="SingleAction" value="inherit:@menu.Id">Inherit</button>
-                            }
-                            <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit" name="SingleAction" value="@singleDecision:@menu.Id">@(menu.IsAllowed ? "Deny" : "Allow")</button>
-                        </td>
-                    </tr>
-                }
-                </tbody></table></div>
+                        </tbody>
+                    </table>
+                </div>
             </form>
-            @if (Model.TargetType == "user") { <p class="small text-secondary mb-0">User-specific Allow/Deny decisions override role defaults. “Inherit from role” removes the explicit user override and restores role-based access.</p> }
-        </div></div>
-        <script>
+            @if (Model.TargetType == "user")
+            {
+                <p class="small text-secondary mb-0">User-specific Allow/Deny decisions override role defaults. “Inherit from role” removes the explicit user override and restores role-based access.</p>
+            }
+        </div>
+    </div>
+    <script>
             (() => {
                 const form = document.getElementById('menuPermissionForm');
                 if (!form) return;
@@ -101,57 +140,81 @@
                 const menuSearch = document.getElementById('menuSearch');
                 const resultCount = document.getElementById('filterResultCount');
 
+                // One normalizer used everywhere so dropdown values and row values always match.
+                const normalize = value => (value || '').toString().trim().toLocaleLowerCase();
+
                 // Build the module list from the active project's actual menu rows.
-                const modules = [...new Set(rows.map(row => (row.dataset.module || '').trim()).filter(Boolean))]
-                    .sort((a, b) => a.localeCompare(b));
-                modules.forEach(moduleName => {
-                    const option = document.createElement('option');
-                    option.value = moduleName;
-                    option.textContent = moduleName;
-                    moduleFilter.appendChild(option);
+                // option.value = normalized key, option.textContent = display name.
+                const moduleMap = new Map();
+                rows.forEach(row => {
+                    const display = (row.dataset.module || '').trim();
+                    const key = normalize(display);
+                    if (key && !moduleMap.has(key)) moduleMap.set(key, display);
                 });
+                Array.from(moduleMap.entries())
+                    .sort((a, b) => a[1].localeCompare(b[1]))
+                    .forEach(([key, display]) => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = display;
+                        moduleFilter.appendChild(option);
+                    });
 
                 const visibleBoxes = () => rows
                     .filter(row => row.dataset.filtered !== 'false')
                     .map(row => row.querySelector('.menu-permission-checkbox'));
 
+                const update = () => {
+                    const selectedCount = boxes.filter(x => x.checked).length;
+                    const visible = visibleBoxes();
+                    const visibleSelected = visible.filter(x => x.checked).length;
+                    count.textContent = selectedCount + ' selected';
+                    header.checked = visible.length > 0 && visibleSelected === visible.length;
+                    header.indeterminate = visibleSelected > 0 && visibleSelected < visible.length;
+                };
+
                 const applyFilters = () => {
-                    const selectedModule = moduleFilter.value.toLocaleLowerCase();
-                    const search = menuSearch.value.trim().toLocaleLowerCase();
+                    const selectedModule = normalize(moduleFilter.value);
+                    const search = normalize(menuSearch.value);
                     let visibleCount = 0;
                     rows.forEach(row => {
-                        const moduleName = (row.dataset.module || '').toLocaleLowerCase();
-                        const rowText = row.innerText.toLocaleLowerCase();
-                        const matches = (!selectedModule || moduleName === selectedModule) &&
+                        const rowModule = normalize(row.dataset.module);
+                        const rowText = normalize(row.textContent);
+                        const matches = (!selectedModule || rowModule === selectedModule) &&
                             (!search || rowText.includes(search));
                         row.dataset.filtered = matches ? 'true' : 'false';
-                        row.hidden = !matches;
+                        // style.display is more reliable than the hidden attribute on Bootstrap table rows.
+                        row.style.display = matches ? '' : 'none';
                         if (matches) visibleCount++;
                     });
                     resultCount.textContent = 'Showing ' + visibleCount + ' of ' + rows.length + ' menus';
                     update();
                 };
 
-                const update = () => {
-                    const selected = boxes.filter(x => x.checked).length;
-                    const visible = visibleBoxes();
-                    const visibleSelected = visible.filter(x => x.checked).length;
-                    count.textContent = selected + ' selected';
-                    header.checked = visible.length > 0 && visibleSelected === visible.length;
-                    header.indeterminate = visibleSelected > 0 && visibleSelected < visible.length;
-                };
                 const setVisible = value => { visibleBoxes().forEach(x => x.checked = value); update(); };
                 selectAll.addEventListener('click', () => setVisible(true));
                 clear.addEventListener('click', () => setVisible(false));
                 header.addEventListener('change', () => setVisible(header.checked));
                 moduleFilter.addEventListener('change', applyFilters);
+                moduleFilter.addEventListener('input', applyFilters);
+
+                // If a global plugin (Select2, Tom Select, Choices, etc.) replaced the dropdown,
+                // it may trigger only jQuery events, never native ones. Listen for those too.
+                if (window.jQuery) {
+                    window.jQuery(moduleFilter).on('change select2:select select2:clear select2:unselect', applyFilters);
+                }
+
+                // Final safety net: watch the real value and re-filter whenever it changes,
+                // no matter which library or event changed it.
+                let lastModuleValue = moduleFilter.value;
+                setInterval(() => {
+                    if (moduleFilter.value !== lastModuleValue) {
+                        lastModuleValue = moduleFilter.value;
+                        applyFilters();
+                    }
+                }, 150);
                 menuSearch.addEventListener('input', applyFilters);
                 boxes.forEach(x => x.addEventListener('change', update));
-
-                // Apply the selected module and search immediately on initial render too.
-                // This keeps the table, result count, and select-all behavior in sync
-                // when a module value is already selected or the page is reloaded.
-                applyFilters();
 
                 form.addEventListener('submit', event => {
                     const submitter = event.submitter;
@@ -160,8 +223,14 @@
                         alert('Please select at least one menu.');
                     }
                 });
-                update();
+
+                // Initial render: sync table, result count and select-all state.
+                applyFilters();
+                // Browsers can restore a previously chosen dropdown value AFTER this script runs
+                // (reload / back button) without firing 'change'. Re-apply once everything is ready.
+                window.addEventListener('load', applyFilters);
+                window.addEventListener('pageshow', applyFilters);
             })();
-        </script>
-    }
+    </script>
+}
 </div>
