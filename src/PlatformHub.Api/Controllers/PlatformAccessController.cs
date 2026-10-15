@@ -174,7 +174,9 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             .Select(x => new
             {
                 x.Id, x.Code, x.Name, x.Description, x.IsSystemRole, x.IsActive, x.BaseRedirectUrl,
-                Permissions = db.RolePermissions.Where(rp => rp.RoleId == x.Id)
+                // RolePermissions contains global API permissions only. Project-menu visibility
+                // is configured separately through scoped RoleWiseMenuAccess records.
+                Permissions = db.RolePermissions.Where(rp => rp.RoleId == x.Id && rp.Permission.IsSystemPermission)
                     .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
             }).ToListAsync(cancellationToken);
         return Ok(roles);
@@ -330,9 +332,13 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         var permissionIds = request.PermissionIds?.Distinct().ToArray() ?? [];
         if (permissionIds.Length > 0)
         {
-            var found = await db.Permissions.CountAsync(x => permissionIds.Contains(x.Id), cancellationToken);
+            var found = await db.Permissions.CountAsync(
+                x => permissionIds.Contains(x.Id) && x.IsSystemPermission, cancellationToken);
             if (found != permissionIds.Length)
-                return BadRequest(new { message = "One or more permission IDs are invalid." });
+                return BadRequest(new
+                {
+                    message = "Only global system/API permissions can be assigned through RolePermissions. Configure project-menu visibility under Workspace > Menu Permissions for the active project."
+                });
         }
 
         var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)
