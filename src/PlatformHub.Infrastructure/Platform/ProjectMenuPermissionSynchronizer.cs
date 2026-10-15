@@ -53,7 +53,6 @@ public static class ProjectMenuPermissionSynchronizer
             {
                 x.Id,
                 x.ProjectId,
-                x.Code,
                 x.Name,
                 ProjectName = x.Project.Name,
                 ModuleName = x.Module == null ? "General" : x.Module.Name
@@ -119,17 +118,6 @@ public static class ProjectMenuPermissionSynchronizer
         }
 
         await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private static string NormalizeSegment(string value)
-    {
-        var chars = (value ?? string.Empty).Trim().ToUpperInvariant()
-            .Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_')
-            .ToArray();
-        var normalized = new string(chars).Trim('_');
-        while (normalized.Contains("__", StringComparison.Ordinal))
-            normalized = normalized.Replace("__", "_", StringComparison.Ordinal);
-        return string.IsNullOrWhiteSpace(normalized) ? "UNNAMED" : normalized;
     }
 
     private static string Truncate(string value, int maxLength) =>
