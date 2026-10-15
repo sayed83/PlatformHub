@@ -25,20 +25,82 @@
     else if (Model.Menus.Count == 0) { <div class="alert alert-info">No active menus exist for this project, or you do not have permission to manage them.</div> }
     else {
         <div class="card border-0 shadow-sm"><div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">@(Model.TargetType == "role" ? "Role menu access" : "Individual user overrides")</h2><span class="small text-secondary">Project ID: @Model.ProjectId</span></div>
-            <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Module</th><th>Menu</th><th>Code</th><th>Access</th><th>Decision</th><th></th></tr></thead><tbody>
-            @foreach (var menu in Model.Menus) {
-                <tr><td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td><td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td><td>@(Model.TargetType == "user" && !menu.HasExplicitDecision ? "Inherited from role" : "Explicit")</td><td>
-                    <form method="post" action="/WorkspacePermissions/save" class="d-flex flex-wrap gap-2">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="TargetType" value="@Model.TargetType" /><input type="hidden" name="TargetId" value="@Model.TargetId" /><input type="hidden" name="MenuItemId" value="@menu.Id" />
-                        <input type="hidden" name="IsAllowed" value="@(!menu.IsAllowed ? "true" : "false")" />
-                        <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit">@(menu.IsAllowed ? "Deny" : "Allow")</button>
-                    </form>
-                </td></tr>
-            }
-            </tbody></table></div>
-            @if (Model.TargetType == "user") { <p class="small text-secondary mb-0">User-specific Allow/Deny decisions override role defaults. This first increment saves explicit decisions; resetting an override to inherit is not yet included.</p> }
+            <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><div><h2 class="h5 mb-1">@(Model.TargetType == "role" ? "Role menu access" : "Individual user overrides")</h2><p class="small text-secondary mb-0">Select multiple menus or select all, then apply one permission decision in a single save.</p></div><span class="small text-secondary">Project ID: @Model.ProjectId</span></div>
+            <form method="post" action="/WorkspacePermissions/save" id="menuPermissionForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="TargetType" value="@Model.TargetType" />
+                <input type="hidden" name="TargetId" value="@Model.TargetId" />
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="selectAllMenus">Select all</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="clearMenus">Clear selection</button>
+                    <span class="small text-secondary me-auto" id="selectedMenuCount">0 selected</span>
+                    <button class="btn btn-sm btn-success" type="submit" name="BulkDecision" value="allow">Allow selected</button>
+                    <button class="btn btn-sm btn-danger" type="submit" name="BulkDecision" value="deny">Deny selected</button>
+                    @if (Model.TargetType == "user")
+                    {
+                        <button class="btn btn-sm btn-outline-primary" type="submit" name="BulkDecision" value="inherit">Inherit from role</button>
+                    }
+                </div>
+                <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" id="selectAllHeader" aria-label="Select all menus" /></th><th>Module</th><th>Menu</th><th>Code</th><th>Effective access</th><th>Decision</th><th>Quick action</th></tr></thead><tbody>
+                @foreach (var menu in Model.Menus) {
+                    var effectiveDecision = menu.IsAllowed ? "allow" : "deny";
+                    var singleDecision = Model.TargetType == "user" && !menu.HasExplicitDecision ? "allow" : (menu.IsAllowed ? "deny" : "allow");
+                    <tr data-menu-row data-module="@menu.ModuleName">
+                        <td><input type="checkbox" class="form-check-input menu-permission-checkbox" name="SelectedMenuItemIds" value="@menu.Id" aria-label="Select @menu.Name" /></td>
+                        <td>@menu.ModuleName</td><td>@menu.Name</td><td><code>@menu.Code</code></td>
+                        <td><span class="badge @(menu.IsAllowed ? "text-bg-success" : "text-bg-secondary")">@(menu.IsAllowed ? "Allowed" : "Denied")</span></td>
+                        <td>
+                            @if (Model.TargetType == "user" && !menu.HasExplicitDecision)
+                            {
+                                <span class="badge text-bg-info">Inherited</span>
+                            }
+                            else
+                            {
+                                <span>@(menu.HasExplicitDecision ? "Explicit" : "Role default")</span>
+                            }
+                        </td>
+                        <td class="text-nowrap">
+                            @if (Model.TargetType == "user" && menu.HasExplicitDecision)
+                            {
+                                <button class="btn btn-sm btn-outline-primary" type="submit" name="SingleAction" value="inherit:@menu.Id">Inherit</button>
+                            }
+                            <button class="btn btn-sm @(menu.IsAllowed ? "btn-outline-danger" : "btn-outline-success")" type="submit" name="SingleAction" value="@singleDecision:@menu.Id">@(menu.IsAllowed ? "Deny" : "Allow")</button>
+                        </td>
+                    </tr>
+                }
+                </tbody></table></div>
+            </form>
+            @if (Model.TargetType == "user") { <p class="small text-secondary mb-0">User-specific Allow/Deny decisions override role defaults. “Inherit from role” removes the explicit user override and restores role-based access.</p> }
         </div></div>
+        <script>
+            (() => {
+                const form = document.getElementById('menuPermissionForm');
+                if (!form) return;
+                const boxes = Array.from(form.querySelectorAll('.menu-permission-checkbox'));
+                const selectAll = document.getElementById('selectAllMenus');
+                const header = document.getElementById('selectAllHeader');
+                const clear = document.getElementById('clearMenus');
+                const count = document.getElementById('selectedMenuCount');
+                const update = () => {
+                    const selected = boxes.filter(x => x.checked).length;
+                    count.textContent = selected + ' selected';
+                    header.checked = boxes.length > 0 && selected === boxes.length;
+                    header.indeterminate = selected > 0 && selected < boxes.length;
+                };
+                const setAll = value => { boxes.forEach(x => x.checked = value); update(); };
+                selectAll.addEventListener('click', () => setAll(true));
+                clear.addEventListener('click', () => setAll(false));
+                header.addEventListener('change', () => setAll(header.checked));
+                boxes.forEach(x => x.addEventListener('change', update));
+                form.addEventListener('submit', event => {
+                    const submitter = event.submitter;
+                    if (submitter && submitter.name === 'BulkDecision' && !boxes.some(x => x.checked)) {
+                        event.preventDefault();
+                        alert('Please select at least one menu.');
+                    }
+                });
+                update();
+            })();
+        </script>
     }
 </div>
