@@ -21,7 +21,7 @@
             <div class="col-12 col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Load permissions</button></div>
         </form>
     </div></div>
-    @if (Model.TargetId is null) { <div class="alert alert-info">No eligible @(Model.TargetType == "role" ? "roles" : "users") are assigned in this scope.</div> }
+    @if (Model.TargetId is null && ViewData["Error"] is not string) { <div class="alert alert-info">No eligible @(Model.TargetType == "role" ? "roles" : "users") are assigned in this scope.</div> }
     else if (Model.Menus.Count == 0) { <div class="alert alert-info">No active menus exist for this project, or you do not have permission to manage them.</div> }
     else {
         <div class="card border-0 shadow-sm"><div class="card-body">
