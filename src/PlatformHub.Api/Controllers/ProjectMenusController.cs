@@ -101,6 +101,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         entity.Code = code; entity.Name = name; entity.Description = request.Description?.Trim();
         entity.Icon = request.Icon?.Trim(); entity.SortOrder = request.SortOrder; entity.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
+        await ProjectMenuPermissionSynchronizer.SyncProjectAsync(db, entity.ProjectId, ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.Code, entity.Name, entity.Description, entity.Icon, entity.SortOrder, entity.IsActive });
     }
 
