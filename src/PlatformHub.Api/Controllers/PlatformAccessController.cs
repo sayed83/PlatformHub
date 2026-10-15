@@ -289,7 +289,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         var assignments = await db.UserRoleAssignments.AsNoTracking().Where(x => x.RoleId == roleId)
             .Select(x => new { x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, x.TenantId, TenantName = x.Tenant == null ? null : x.Tenant.Name, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name, x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name })
             .ToListAsync(cancellationToken);
-        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId)
+        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId && x.Permission.IsSystemPermission)
             .Select(x => new { x.PermissionId, x.Permission.Code, PermissionName = x.Permission.Name, x.Permission.Module }).OrderBy(x => x.Module).ThenBy(x => x.PermissionName).ToListAsync(cancellationToken);
         var menuAccess = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.RoleId == roleId)
             .Select(x => new { x.Id, x.ProjectId, ProjectName = x.Project.Name, x.MenuItemId, MenuName = x.MenuItem.Name, x.IsAllowed }).ToListAsync(cancellationToken);
