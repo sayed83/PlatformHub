@@ -32,10 +32,8 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
 
         // A generated project-menu View permission in dbo.RolePermissions is also a role-level
         // grant for that menu. Explicit user allow/deny decisions below still take precedence.
-        var projectCode = await db.Projects.AsNoTracking()
-            .Where(p => p.Id == projectId).Select(p => p.Code).SingleAsync(ct);
         var permissionToMenu = menus.ToDictionary(
-            m => ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, projectCode, m.Code),
+            m => ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, m.Id, m.Code),
             m => m.Id,
             StringComparer.OrdinalIgnoreCase);
         var catalogAllowedCodes = await (
@@ -104,9 +102,7 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         if (roleMenuAllowed)
             return true;
 
-        var projectCode = await db.Projects.AsNoTracking()
-            .Where(p => p.Id == projectId).Select(p => p.Code).SingleAsync(ct);
-        var permissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, projectCode, menuCode);
+        var permissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, menu.Id, menuCode);
         return await (
             from rp in db.RolePermissions.AsNoTracking()
             join permission in db.Permissions.AsNoTracking() on rp.PermissionId equals permission.Id
