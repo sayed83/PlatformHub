@@ -28,7 +28,11 @@
         @if (sidebarMenus.Count == 0)
         {
             <div class="px-3 py-2 small" style="color:#aebdd0">
-                @if (Context.User.FindFirst("ph_active_project_id") is null)
+                @if (Context.Items["PlatformHub.MenuLoadError"] is string menuLoadError)
+                {
+                    <span role="status">@menuLoadError</span>
+                }
+                else if (Context.User.FindFirst("ph_active_project_id") is null)
                 {
                     <span>Select an active workspace with a project to load its menu.</span>
                 }
