@@ -32,12 +32,27 @@ public sealed class WorkspacePermissionsController(PlatformApiClient api) : Cont
         }
 
         var suffix = $"tenantId={tenantId}" + (branchId.HasValue ? $"&branchId={branchId}" : "") + $"&projectId={projectId}";
-        var roles = targetType == "role"
-            ? await api.GetAsync<List<WorkspacePermissionTarget>>($"api/v1/workspace/roles?{suffix}", token, ct) ?? new()
-            : new List<WorkspacePermissionTarget>();
-        var users = targetType == "user"
-            ? await api.GetAsync<List<WorkspacePermissionTarget>>($"api/v1/workspace/users?{suffix}", token, ct) ?? new()
-            : new List<WorkspacePermissionTarget>();
+        var roles = new List<WorkspacePermissionTarget>();
+        var users = new List<WorkspacePermissionTarget>();
+        if (targetType == "role")
+        {
+            var result = await api.GetWithStatusAsync<List<WorkspacePermissionTarget>>(
+                $"api/v1/workspace/roles?{suffix}", token, ct);
+            if (result.Value is null)
+                ViewData["Error"] = result.Error ?? "Roles could not be loaded. Verify your active workspace and Role.View permission.";
+            else
+                roles = result.Value;
+        }
+        else
+        {
+            var result = await api.GetWithStatusAsync<List<WorkspacePermissionTarget>>(
+                $"api/v1/workspace/users?{suffix}", token, ct);
+            if (result.Value is null)
+                ViewData["Error"] = result.Error ?? "Users could not be loaded. Verify your active workspace and User.View permission.";
+            else
+                users = result.Value;
+        }
+
         var targets = targetType == "role" ? roles : users;
         if (!targetId.HasValue || targets.All(x => x.Id != targetId.Value)) targetId = targets.FirstOrDefault()?.Id;
         var vm = new WorkspacePermissionPageViewModel
