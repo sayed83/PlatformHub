@@ -60,11 +60,15 @@ public sealed class WorkspaceController(
             .OrderBy(r => r.Name)
             .Select(r => new
             {
-                r.Id, r.TenantId, r.Code, r.Name, r.Description, r.BaseRedirectUrl, r.IsActive, r.IsSystemRole,
-                UserCount = assignments.Where(a => a.RoleId == r.Id)
-                    .Select(a => a.UserId).Distinct().Count(),
-                Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id)
-                    .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
+                r.Id, r.TenantId, 
+                r.Code, 
+                r.Name, 
+                r.Description, 
+                r.BaseRedirectUrl, 
+                r.IsActive, 
+                r.IsSystemRole,
+                UserCount = assignments.Where(a => a.RoleId == r.Id).Select(a => a.UserId).Distinct().Count(),
+                Permissions = db.RolePermissions.Where(rp => rp.RoleId == r.Id).Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
             }).ToListAsync(cancellationToken);
         return Ok(roles);
     }
@@ -73,27 +77,48 @@ public sealed class WorkspaceController(
     [HttpPost("roles")]
     public async Task<IActionResult> CreateWorkspaceRole([FromQuery] long tenantId, [FromQuery] long? branchId, [FromQuery] long? projectId, [FromBody] WorkspaceRoleCreateRequest request, CancellationToken cancellationToken)
     {
-        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) return Unauthorized();
-        if (tenantId <= 0 || !await scopedAccess.CanAccessAsync(userId, "Role.Create", tenantId, branchId, projectId, cancellationToken)) return Forbid();
-        if (!await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive, cancellationToken)) return NotFound(new { message = "Tenant was not found or is inactive." });
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) 
+            return Unauthorized();
+        if (tenantId <= 0 || !await scopedAccess.CanAccessAsync(userId, "Role.Create", tenantId, branchId, projectId, cancellationToken)) 
+            return Forbid();
+        if (!await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive, cancellationToken)) 
+            return NotFound(new { message = "Tenant was not found or is inactive." });
         var code = request.Code?.Trim().ToUpperInvariant(); var name = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name) || code.Length > 100 || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500 || code.Contains(' ') || code == PlatformRbacSeeder.SuperAdminCode) return BadRequest(new { message = "Provide a valid role code and name. Protected role codes are reserved." });
-        if (await db.Roles.AnyAsync(r => r.TenantId == tenantId && r.Code == code, cancellationToken)) return Conflict(new { message = "This role code already exists in the selected tenant." });
-        var role = new PlatformRole { TenantId = tenantId, Code = code, Name = name, Description = request.Description?.Trim(), BaseRedirectUrl = request.BaseRedirectUrl?.Trim(), IsSystemRole = false, IsActive = true };
-        db.Roles.Add(role); await db.SaveChangesAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name) || code.Length > 100 || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500 || code.Contains(' ') || code == PlatformRbacSeeder.SuperAdminCode) 
+            return BadRequest(new { message = "Provide a valid role code and name. Protected role codes are reserved." });
+        if (await db.Roles.AnyAsync(r => r.TenantId == tenantId && r.Code == code, cancellationToken)) 
+            return Conflict(new { message = "This role code already exists in the selected tenant." });
+        var role = new PlatformRole 
+        { 
+            TenantId = tenantId, 
+            Code = code, 
+            Name = name, 
+            Description = request.Description?.Trim(), 
+            BaseRedirectUrl = request.BaseRedirectUrl?.Trim(), 
+            IsSystemRole = false, IsActive = true 
+        };
+        db.Roles.Add(role); 
+        await db.SaveChangesAsync(cancellationToken);
         return Ok(new { role.Id, role.TenantId, role.Code, role.Name, role.Description, role.BaseRedirectUrl, role.IsActive, role.IsSystemRole, UserCount = 0, Permissions = Array.Empty<string>() });
     }
 
     [HttpPut("roles/{roleId:long}")]
     public async Task<IActionResult> UpdateWorkspaceRole(long roleId, [FromQuery] long tenantId, [FromQuery] long? branchId, [FromQuery] long? projectId, [FromBody] WorkspaceRoleUpdateRequest request, CancellationToken cancellationToken)
     {
-        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) return Unauthorized();
-        if (!await scopedAccess.CanAccessAsync(userId, "Role.Update", tenantId, branchId, projectId, cancellationToken)) return Forbid();
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var userId)) 
+            return Unauthorized();
+        if (!await scopedAccess.CanAccessAsync(userId, "Role.Update", tenantId, branchId, projectId, cancellationToken)) 
+            return Forbid();
         var role = await db.Roles.SingleOrDefaultAsync(r => r.Id == roleId && r.TenantId == tenantId && !r.IsSystemRole, cancellationToken);
         if (role is null) return NotFound(new { message = "Tenant custom role not found." });
         var name = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name) || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500) return BadRequest(new { message = "Role name is required (max 150 characters); description and redirect URL must not exceed 500 characters." });
-        role.Name = name; role.Description = request.Description?.Trim(); role.BaseRedirectUrl = request.BaseRedirectUrl?.Trim(); await db.SaveChangesAsync(cancellationToken); await RevokeRoleSessionsAsync(roleId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 150 || (request.Description?.Length ?? 0) > 500 || (request.BaseRedirectUrl?.Length ?? 0) > 500) 
+            return BadRequest(new { message = "Role name is required (max 150 characters); description and redirect URL must not exceed 500 characters." });
+        role.Name = name; 
+        role.Description = request.Description?.Trim(); 
+        role.BaseRedirectUrl = request.BaseRedirectUrl?.Trim(); 
+        await db.SaveChangesAsync(cancellationToken); 
+        await RevokeRoleSessionsAsync(roleId, cancellationToken);
         return Ok(new { message = "Tenant role updated.", role.Id, role.Name, role.Description, role.BaseRedirectUrl, role.IsActive });
     }
 
