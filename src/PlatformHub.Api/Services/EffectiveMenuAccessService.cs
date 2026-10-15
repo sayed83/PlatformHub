@@ -30,23 +30,8 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
             .Where(a => a.ProjectId == projectId && roleIds.Contains(a.RoleId) && menuIds.Contains(a.MenuItemId) && a.IsAllowed)
             .Select(a => a.MenuItemId).Distinct().ToListAsync(ct);
 
-        // A generated project-menu View permission in dbo.RolePermissions is also a role-level
-        // grant for that menu. Explicit user allow/deny decisions below still take precedence.
-        var permissionToMenu = menus.ToDictionary(
-            m => ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, m.Id),
-            m => m.Id,
-            StringComparer.OrdinalIgnoreCase);
-        var generatedPermissionCodes = permissionToMenu.Keys.ToArray();
-        var catalogAllowedCodes = await (
-            from rp in db.RolePermissions.AsNoTracking()
-            join permission in db.Permissions.AsNoTracking() on rp.PermissionId equals permission.Id
-            where roleIds.Contains(rp.RoleId) && generatedPermissionCodes.Contains(permission.Code)
-            select permission.Code)
-            .Distinct().ToListAsync(ct);
-        roleDecisions.AddRange(catalogAllowedCodes
-            .Where(permissionToMenu.ContainsKey)
-            .Select(code => permissionToMenu[code])
-            .Where(id => !roleDecisions.Contains(id)));
+        // Project-menu visibility is intentionally separate from global API permissions.
+        // Only the project-scoped RoleWiseMenuAccess table grants role menu visibility.
         var userOverrides = await db.UserWiseMenuAccesses.AsNoTracking()
             .Where(a => a.ProjectId == projectId && a.UserId == userId && menuIds.Contains(a.MenuItemId))
             .Select(a => new { a.MenuItemId, a.IsAllowed }).ToDictionaryAsync(a => a.MenuItemId, a => a.IsAllowed, ct);
@@ -103,13 +88,7 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         if (roleMenuAllowed)
             return true;
 
-        var permissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, menu.Id);
-        return await (
-            from rp in db.RolePermissions.AsNoTracking()
-            join permission in db.Permissions.AsNoTracking() on rp.PermissionId equals permission.Id
-            where roleIds.Contains(rp.RoleId) && permission.Code == permissionCode
-            select rp.RoleId)
-            .AnyAsync(ct);
+        return false;
     }
 
     private async Task<List<long>> GetApplicableRoleIdsAsync(
