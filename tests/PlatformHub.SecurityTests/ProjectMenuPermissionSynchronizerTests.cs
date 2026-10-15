@@ -66,6 +66,7 @@ public sealed class ProjectMenuPermissionSynchronizerTests
         var updated = await db.Permissions.SingleAsync(x => x.Code == code);
         Assert.Equal("View Product Catalogue", updated.Name);
         Assert.False(await db.RolePermissions.AnyAsync(x => x.RoleId == 1 && x.PermissionId == updated.Id));
+        Assert.True(await db.RoleWiseMenuAccesses.AnyAsync(x => x.RoleId == 1 && x.ProjectId == 12 && x.MenuItemId == 88 && x.IsAllowed));
         Assert.Equal(1, await db.Permissions.CountAsync(x => x.Code == code));
     }
 
