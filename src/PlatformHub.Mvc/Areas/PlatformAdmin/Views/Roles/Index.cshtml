@@ -294,7 +294,7 @@
                 <label for="permissionCatalogSearch" class="form-label small fw-semibold">Find a permission</label>
                 <input id="permissionCatalogSearch" type="search" class="form-control form-control-sm" placeholder="Search name or code..." />
                 <div id="permissionCatalog">
-                    @foreach (var group in assignablePermissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
+                    @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
                     {
                         <div class="permission-catalog-group mt-3">
                             <h3 class="rp-section-label mb-2">@group.Key <span class="fw-normal">(@group.Count())</span></h3>
@@ -443,8 +443,8 @@
                                             </div>
                                         </div>
                                         <label class="visually-hidden" for="permissionSearch-@role.Id">Search permissions for @role.Name</label>
-                                        <input id="permissionSearch-@role.Id" type="search" class="form-control form-control-sm mb-3 role-permission-search" placeholder="Filter permissions by name or code..." />
-                                        @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
+                                        <input id="permissionSearch-@role.Id" type="search" class="form-control form-control-sm mb-3 role-permission-search" placeholder="Filter global API permissions by name or code..." />
+                                        @foreach (var group in assignablePermissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
                                         {
                                             <div class="permission-group mb-3">
                                                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
