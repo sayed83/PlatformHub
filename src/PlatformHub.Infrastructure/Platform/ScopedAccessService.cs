@@ -76,7 +76,7 @@ public sealed class ScopedAccessService(
         // permission grants. A regular Platform Admin account must still hold the requested
         // permission; IsPlatformAdmin is an account classification, not an authorization grant.
         var isSuperAdmin = await db.UserRoleAssignments.AsNoTracking().AnyAsync(
-            a => a.UserId == userId
+            a => a.UserId == userId && user.IsPlatformAdmin
                 && a.TenantId == null && a.BranchId == null && a.ProjectId == null
                 && a.Role.IsActive && a.Role.Code == PlatformRbacSeeder.SuperAdminCode,
             cancellationToken);
