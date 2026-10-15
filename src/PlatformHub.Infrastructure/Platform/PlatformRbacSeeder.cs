@@ -107,7 +107,7 @@ public static class PlatformRbacSeeder
         await db.SaveChangesAsync(cancellationToken);
 
         var superAdmin = await db.Roles.SingleAsync(x => x.Code == SuperAdminCode, cancellationToken);
-        var permissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(cancellationToken);
+        var permissionIds = await db.Permissions.Where(x => x.IsSystemPermission).Select(x => x.Id).ToListAsync(cancellationToken);
         var existingRolePermissionIds = await db.RolePermissions
             .Where(x => x.RoleId == superAdmin.Id)
             .Select(x => x.PermissionId)
@@ -185,7 +185,7 @@ public static class PlatformRbacSeeder
         {
             var role = await db.Roles.SingleAsync(x => x.Code == roleCode, cancellationToken);
             var ids = await db.Permissions
-                .Where(x => permissionCodes.Contains(x.Code))
+                .Where(x => x.IsSystemPermission && permissionCodes.Contains(x.Code))
                 .Select(x => x.Id)
                 .ToListAsync(cancellationToken);
             var existingIds = await db.RolePermissions
