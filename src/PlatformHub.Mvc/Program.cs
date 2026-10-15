@@ -7,9 +7,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<PlatformHub.Mvc.Services.PlatformApiClient>();
+var configuredApiBaseUrl = builder.Configuration["Api:BaseUrl"];
+if (!Uri.TryCreate(configuredApiBaseUrl, UriKind.Absolute, out var apiBaseAddress) ||
+    (apiBaseAddress.Scheme != Uri.UriSchemeHttp && apiBaseAddress.Scheme != Uri.UriSchemeHttps))
+{
+    throw new InvalidOperationException(
+        "Configuration 'Api:BaseUrl' must be an absolute HTTP/HTTPS URL, for example https://localhost:7201/.");
+}
+
 builder.Services.AddHttpClient("PlatformApi", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]!);
+    client.BaseAddress = apiBaseAddress;
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

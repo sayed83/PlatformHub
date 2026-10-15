@@ -16,18 +16,43 @@ A single solution with a central API and a separate MVC client. Both login panel
 - SQL Server
 - Visual Studio 2022
 
-## Local configuration (User Secrets)
-Sensitive values must not be committed to source control. From the solution directory run:
+## Configuration: local development and hosting
+
+`src/PlatformHub.Api/appsettings.json` and `src/PlatformHub.Mvc/appsettings.json` contain non-secret defaults and empty secret placeholders only. Never commit database passwords, JWT signing keys, bootstrap keys, or administrator passwords.
+
+### Local development (User Secrets)
+
+Run from the solution root in PowerShell:
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:PlatformDb" "YOUR_SQL_SERVER_CONNECTION_STRING" --project src/PlatformHub.Api
-dotnet user-secrets set "Jwt:SigningKey" "GENERATE-A-RANDOM-SECRET-AT-LEAST-32-CHARACTERS" --project src/PlatformHub.Api
-dotnet user-secrets set "PlatformBootstrap:SetupKey" "GENERATE-A-DIFFERENT-RANDOM-SECRET-AT-LEAST-32-CHARACTERS" --project src/PlatformHub.Api
+dotnet user-secrets set "ConnectionStrings:PlatformDb" "Server=YOUR_SQL_HOST,1433;Database=YOUR_DATABASE;User Id=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;Encrypt=True;TrustServerCertificate=False;" --project src/PlatformHub.Api
+dotnet user-secrets set "Jwt:SigningKey" "<random-secret-at-least-32-bytes>" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformBootstrap:SetupKey" "<different-random-secret-at-least-32-bytes>" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:UserName" "platformadmin" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:DisplayName" "Platform Super Administrator" --project src/PlatformHub.Api
+dotnet user-secrets set "PlatformRoleUserSeeds:PlatformAdmin:Password" "<unique-password-at-least-12-characters>" --project src/PlatformHub.Api
 ```
 
-Ensure the local API signing key is random and at least 32 characters. The bootstrap secret must be different from the JWT signing key.
+Replace every database placeholder with the exact SQL Server host, port, database name, username, and password supplied by your hosting provider. Use the TLS options required by that provider. Do not paste credentials into GitHub or chat. The API requires a connection string and a JWT signing key of at least 32 UTF-8 bytes at startup.
 
-Configure `Api:BaseUrl` in `src/PlatformHub.Mvc/appsettings.json` to match the API URL (default `https://localhost:7201/`).
+The MVC project does not connect to SQL Server. Set `Api:BaseUrl` to the API's absolute HTTP/HTTPS base URL. The local default is `https://localhost:7201/`; on hosting, use the real API URL.
+
+### Windows hosting / Plesk environment variables
+
+Configure these under the API application's environment variables in the hosting control panel (or the provider's supported secret configuration). Environment variable names use double underscores for nested configuration keys:
+
+- `ConnectionStrings__PlatformDb` — full SQL Server connection string
+- `Jwt__SigningKey` — new random signing key (at least 32 UTF-8 bytes)
+- `Jwt__Issuer` — `PlatformHub.Api` unless you intentionally change both issuer and validation configuration
+- `Jwt__Audience` — `PlatformHub.Mvc` unless you intentionally change both audience and validation configuration
+- `PlatformRoleUserSeeds__PlatformAdmin__UserName`
+- `PlatformRoleUserSeeds__PlatformAdmin__DisplayName`
+- `PlatformRoleUserSeeds__PlatformAdmin__Password` — use only for initial provisioning; remove after the account is created if no longer needed
+- `PlatformBootstrap__SetupKey` — needed only for the Development-only bootstrap endpoint; that endpoint returns 404 outside Development
+
+For the MVC application configure `Api__BaseUrl` to the deployed API URL, including the trailing slash. Do not set a SQL connection string on MVC unless the architecture is deliberately changed.
+
+**Credential incident response:** database credentials, a JWT signing key, and a setup key were previously present in a tracked configuration file. Rotate all of them immediately with the hosting/database provider. Replacing appsettings removes them from the current file but does not erase the values from Git history.
 
 ## Run
 ```powershell
