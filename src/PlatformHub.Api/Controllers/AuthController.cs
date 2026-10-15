@@ -21,7 +21,16 @@ public sealed class AuthController(IAuthService auth, IConfiguration configurati
         if (user is null) return Unauthorized(new { message = "Invalid credentials or this account cannot access this login panel." });
 
         var jwt = configuration.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SigningKey"]!));
+        var signingKey = jwt["SigningKey"];
+        if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "JWT signing configuration is invalid. Check the API configuration." });
+
+        var expiresMinutes = int.TryParse(jwt["ExpiresMinutes"], out var configuredMinutes)
+            && configuredMinutes is >= 1 and <= 1440
+                ? configuredMinutes
+                : 15;
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new List<Claim>
         {
@@ -43,7 +52,12 @@ public sealed class AuthController(IAuthService auth, IConfiguration configurati
         }
 
         var token = new JwtSecurityToken(jwt["Issuer"], jwt["Audience"], claims,
-            expires: DateTime.UtcNow.AddMinutes(15), signingCredentials: credentials);
-        return Ok(new { accessToken = new JwtSecurityTokenHandler().WriteToken(token), expiresIn = 900, user });
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes), signingCredentials: credentials);
+        return Ok(new
+        {
+            accessToken = new JwtSecurityTokenHandler().WriteToken(token),
+            expiresIn = checked(expiresMinutes * 60),
+            user
+        });
     }
 }
