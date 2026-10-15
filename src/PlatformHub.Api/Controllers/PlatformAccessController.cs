@@ -174,7 +174,9 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
             .Select(x => new
             {
                 x.Id, x.Code, x.Name, x.Description, x.IsSystemRole, x.IsActive, x.BaseRedirectUrl,
-                Permissions = db.RolePermissions.Where(rp => rp.RoleId == x.Id)
+                // RolePermissions contains global API permissions only. Project-menu visibility
+                // is configured separately through scoped RoleWiseMenuAccess records.
+                Permissions = db.RolePermissions.Where(rp => rp.RoleId == x.Id && rp.Permission.IsSystemPermission)
                     .Select(rp => rp.Permission.Code).OrderBy(code => code).ToList()
             }).ToListAsync(cancellationToken);
         return Ok(roles);
@@ -218,7 +220,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> UpdateRole(long roleId, [FromBody] UpdateRoleRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
             return Conflict(new { message = "The protected Platform Super Admin role cannot be edited." });
@@ -249,7 +251,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Deactivate")]
     public async Task<IActionResult> SetRoleStatus(long roleId, [FromBody] SetRoleStatusRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var isSuperAdmin = IsSuperAdmin();
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
@@ -282,12 +284,12 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> GetRoleHardDeleteDetails(long roleId, CancellationToken cancellationToken)
     {
         if (!IsSuperAdmin()) return Forbid();
-        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var assignments = await db.UserRoleAssignments.AsNoTracking().Where(x => x.RoleId == roleId)
             .Select(x => new { x.Id, x.UserId, UserName = x.User.UserName, DisplayName = x.User.DisplayName, x.TenantId, TenantName = x.Tenant == null ? null : x.Tenant.Name, x.BranchId, BranchName = x.Branch == null ? null : x.Branch.Name, x.ProjectId, ProjectName = x.Project == null ? null : x.Project.Name })
             .ToListAsync(cancellationToken);
-        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId)
+        var permissions = await db.RolePermissions.AsNoTracking().Where(x => x.RoleId == roleId && x.Permission.IsSystemPermission)
             .Select(x => new { x.PermissionId, x.Permission.Code, PermissionName = x.Permission.Name, x.Permission.Module }).OrderBy(x => x.Module).ThenBy(x => x.PermissionName).ToListAsync(cancellationToken);
         var menuAccess = await db.RoleWiseMenuAccesses.AsNoTracking().Where(x => x.RoleId == roleId)
             .Select(x => new { x.Id, x.ProjectId, ProjectName = x.Project.Name, x.MenuItemId, MenuName = x.MenuItem.Name, x.IsAllowed }).ToListAsync(cancellationToken);
@@ -299,7 +301,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     public async Task<IActionResult> HardDeleteRole(long roleId, CancellationToken cancellationToken)
     {
         if (!IsSuperAdmin()) return Forbid();
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         if (role.IsSystemRole || role.Code == PlatformRbacSeeder.SuperAdminCode)
             return Conflict(new { message = "Built-in and protected roles cannot be permanently deleted." });
@@ -319,7 +321,7 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
     [Authorize(Policy = "Role.Update")]
     public async Task<IActionResult> SetRolePermissions(long roleId, [FromBody] SetRolePermissionsRequest request, CancellationToken cancellationToken)
     {
-        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId, cancellationToken);
+        var role = await db.Roles.SingleOrDefaultAsync(x => x.Id == roleId && x.TenantId == null, cancellationToken);
         if (role is null) return NotFound(new { message = "Role not found." });
         var isSuperAdmin = User.HasClaim(AppClaimTypes.Role, PlatformRbacSeeder.SuperAdminCode);
         if (role.Code == PlatformRbacSeeder.SuperAdminCode)
@@ -330,9 +332,13 @@ public sealed class PlatformAccessController(PlatformDbContext db, IPasswordHash
         var permissionIds = request.PermissionIds?.Distinct().ToArray() ?? [];
         if (permissionIds.Length > 0)
         {
-            var found = await db.Permissions.CountAsync(x => permissionIds.Contains(x.Id), cancellationToken);
+            var found = await db.Permissions.CountAsync(
+                x => permissionIds.Contains(x.Id) && x.IsSystemPermission, cancellationToken);
             if (found != permissionIds.Length)
-                return BadRequest(new { message = "One or more permission IDs are invalid." });
+                return BadRequest(new
+                {
+                    message = "Only global system/API permissions can be assigned through RolePermissions. Configure project-menu visibility under Workspace > Menu Permissions for the active project."
+                });
         }
 
         var affectedUserIds = await db.UserRoleAssignments.Where(x => x.RoleId == roleId)

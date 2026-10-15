@@ -58,9 +58,16 @@ public static class PlatformRoleUserSeeder
                 throw new InvalidOperationException($"{seed.ConfigKey}:Password must be at least 12 characters.");
 
             var role = await db.Roles.SingleOrDefaultAsync(
-                x => x.Code == seed.RoleCode && x.IsActive, cancellationToken);
+                x => x.Code == seed.RoleCode && x.TenantId == null, cancellationToken);
             if (role is null)
-                throw new InvalidOperationException($"Cannot seed {seed.RoleCode}: active role was not found.");
+                throw new InvalidOperationException(
+                    $"Cannot seed {seed.RoleCode}: global built-in role was not found after PlatformRbacSeeder ran. " +
+                    "Verify the API is connected to the expected database and that PlatformRbacSeeder.SeedAsync completes before PlatformRoleUserSeeder.SeedAsync.");
+
+            if (!role.IsActive)
+                throw new InvalidOperationException(
+                    $"Cannot seed {seed.RoleCode}: the global built-in role exists but is inactive. " +
+                    "PlatformRbacSeeder should activate built-in roles before default-user seeding.");
 
             var user = await db.Users.SingleOrDefaultAsync(x => x.UserName == userName, cancellationToken);
             if (user is null)

@@ -54,9 +54,14 @@ public static class PlatformRbacSeeder
 
     public static async Task SeedAsync(PlatformDbContext db, CancellationToken cancellationToken = default)
     {
+        // These are the stable code-defined system/API permissions. Project-menu View
+        // permissions are synchronized separately from dbo.MenuItems by
+        // ProjectMenuPermissionSynchronizer and do not need an entry here.
         foreach (var item in PermissionCatalog)
         {
-            if (!await db.Permissions.AnyAsync(x => x.Code == item.Code, cancellationToken))
+            var permission = await db.Permissions
+                .SingleOrDefaultAsync(x => x.Code == item.Code, cancellationToken);
+            if (permission is null)
             {
                 db.Permissions.Add(new PlatformPermission
                 {
@@ -66,28 +71,43 @@ public static class PlatformRbacSeeder
                     IsSystemPermission = true
                 });
             }
+            else
+            {
+                permission.Name = item.Name;
+                permission.Module = item.Module;
+                permission.IsSystemPermission = true;
+            }
         }
 
         foreach (var item in RoleCatalog)
         {
-            if (!await db.Roles.AnyAsync(x => x.Code == item.Code && x.TenantId == null, cancellationToken))
+            // Built-in roles must exist as global roles. Older databases may contain an
+            // inactive or partially configured built-in role; synchronize its seed metadata
+            // so configuration-driven default-user seeding does not fail on stale role state.
+            var role = await db.Roles.SingleOrDefaultAsync(
+                x => x.Code == item.Code && x.TenantId == null, cancellationToken);
+
+            if (role is null)
             {
-                db.Roles.Add(new PlatformRole
+                role = new PlatformRole
                 {
                     Code = item.Code,
-                    Name = item.Name,
-                    Description = item.Description,
-                    BaseRedirectUrl = item.Redirect,
-                    IsSystemRole = true,
-                    IsActive = true
-                });
+                    IsSystemRole = true
+                };
+                db.Roles.Add(role);
             }
+
+            role.Name = item.Name;
+            role.Description = item.Description;
+            role.BaseRedirectUrl = item.Redirect;
+            role.IsSystemRole = true;
+            role.IsActive = true;
         }
 
         await db.SaveChangesAsync(cancellationToken);
 
         var superAdmin = await db.Roles.SingleAsync(x => x.Code == SuperAdminCode, cancellationToken);
-        var permissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(cancellationToken);
+        var permissionIds = await db.Permissions.Where(x => x.IsSystemPermission).Select(x => x.Id).ToListAsync(cancellationToken);
         var existingRolePermissionIds = await db.RolePermissions
             .Where(x => x.RoleId == superAdmin.Id)
             .Select(x => x.PermissionId)
@@ -165,7 +185,7 @@ public static class PlatformRbacSeeder
         {
             var role = await db.Roles.SingleAsync(x => x.Code == roleCode, cancellationToken);
             var ids = await db.Permissions
-                .Where(x => permissionCodes.Contains(x.Code))
+                .Where(x => x.IsSystemPermission && permissionCodes.Contains(x.Code))
                 .Select(x => x.Id)
                 .ToListAsync(cancellationToken);
             var existingIds = await db.RolePermissions

@@ -197,6 +197,19 @@ public sealed class WorkspaceController(
 
 
 
+    private Task<bool> IsRoleAvailableForWorkspaceAsync(long roleId, long tenantId, CancellationToken cancellationToken) =>
+        db.Roles.AsNoTracking().AnyAsync(role =>
+            role.Id == roleId && role.IsActive &&
+            (
+                // Tenant-owned roles can be configured for projects belonging to their tenant,
+                // even before the role has been assigned to a user.
+                (role.TenantId == tenantId && !role.IsSystemRole) ||
+                // Expose only ordinary global system roles in the tenant workspace.
+                (role.TenantId == null && role.IsSystemRole &&
+                 role.Code != "PLATFORM_ADMIN" &&
+                 role.Code != PlatformRbacSeeder.SuperAdminCode)
+            ), cancellationToken);
+
     [HttpGet("menu-access")]
     public async Task<IActionResult> GetWorkspaceMenuAccess(
         [FromQuery] long tenantId,
@@ -219,12 +232,8 @@ public sealed class WorkspaceController(
 
         if (targetType == "role")
         {
-            var inScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
-                a.RoleId == targetId && a.Role.IsActive &&
-                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
-                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
-                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
-            if (!inScope) return NotFound(new { message = "Role is not assigned in this workspace scope." });
+            if (!await IsRoleAvailableForWorkspaceAsync(targetId, tenantId, cancellationToken))
+                return NotFound(new { message = "Role is not available to this tenant workspace." });
         }
         else
         {
@@ -302,15 +311,12 @@ public sealed class WorkspaceController(
             return Forbid();
 
         var targetInScope = request.TargetType == "role"
-            ? await db.UserRoleAssignments.AsNoTracking().AnyAsync(a => a.RoleId == request.TargetId && a.Role.IsActive &&
-                (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
-                (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
-                (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken)
+            ? await IsRoleAvailableForWorkspaceAsync(request.TargetId, tenantId, cancellationToken)
             : await db.UserRoleAssignments.AsNoTracking().AnyAsync(a => a.UserId == request.TargetId && !a.User.IsPlatformAdmin && a.Role.IsActive &&
                 (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
                 (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
                 (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
-        if (!targetInScope) return NotFound(new { message = "Selected role or user is not assigned in this workspace scope." });
+        if (!targetInScope) return NotFound(new { message = "Selected role or user is not available in this workspace scope." });
 
         var menu = await db.MenuItems.SingleOrDefaultAsync(m => m.Id == menuItemId && m.ProjectId == projectId.Value, cancellationToken);
         if (menu is null) return NotFound(new { message = "Menu was not found in the active project." });
@@ -358,12 +364,8 @@ public sealed class WorkspaceController(
         if (!await scopedAccess.CanAccessAsync(userId, "Role.Update", tenantId, branchId, projectId, cancellationToken))
             return Forbid();
 
-        var roleAssignedInScope = await db.UserRoleAssignments.AsNoTracking().AnyAsync(a =>
-            a.RoleId == roleId && a.Role.IsActive &&
-            (a.TenantId == tenantId || (a.TenantId == null && branchId.HasValue && a.BranchId == branchId.Value)) &&
-            (a.BranchId == null || (branchId.HasValue && a.BranchId == branchId.Value)) &&
-            (a.ProjectId == null || a.ProjectId == projectId.Value), cancellationToken);
-        if (!roleAssignedInScope) return NotFound(new { message = "Role is not assigned in this workspace scope." });
+        if (!await IsRoleAvailableForWorkspaceAsync(roleId, tenantId, cancellationToken))
+            return NotFound(new { message = "Role is not available to this tenant workspace." });
 
         var menuExists = await db.MenuItems.AnyAsync(m => m.Id == request.MenuItemId &&
             m.ProjectId == projectId.Value && m.IsActive, cancellationToken);

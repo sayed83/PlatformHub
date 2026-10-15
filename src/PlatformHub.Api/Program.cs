@@ -67,7 +67,7 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 20,
-                Window = TimeSpan.FromMinutes(5),
+                Window = TimeSpan.FromMinutes(30),
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
@@ -78,7 +78,7 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 3,
-                Window = TimeSpan.FromMinutes(5),
+                Window = TimeSpan.FromMinutes(30),
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
@@ -202,6 +202,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
     await PlatformRbacSeeder.SeedAsync(db);
     await ProjectNavigationSeeder.SeedAsync(db);
+    await ProjectMenuPermissionSynchronizer.SyncAllAsync(db);
     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
     await PlatformRoleUserSeeder.SeedAsync(db, app.Configuration, passwordHasher, loggerFactory);
 }

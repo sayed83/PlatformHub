@@ -4,6 +4,7 @@
     ViewData["Title"] = "Roles & Permissions";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var isSuperAdmin = User.HasClaim("ph_role", "PLATFORM_SUPER_ADMIN");
+    var assignablePermissions = Model.Permissions.Where(x => x.IsSystemPermission).ToList();
 }
 
 <style>
@@ -244,7 +245,7 @@
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Total roles</div><div class="rp-stat-value">@Model.Roles.Count</div><div class="small text-secondary mt-1">Available role profiles</div></div></div>
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Built-in roles</div><div class="rp-stat-value">@Model.Roles.Count(x => x.IsSystemRole)</div><div class="small text-secondary mt-1">System-managed</div></div></div>
     <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Custom roles</div><div class="rp-stat-value">@Model.Roles.Count(x => !x.IsSystemRole)</div><div class="small text-secondary mt-1">Created for your needs</div></div></div>
-    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Permission catalog</div><div class="rp-stat-value">@Model.Permissions.Count</div><div class="small text-secondary mt-1">Available permissions</div></div></div>
+    <div class="col-6 col-xl-3"><div class="rp-stat"><div class="rp-stat-label">Permission catalog</div><div class="rp-stat-value">@Model.Permissions.Count</div><div class="small text-secondary mt-1">@assignablePermissions.Count global API permissions; project-menu permissions are scoped separately</div></div></div>
 </div>
 
 <div class="row g-4">
@@ -287,7 +288,7 @@
         <section class="rp-panel mt-4">
             <div class="rp-panel-head">
                 <h2 class="h6 fw-bold mb-1">Permission catalog</h2>
-                <p class="small text-secondary mb-0">Browse permissions grouped by module.</p>
+                <p class="small text-secondary mb-0">Global API permissions are assigned to roles. Project-menu visibility is configured separately for each active project.</p>
             </div>
             <div class="p-3">
                 <label for="permissionCatalogSearch" class="form-label small fw-semibold">Find a permission</label>
@@ -300,7 +301,7 @@
                             @foreach (var permission in group.OrderBy(x => x.Name))
                             {
                                 <div class="permission-catalog-item py-2 border-bottom" data-search="@($"{permission.Name} {permission.Code} {permission.Module}".ToLowerInvariant())">
-                                    <div class="small fw-semibold">@permission.Name</div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap"><span class="small fw-semibold">@permission.Name</span><span class="badge @(permission.IsSystemPermission ? "text-bg-primary" : "text-bg-secondary")">@(permission.IsSystemPermission ? "Global API" : "Project menu")</span></div>
                                     <code class="small text-secondary">@permission.Code</code>
                                     @if (!string.IsNullOrWhiteSpace(permission.Description))
                                     {
@@ -434,7 +435,7 @@
                                         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
                                             <div>
                                                 <div class="fw-bold">Configure permissions</div>
-                                                <div class="small text-secondary">Choose only the access this role needs.</div>
+                                                <div class="small text-secondary">Choose global API actions for this role. Project-menu visibility is configured separately under Workspace → Menu Permissions for each project.</div>
                                             </div>
                                             <div class="d-flex gap-2 flex-wrap">
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="@role.Id">Select all</button>
@@ -442,8 +443,8 @@
                                             </div>
                                         </div>
                                         <label class="visually-hidden" for="permissionSearch-@role.Id">Search permissions for @role.Name</label>
-                                        <input id="permissionSearch-@role.Id" type="search" class="form-control form-control-sm mb-3 role-permission-search" placeholder="Filter permissions by name or code..." />
-                                        @foreach (var group in Model.Permissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
+                                        <input id="permissionSearch-@role.Id" type="search" class="form-control form-control-sm mb-3 role-permission-search" placeholder="Filter global API permissions by name or code..." />
+                                        @foreach (var group in assignablePermissions.GroupBy(x => x.Module).OrderBy(x => x.Key))
                                         {
                                             <div class="permission-group mb-3">
                                                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">

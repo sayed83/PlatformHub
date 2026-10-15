@@ -28,6 +28,9 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         var roleDecisions = await db.RoleWiseMenuAccesses.AsNoTracking()
             .Where(a => a.ProjectId == projectId && roleIds.Contains(a.RoleId) && menuIds.Contains(a.MenuItemId) && a.IsAllowed)
             .Select(a => a.MenuItemId).Distinct().ToListAsync(ct);
+
+        // Project-menu visibility is intentionally separate from global API permissions.
+        // Only the project-scoped RoleWiseMenuAccess table grants role menu visibility.
         var userOverrides = await db.UserWiseMenuAccesses.AsNoTracking()
             .Where(a => a.ProjectId == projectId && a.UserId == userId && menuIds.Contains(a.MenuItemId))
             .Select(a => new { a.MenuItemId, a.IsAllowed }).ToDictionaryAsync(a => a.MenuItemId, a => a.IsAllowed, ct);
@@ -78,9 +81,13 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
         if (userOverride.HasValue)
             return userOverride.Value;
 
-        return await db.RoleWiseMenuAccesses.AsNoTracking().AnyAsync(
+        var roleMenuAllowed = await db.RoleWiseMenuAccesses.AsNoTracking().AnyAsync(
             a => a.ProjectId == projectId && roleIds.Contains(a.RoleId) &&
                  a.MenuItemId == menu.Id && a.IsAllowed, ct);
+        if (roleMenuAllowed)
+            return true;
+
+        return false;
     }
 
     private async Task<List<long>> GetApplicableRoleIdsAsync(

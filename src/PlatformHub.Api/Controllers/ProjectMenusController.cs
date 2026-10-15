@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Domain.Entities;
 using PlatformHub.Infrastructure.Persistence;
+using PlatformHub.Infrastructure.Platform;
 
 namespace PlatformHub.Api.Controllers;
 
@@ -12,6 +13,7 @@ namespace PlatformHub.Api.Controllers;
 public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBase
 {
     [HttpGet("projects")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Projects(CancellationToken ct) =>
         Ok(await db.Projects.AsNoTracking().Where(x => x.IsActive)
             .OrderBy(x => x.Name).Select(x => new { x.Id, x.TenantId, TenantName = x.Tenant == null ? "Shared catalogue" : x.Tenant.Name, x.Code, x.Name })
@@ -19,6 +21,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
 
 
     [HttpGet("next-sort-order")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> NextSortOrder(
         [FromQuery] long projectId,
         [FromQuery] long? moduleId,
@@ -43,6 +46,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("summary")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Summary([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0)
@@ -62,6 +66,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("modules")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Modules([FromQuery] long projectId, CancellationToken ct)
     {
         if (projectId <= 0) return BadRequest(new { message = "Select a valid project." });
@@ -72,6 +77,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("modules")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> SaveModule([FromBody] SaveModuleRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -94,11 +100,15 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         else { entity = new ProjectModule { ProjectId = request.ProjectId }; db.ProjectModules.Add(entity); }
         entity.Code = code; entity.Name = name; entity.Description = request.Description?.Trim();
         entity.Icon = request.Icon?.Trim(); entity.SortOrder = request.SortOrder; entity.IsActive = request.IsActive;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
+        await ProjectMenuPermissionSynchronizer.SyncProjectAsync(db, entity.ProjectId, ct);
+        await transaction.CommitAsync(ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.Code, entity.Name, entity.Description, entity.Icon, entity.SortOrder, entity.IsActive });
     }
 
     [HttpGet("items")]
+    [Authorize(Policy = "Project.View")]
     public async Task<IActionResult> Items(
         [FromQuery] long projectId,
         [FromQuery] long? moduleId,
@@ -123,6 +133,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("items")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> SaveItem([FromBody] SaveMenuItemRequest request, CancellationToken ct)
     {
         if (request.ProjectId <= 0 || string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
@@ -178,13 +189,18 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         }
 
         entity.IsExternal = request.IsExternal; entity.IsActive = request.IsActive;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         await db.SaveChangesAsync(ct);
+        await ProjectMenuPermissionSynchronizer.SyncAsync(db, entity.ProjectId, entity.Id, ct);
+        await transaction.CommitAsync(ct);
         return Ok(new { entity.Id, entity.ProjectId, entity.ModuleId, entity.ParentMenuId, entity.Code, entity.Name, entity.Area, entity.Controller, entity.Action, entity.RouteUrl, entity.Icon, entity.SortOrder, entity.IsExternal, entity.IsActive });
     }
 
     [HttpGet("modules/{moduleId:long}/hard-delete-details")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> ModuleHardDeleteDetails(long moduleId, [FromQuery] long projectId, CancellationToken ct)
     {
+        if (!User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         var module = await db.ProjectModules.AsNoTracking()
             .Where(x => x.Id == moduleId && x.ProjectId == projectId)
             .Select(x => new { x.Id, x.ProjectId, x.Code, x.Name, x.IsActive })
@@ -201,8 +217,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpGet("items/{menuItemId:long}/hard-delete-details")]
+    [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> MenuHardDeleteDetails(long menuItemId, [FromQuery] long projectId, CancellationToken ct)
     {
+        if (!User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         var menu = await db.MenuItems.AsNoTracking().Where(x => x.Id == menuItemId && x.ProjectId == projectId)
             .Select(x => new { x.Id, x.ProjectId, x.ModuleId, ModuleName = x.Module == null ? "Standalone" : x.Module.Name,
                 x.ParentMenuId, ParentMenuName = x.ParentMenu == null ? null : x.ParentMenu.Name,
@@ -215,19 +233,31 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
             .Select(x => new { x.Id, RoleName = x.Role.Name, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
         var userAccess = await db.UserWiseMenuAccesses.AsNoTracking().Where(x => x.MenuItemId == menuItemId)
             .Select(x => new { x.Id, UserName = x.User.UserName, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
+        var generatedPermissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, menuItemId);
+        var generatedPermission = await db.Permissions.AsNoTracking()
+            .Where(x => x.Code == generatedPermissionCode)
+            .Select(x => new { x.Id, x.Code, x.Name })
+            .SingleOrDefaultAsync(ct);
+        var assignedToNonSuperAdminRole = generatedPermission is not null &&
+            await db.RolePermissions.AsNoTracking().AnyAsync(x =>
+                x.PermissionId == generatedPermission.Id && x.Role.Code != PlatformRbacSeeder.SuperAdminCode, ct);
         var seeded = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST", "USER_LIST",
             "ROLE_LIST", "PERMISSION_CATALOG", "MENU_PERMISSION", "MENU_PERMISSIONS", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" }
             .Contains(menu.Code, StringComparer.OrdinalIgnoreCase);
-        var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0;
-        return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess, isSeededSystemMenu = seeded,
+        var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0 && !assignedToNonSuperAdminRole;
+        return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess,
+            generatedPermission, assignedToNonSuperAdminRole, isSeededSystemMenu = seeded,
             canHardDelete, reason = seeded ? "This is a seeded system menu; use soft delete." :
                 children.Count > 0 ? "Reassign or delete child menus first." :
-                roleAccess.Count > 0 || userAccess.Count > 0 ? "This menu has role/user access history. Use soft delete to preserve it." : null });
+                roleAccess.Count > 0 || userAccess.Count > 0 ? "This menu has role/user access history. Use soft delete to preserve it." :
+                assignedToNonSuperAdminRole ? "The generated menu permission is assigned to a role. Remove that assignment before hard deletion." : null });
     }
 
     [HttpPost("modules/{moduleId:long}/delete")]
+    [Authorize(Policy = "Project.Deactivate")]
     public async Task<IActionResult> DeleteModule(long moduleId, [FromBody] DeleteModuleRequest request, CancellationToken ct)
     {
+        if (request.DeleteType == "hard" && !User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         if (moduleId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
             return BadRequest(new { message = "A valid project, module and delete type are required." });
 
@@ -253,8 +283,10 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     }
 
     [HttpPost("items/{menuItemId:long}/delete")]
+    [Authorize(Policy = "Project.Deactivate")]
     public async Task<IActionResult> DeleteItem(long menuItemId, [FromBody] DeleteMenuItemRequest request, CancellationToken ct)
     {
+        if (request.DeleteType == "hard" && !User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         if (menuItemId <= 0 || request.ProjectId <= 0 || request.DeleteType is not ("soft" or "hard"))
             return BadRequest(new { message = "A valid project, menu and delete type are required." });
 
@@ -276,9 +308,20 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         var hasChildren = await db.MenuItems.AnyAsync(x => x.ProjectId == request.ProjectId && x.ParentMenuId == menu.Id, ct);
         var hasRoleAccess = await db.RoleWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
         var hasUserAccess = await db.UserWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
-        if (hasChildren || hasRoleAccess || hasUserAccess)
-            return Conflict(new { message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
+        var generatedPermissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(request.ProjectId, menu.Id);
+        var generatedPermission = await db.Permissions.SingleOrDefaultAsync(x => x.Code == generatedPermissionCode, ct);
+        var hasOtherRolePermission = generatedPermission is not null &&
+            await db.RolePermissions.AnyAsync(x =>
+                x.PermissionId == generatedPermission.Id && x.Role.Code != PlatformRbacSeeder.SuperAdminCode, ct);
+        if (hasChildren || hasRoleAccess || hasUserAccess || hasOtherRolePermission)
+            return Conflict(new { message = "Hard delete is blocked because this menu has child menus, role/user menu access, or its generated permission is assigned to a role. Use Soft delete or remove the related assignments first." });
 
+        if (generatedPermission is not null)
+        {
+            var permissionLinks = await db.RolePermissions.Where(x => x.PermissionId == generatedPermission.Id).ToListAsync(ct);
+            db.RolePermissions.RemoveRange(permissionLinks);
+            db.Permissions.Remove(generatedPermission);
+        }
         db.MenuItems.Remove(menu);
         await db.SaveChangesAsync(ct);
         return Ok(new { success = true, message = "Menu permanently deleted." });
