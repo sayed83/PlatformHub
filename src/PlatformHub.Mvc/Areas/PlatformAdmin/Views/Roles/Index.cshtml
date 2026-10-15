@@ -288,7 +288,7 @@
         <section class="rp-panel mt-4">
             <div class="rp-panel-head">
                 <h2 class="h6 fw-bold mb-1">Permission catalog</h2>
-                <p class="small text-secondary mb-0">Browse permissions grouped by module.</p>
+                <p class="small text-secondary mb-0">Global API permissions are assigned to roles. Project-menu visibility is configured separately for each active project.</p>
             </div>
             <div class="p-3">
                 <label for="permissionCatalogSearch" class="form-label small fw-semibold">Find a permission</label>
@@ -301,7 +301,7 @@
                             @foreach (var permission in group.OrderBy(x => x.Name))
                             {
                                 <div class="permission-catalog-item py-2 border-bottom" data-search="@($"{permission.Name} {permission.Code} {permission.Module}".ToLowerInvariant())">
-                                    <div class="small fw-semibold">@permission.Name</div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap"><span class="small fw-semibold">@permission.Name</span><span class="badge @(permission.IsSystemPermission ? "text-bg-primary" : "text-bg-secondary")">@(permission.IsSystemPermission ? "Global API" : "Project menu")</span></div>
                                     <code class="small text-secondary">@permission.Code</code>
                                     @if (!string.IsNullOrWhiteSpace(permission.Description))
                                     {
