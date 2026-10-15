@@ -1,4 +1,4 @@
-@model IReadOnlyList<PlatformHub.Mvc.Controllers.WorkspaceUserRowViewModel>
+@model PlatformHub.Mvc.Controllers.WorkspaceUsersPageViewModel
 @{
     ViewData["Title"] = "Workspace Users";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -11,8 +11,66 @@
             <h1 class="h3 mb-1">Users</h1>
             <p class="text-secondary mb-0">Users assigned to your active tenant and branch scope.</p>
         </div>
-        <span class="badge text-bg-primary">@Model.Count user(s)</span>
+        <span class="badge text-bg-primary">@Model.Users.Count user(s)</span>
     </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">@successMessage<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    }
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">@errorMessage<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    }
+
+    @if (Model.CanCreate && Model.Roles.Count > 0)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h2 class="h5 mb-1">Create workspace user</h2>
+                <p class="small text-secondary mb-0">The new account will be assigned only to the active tenant, branch, and project scope.</p>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/WorkspaceUsers/Create" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label" for="UserName">Username *</label>
+                        <input class="form-control" id="UserName" name="UserName" required maxlength="100" autocomplete="off" />
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label" for="DisplayName">Display name *</label>
+                        <input class="form-control" id="DisplayName" name="DisplayName" required maxlength="200" />
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label" for="Password">Temporary password *</label>
+                        <input class="form-control" id="Password" name="Password" type="password" required minlength="12" autocomplete="new-password" />
+                        <div class="form-text">At least 12 characters.</div>
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label" for="RoleId">Initial role *</label>
+                        <select class="form-select" id="RoleId" name="RoleId" required>
+                            <option value="">Select role</option>
+                            @foreach (var role in Model.Roles)
+                            {
+                                <option value="@role.Id">@role.Name (@role.Code)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label" for="BaseRedirectUrl">Default redirect URL (optional)</label>
+                        <input class="form-control" id="BaseRedirectUrl" name="BaseRedirectUrl" maxlength="500" placeholder="/Workspace" />
+                    </div>
+                    <div class="col-12 col-md-4 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" type="submit"><i class="bi bi-person-plus"></i> Create user</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+    else if (!Model.CanCreate)
+    {
+        <div class="alert alert-info">User creation is unavailable. This account needs both <code>User.Create</code> and <code>Role.Assign</code> permissions in the active workspace scope.</div>
+    }
 
     <div class="card border-0 shadow-sm">
         <div class="card-body">
@@ -28,7 +86,7 @@
                 </div>
             </form>
 
-            @if (Model.Count == 0)
+            @if (Model.Users.Count == 0)
             {
                 <div class="text-center py-5">
                     <h2 class="h5">No users found</h2>
@@ -43,7 +101,7 @@
                             <tr><th>User</th><th>Username</th><th>Roles</th><th>Status</th></tr>
                         </thead>
                         <tbody>
-                        @foreach (var user in Model)
+                        @foreach (var user in Model.Users)
                         {
                             <tr>
                                 <td><div class="fw-semibold">@user.DisplayName</div><small class="text-secondary">ID: @user.Id</small></td>
