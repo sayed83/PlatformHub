@@ -36,10 +36,11 @@ public sealed class EffectiveMenuAccessService(PlatformDbContext db)
             m => ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, m.Id),
             m => m.Id,
             StringComparer.OrdinalIgnoreCase);
+        var generatedPermissionCodes = permissionToMenu.Keys.ToArray();
         var catalogAllowedCodes = await (
             from rp in db.RolePermissions.AsNoTracking()
             join permission in db.Permissions.AsNoTracking() on rp.PermissionId equals permission.Id
-            where roleIds.Contains(rp.RoleId) && permissionToMenu.Keys.Contains(permission.Code)
+            where roleIds.Contains(rp.RoleId) && generatedPermissionCodes.Contains(permission.Code)
             select permission.Code)
             .Distinct().ToListAsync(ct);
         roleDecisions.AddRange(catalogAllowedCodes
