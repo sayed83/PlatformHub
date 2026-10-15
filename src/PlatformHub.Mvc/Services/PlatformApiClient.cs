@@ -94,7 +94,7 @@ public sealed class PlatformApiClient(
 
         try
         {
-            using var response = await client.SendAsync(request, ct);
+            using var response = await SendWithRefreshAsync(client, request, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning(
@@ -134,7 +134,7 @@ public sealed class PlatformApiClient(
 
         try
         {
-            using var response = await client.SendAsync(request, ct);
+            using var response = await SendWithRefreshAsync(client, request, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Platform API PUT {Path} failed with HTTP {StatusCode}. Response body omitted",
@@ -168,7 +168,7 @@ public sealed class PlatformApiClient(
 
         try
         {
-            using var response = await client.SendAsync(request, ct);
+            using var response = await SendWithRefreshAsync(client, request, ct);
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
             {
@@ -238,7 +238,7 @@ public sealed class PlatformApiClient(
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         try
         {
-            using var response = await client.SendAsync(request, ct);
+            using var response = await SendWithRefreshAsync(client, request, ct);
             if (response.IsSuccessStatusCode) return true;
             logger.LogWarning("Platform API DELETE {Path} failed with HTTP {StatusCode}. Response body omitted",
                 path, (int)response.StatusCode);
