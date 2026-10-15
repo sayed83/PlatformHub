@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Infrastructure.Persistence;
-using PlatformHub.Infrastructure.Platform;
 
 namespace PlatformHub.Api.Services;
 
