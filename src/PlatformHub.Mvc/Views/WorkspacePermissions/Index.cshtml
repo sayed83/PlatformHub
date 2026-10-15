@@ -50,10 +50,11 @@
                         <span class="small fw-semibold" id="selectedMenuCount">0 selected</span>
                         <button class="btn btn-sm btn-success" type="submit" name="BulkDecision" value="allow">Allow selected</button>
                     <button class="btn btn-sm btn-danger" type="submit" name="BulkDecision" value="deny">Deny selected</button>
-                    @if (Model.TargetType == "user")
-                    {
-                        <button class="btn btn-sm btn-outline-primary" type="submit" name="BulkDecision" value="inherit">Inherit from role</button>
-                    }
+                        @if (Model.TargetType == "user")
+                        {
+                            <button class="btn btn-sm btn-outline-primary" type="submit" name="BulkDecision" value="inherit">Inherit from role</button>
+                        }
+                    </div>
                 </div>
                 <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" id="selectAllHeader" aria-label="Select all menus" /></th><th>Module</th><th>Menu</th><th>Code</th><th>Effective access</th><th>Decision</th><th>Quick action</th></tr></thead><tbody>
                 @foreach (var menu in Model.Menus) {
