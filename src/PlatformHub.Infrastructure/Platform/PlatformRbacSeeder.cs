@@ -81,18 +81,27 @@ public static class PlatformRbacSeeder
 
         foreach (var item in RoleCatalog)
         {
-            if (!await db.Roles.AnyAsync(x => x.Code == item.Code && x.TenantId == null, cancellationToken))
+            // Built-in roles must exist as global roles. Older databases may contain an
+            // inactive or partially configured built-in role; synchronize its seed metadata
+            // so configuration-driven default-user seeding does not fail on stale role state.
+            var role = await db.Roles.SingleOrDefaultAsync(
+                x => x.Code == item.Code && x.TenantId == null, cancellationToken);
+
+            if (role is null)
             {
-                db.Roles.Add(new PlatformRole
+                role = new PlatformRole
                 {
                     Code = item.Code,
-                    Name = item.Name,
-                    Description = item.Description,
-                    BaseRedirectUrl = item.Redirect,
-                    IsSystemRole = true,
-                    IsActive = true
-                });
+                    IsSystemRole = true
+                };
+                db.Roles.Add(role);
             }
+
+            role.Name = item.Name;
+            role.Description = item.Description;
+            role.BaseRedirectUrl = item.Redirect;
+            role.IsSystemRole = true;
+            role.IsActive = true;
         }
 
         await db.SaveChangesAsync(cancellationToken);
