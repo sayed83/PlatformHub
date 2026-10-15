@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlatformHub.Domain.Entities;
@@ -17,7 +18,8 @@ namespace PlatformHub.Api.Controllers;
 [Authorize]
 public sealed class WorkspaceController(
     PlatformDbContext db,
-    IScopedAccessService scopedAccess) : ControllerBase
+    IScopedAccessService scopedAccess,
+    IPasswordHasher<AppUser> passwordHasher) : ControllerBase
 {
 
     [HttpGet("roles")]
@@ -170,6 +172,110 @@ public sealed class WorkspaceController(
     public sealed record WorkspaceRoleCreateRequest(string Code, string Name, string? Description, string? BaseRedirectUrl);
     public sealed record WorkspaceRoleUpdateRequest(string Name, string? Description, string? BaseRedirectUrl);
     public sealed record WorkspaceRoleStatusRequest(bool IsActive);
+
+    [HttpGet("users/assignable-roles")]
+    public async Task<IActionResult> GetAssignableWorkspaceRoles(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None,
+                CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (!await scopedAccess.CanAccessAsync(userId, "User.Create", tenantId, branchId, projectId, cancellationToken) ||
+            !await scopedAccess.CanAccessAsync(userId, "Role.Assign", tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        if (!await IsValidWorkspaceScopeAsync(tenantId, branchId, projectId, cancellationToken))
+            return BadRequest(new { message = "The active tenant, branch, or project scope is invalid." });
+
+        var roles = await db.Roles.AsNoTracking()
+            .Where(r => r.IsActive &&
+                ((r.TenantId == tenantId && !r.IsSystemRole) ||
+                 (r.TenantId == null && r.IsSystemRole &&
+                  r.Code != "PLATFORM_ADMIN" && r.Code != PlatformRbacSeeder.SuperAdminCode)))
+            .OrderBy(r => r.Name)
+            .Select(r => new { r.Id, r.Code, r.Name, r.TenantId, r.IsSystemRole })
+            .ToListAsync(cancellationToken);
+        return Ok(roles);
+    }
+
+    [HttpPost("users")]
+    public async Task<IActionResult> CreateWorkspaceUser(
+        [FromQuery] long tenantId,
+        [FromQuery] long? branchId,
+        [FromQuery] long? projectId,
+        [FromBody] WorkspaceUserCreateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirst(AppClaimTypes.UserId)?.Value, NumberStyles.None,
+                CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+        if (!await scopedAccess.CanAccessAsync(userId, "User.Create", tenantId, branchId, projectId, cancellationToken) ||
+            !await scopedAccess.CanAccessAsync(userId, "Role.Assign", tenantId, branchId, projectId, cancellationToken))
+            return Forbid();
+
+        var userName = request.UserName?.Trim();
+        var displayName = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(displayName) ||
+            string.IsNullOrWhiteSpace(request.Password) || request.RoleId <= 0)
+            return BadRequest(new { message = "Username, display name, password, and initial role are required." });
+        if (userName.Length > 100 || displayName.Length > 200 || request.Password.Length < 12 ||
+            (request.BaseRedirectUrl?.Length ?? 0) > 500)
+            return BadRequest(new { message = "Username/display name is too long or password must contain at least 12 characters." });
+        if (tenantId <= 0 || !await IsValidWorkspaceScopeAsync(tenantId, branchId, projectId, cancellationToken))
+            return BadRequest(new { message = "The active tenant, branch, or project scope is invalid." });
+        if (await db.Users.AnyAsync(u => u.UserName == userName, cancellationToken))
+            return Conflict(new { message = "Username already exists." });
+        if (!await IsRoleAvailableForWorkspaceAsync(request.RoleId, tenantId, cancellationToken))
+            return BadRequest(new { message = "Select an active role available to this tenant workspace." });
+
+        var user = new AppUser
+        {
+            UserName = userName,
+            DisplayName = displayName,
+            IsActive = true,
+            IsPlatformAdmin = false,
+            BaseRedirectUrl = string.IsNullOrWhiteSpace(request.BaseRedirectUrl) ? null : request.BaseRedirectUrl.Trim(),
+            CreatedUtc = DateTime.UtcNow
+        };
+        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        db.Users.Add(user);
+        await db.SaveChangesAsync(cancellationToken);
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            UserId = user.Id,
+            RoleId = request.RoleId,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ProjectId = projectId
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return CreatedAtAction(nameof(GetWorkspaceUsers), new { tenantId, branchId, projectId }, new
+        {
+            user.Id, user.UserName, user.DisplayName, user.IsActive,
+            RoleId = request.RoleId, TenantId = tenantId, BranchId = branchId, ProjectId = projectId
+        });
+    }
+
+    private async Task<bool> IsValidWorkspaceScopeAsync(long tenantId, long? branchId, long? projectId, CancellationToken cancellationToken)
+    {
+        if (tenantId <= 0 || !await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive, cancellationToken))
+            return false;
+        if (branchId.HasValue && !await db.Branches.AnyAsync(b => b.Id == branchId.Value && b.TenantId == tenantId && b.IsActive, cancellationToken))
+            return false;
+        if (projectId.HasValue && !await db.Projects.AnyAsync(p => p.Id == projectId.Value && p.IsActive &&
+            (p.TenantId == tenantId || db.TenantProjects.Any(tp => tp.TenantId == tenantId && tp.ProjectId == p.Id && tp.IsEnabled)), cancellationToken))
+            return false;
+        return true;
+    }
+
+    public sealed record WorkspaceUserCreateRequest(string UserName, string DisplayName, string Password, long RoleId, string? BaseRedirectUrl);
 
     [HttpGet("users")]
     public async Task<IActionResult> GetWorkspaceUsers(
