@@ -229,14 +229,24 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
             .Select(x => new { x.Id, RoleName = x.Role.Name, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
         var userAccess = await db.UserWiseMenuAccesses.AsNoTracking().Where(x => x.MenuItemId == menuItemId)
             .Select(x => new { x.Id, UserName = x.User.UserName, x.IsAllowed, x.ProjectId }).ToListAsync(ct);
+        var generatedPermissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(projectId, menuItemId);
+        var generatedPermission = await db.Permissions.AsNoTracking()
+            .Where(x => x.Code == generatedPermissionCode)
+            .Select(x => new { x.Id, x.Code, x.Name })
+            .SingleOrDefaultAsync(ct);
+        var assignedToNonSuperAdminRole = generatedPermission is not null &&
+            await db.RolePermissions.AsNoTracking().AnyAsync(x =>
+                x.PermissionId == generatedPermission.Id && x.Role.Code != PlatformRbacSeeder.SuperAdminCode, ct);
         var seeded = new[] { "WORKSPACE_OVERVIEW", "TENANT_LIST", "BRANCH_LIST", "PROJECT_LIST", "USER_LIST",
             "ROLE_LIST", "PERMISSION_CATALOG", "MENU_PERMISSION", "MENU_PERMISSIONS", "WORKSPACE_MENU_PERMISSIONS", "INVENTORY_ITEMS" }
             .Contains(menu.Code, StringComparer.OrdinalIgnoreCase);
-        var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0;
-        return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess, isSeededSystemMenu = seeded,
+        var canHardDelete = !seeded && children.Count == 0 && roleAccess.Count == 0 && userAccess.Count == 0 && !assignedToNonSuperAdminRole;
+        return Ok(new { itemType = "menu", menu, childMenus = children, roleAccess, userAccess,
+            generatedPermission, assignedToNonSuperAdminRole, isSeededSystemMenu = seeded,
             canHardDelete, reason = seeded ? "This is a seeded system menu; use soft delete." :
                 children.Count > 0 ? "Reassign or delete child menus first." :
-                roleAccess.Count > 0 || userAccess.Count > 0 ? "This menu has role/user access history. Use soft delete to preserve it." : null });
+                roleAccess.Count > 0 || userAccess.Count > 0 ? "This menu has role/user access history. Use soft delete to preserve it." :
+                assignedToNonSuperAdminRole ? "The generated menu permission is assigned to a role. Remove that assignment before hard deletion." : null });
     }
 
     [HttpPost("modules/{moduleId:long}/delete")]
@@ -294,9 +304,20 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
         var hasChildren = await db.MenuItems.AnyAsync(x => x.ProjectId == request.ProjectId && x.ParentMenuId == menu.Id, ct);
         var hasRoleAccess = await db.RoleWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
         var hasUserAccess = await db.UserWiseMenuAccesses.AnyAsync(x => x.MenuItemId == menu.Id, ct);
-        if (hasChildren || hasRoleAccess || hasUserAccess)
-            return Conflict(new { message = "Hard delete is blocked because this menu has child menus or role/user access records. Use Soft delete to preserve related data." });
+        var generatedPermissionCode = ProjectMenuPermissionSynchronizer.BuildViewPermissionCode(request.ProjectId, menu.Id);
+        var generatedPermission = await db.Permissions.SingleOrDefaultAsync(x => x.Code == generatedPermissionCode, ct);
+        var hasOtherRolePermission = generatedPermission is not null &&
+            await db.RolePermissions.AnyAsync(x =>
+                x.PermissionId == generatedPermission.Id && x.Role.Code != PlatformRbacSeeder.SuperAdminCode, ct);
+        if (hasChildren || hasRoleAccess || hasUserAccess || hasOtherRolePermission)
+            return Conflict(new { message = "Hard delete is blocked because this menu has child menus, role/user menu access, or its generated permission is assigned to a role. Use Soft delete or remove the related assignments first." });
 
+        if (generatedPermission is not null)
+        {
+            var permissionLinks = await db.RolePermissions.Where(x => x.PermissionId == generatedPermission.Id).ToListAsync(ct);
+            db.RolePermissions.RemoveRange(permissionLinks);
+            db.Permissions.Remove(generatedPermission);
+        }
         db.MenuItems.Remove(menu);
         await db.SaveChangesAsync(ct);
         return Ok(new { success = true, message = "Menu permanently deleted." });
