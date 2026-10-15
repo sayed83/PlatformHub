@@ -202,6 +202,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     await PlatformAdminSeeder.SeedAsync(db, app.Configuration, passwordHasher);
     await PlatformRbacSeeder.SeedAsync(db);
     await ProjectNavigationSeeder.SeedAsync(db);
+    await ProjectMenuPermissionSynchronizer.SyncAllAsync(db);
     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
     await PlatformRoleUserSeeder.SeedAsync(db, app.Configuration, passwordHasher, loggerFactory);
 }
