@@ -16,9 +16,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+var connectionString = builder.Configuration.GetConnectionString("PlatformDb");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("ConnectionStrings:PlatformDb is required. Configure it using User Secrets locally or ConnectionStrings__PlatformDb in the hosting environment.");
+
 builder.Services.AddDbContext<PlatformDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("PlatformDb"),
+        connectionString,
         sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo")));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
@@ -28,9 +32,12 @@ builder.Services.AddScoped<EffectiveMenuAccessService>();
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 
 var jwt = builder.Configuration.GetSection("Jwt");
-var signingKey = jwt["SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey is required.");
-if (builder.Environment.IsProduction() && signingKey.StartsWith("CHANGE-THIS", StringComparison.Ordinal))
-    throw new InvalidOperationException("Configure a strong Jwt:SigningKey in secret storage before production.");
+var signingKey = jwt["SigningKey"];
+if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
+    throw new InvalidOperationException("Jwt:SigningKey is required and must be at least 32 UTF-8 bytes. Configure it with User Secrets locally or Jwt__SigningKey in the hosting environment.");
+
+if (string.IsNullOrWhiteSpace(jwt["Issuer"]) || string.IsNullOrWhiteSpace(jwt["Audience"]))
+    throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must both be configured.");
 
 builder.Services.AddAuthentication("PlatformBearer")
     .AddJwtBearer("PlatformBearer", options =>
