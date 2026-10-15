@@ -165,6 +165,47 @@ public sealed class ScopedAccessServiceTests
         Assert.False(await service.CanAccessAsync(10, "User.Delete", 1, projectId: 501));
     }
 
+    [Fact]
+    public async Task Platform_admin_account_flag_does_not_bypass_scoped_permissions()
+    {
+        await using var db = CreateDb();
+        db.Users.Add(new AppUser
+        {
+            Id = 10, UserName = "platform-admin", DisplayName = "Platform Admin",
+            PasswordHash = "test-hash", IsActive = true, IsPlatformAdmin = true
+        });
+        db.Tenants.Add(new Tenant { Id = 1, Code = "TENANT-1", Name = "Tenant One", IsActive = true });
+        await db.SaveChangesAsync();
+
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+        Assert.False(await service.CanAccessAsync(10, "Inventory.Item.View", 1));
+    }
+
+    [Fact]
+    public async Task Protected_global_super_admin_assignment_retains_scoped_access_bypass()
+    {
+        await using var db = CreateDb();
+        db.Users.Add(new AppUser
+        {
+            Id = 10, UserName = "super-admin", DisplayName = "Platform Super Admin",
+            PasswordHash = "test-hash", IsActive = true, IsPlatformAdmin = true
+        });
+        db.Tenants.Add(new Tenant { Id = 1, Code = "TENANT-1", Name = "Tenant One", IsActive = true });
+        db.Roles.Add(new PlatformRole
+        {
+            Id = 1, Code = PlatformRbacSeeder.SuperAdminCode, Name = "Platform Super Admin",
+            IsSystemRole = true, IsActive = true
+        });
+        db.UserRoleAssignments.Add(new UserRoleAssignment
+        {
+            Id = 1, UserId = 10, RoleId = 1, TenantId = null, BranchId = null, ProjectId = null
+        });
+        await db.SaveChangesAsync();
+
+        var service = new ScopedAccessService(db, NullLogger<ScopedAccessService>.Instance);
+        Assert.True(await service.CanAccessAsync(10, "Inventory.Item.View", 1));
+    }
+
     private static async Task SeedReusableProjectAssignmentAsync(
         PlatformDbContext db,
         long? tenantId,
