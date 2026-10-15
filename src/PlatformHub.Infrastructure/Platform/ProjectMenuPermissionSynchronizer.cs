@@ -20,13 +20,14 @@ public static class ProjectMenuPermissionSynchronizer
         CancellationToken cancellationToken = default)
     {
         var menuIds = await db.MenuItems.AsNoTracking()
-            .Select(x => new { x.Id, x.ProjectId })
+            .Select(x => new ValueTuple<long, long>(x.Id, x.ProjectId))
             .ToListAsync(cancellationToken);
 
         foreach (var menu in menuIds)
-            await UpsertMenuPermissionAsync(db, menu.ProjectId, menu.Id, cancellationToken);
+            await UpsertMenuPermissionAsync(db, menu.Item2, menu.Item1, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
+        await RemoveMenuPermissionsFromGlobalRoleAssignmentsAsync(db, menuIds, cancellationToken);
         await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
@@ -106,6 +107,35 @@ public static class ProjectMenuPermissionSynchronizer
         }
     }
 
+    private static async Task RemoveMenuPermissionsFromGlobalRoleAssignmentsAsync(
+        PlatformDbContext db,
+        IReadOnlyCollection<(long Id, long ProjectId)> menuIds,
+        CancellationToken cancellationToken)
+    {
+        var generatedCodes = menuIds
+            .Select(menu => BuildViewPermissionCode(menu.ProjectId, menu.Id))
+            .Distinct()
+            .ToArray();
+        if (generatedCodes.Length == 0)
+            return;
+
+        var generatedPermissionIds = await db.Permissions.AsNoTracking()
+            .Where(p => generatedCodes.Contains(p.Code) && !p.IsSystemPermission)
+            .Select(p => p.Id)
+            .ToArrayAsync(cancellationToken);
+        if (generatedPermissionIds.Length == 0)
+            return;
+
+        var staleAssignments = await db.RolePermissions
+            .Where(rp => generatedPermissionIds.Contains(rp.PermissionId))
+            .ToListAsync(cancellationToken);
+        if (staleAssignments.Count == 0)
+            return;
+
+        db.RolePermissions.RemoveRange(staleAssignments);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static async Task EnsureSuperAdminHasAllPermissionsAsync(
         PlatformDbContext db,
         CancellationToken cancellationToken)
@@ -117,7 +147,10 @@ public static class ProjectMenuPermissionSynchronizer
         if (!superAdmin.HasValue)
             return;
 
+        // The platform super admin receives all global API permissions only.
+        // Project-menu visibility is managed through RoleWiseMenuAccess/UserWiseMenuAccess.
         var permissionIds = await db.Permissions.AsNoTracking()
+            .Where(x => x.IsSystemPermission)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
         var assignedIds = await db.RolePermissions.AsNoTracking()
