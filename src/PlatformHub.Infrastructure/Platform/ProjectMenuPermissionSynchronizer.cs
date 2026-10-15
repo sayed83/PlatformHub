@@ -30,6 +30,23 @@ public static class ProjectMenuPermissionSynchronizer
         await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
+    public static async Task SyncProjectAsync(
+        PlatformDbContext db,
+        long projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var menuIds = await db.MenuItems.AsNoTracking()
+            .Where(x => x.ProjectId == projectId)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var menuId in menuIds)
+            await UpsertMenuPermissionAsync(db, projectId, menuId, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
+    }
+
     public static async Task SyncAsync(
         PlatformDbContext db,
         long projectId,
