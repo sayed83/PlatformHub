@@ -12,8 +12,8 @@ namespace PlatformHub.Infrastructure.Platform;
 /// </summary>
 public static class ProjectMenuPermissionSynchronizer
 {
-    public static string BuildViewPermissionCode(long projectId, long menuItemId, string menuCode) =>
-        $"Project.{projectId}.Menu.{menuItemId}.{NormalizeSegment(menuCode)}.View";
+    public static string BuildViewPermissionCode(long projectId, long menuItemId) =>
+        $"Project.{projectId}.Menu.{menuItemId}.View";
 
     public static async Task SyncAllAsync(
         PlatformDbContext db,
@@ -63,7 +63,7 @@ public static class ProjectMenuPermissionSynchronizer
         if (menu is null)
             throw new InvalidOperationException("Cannot synchronize permissions for a menu outside the selected project.");
 
-        var code = BuildViewPermissionCode(menu.ProjectId, menu.Id, menu.Code);
+        var code = BuildViewPermissionCode(menu.ProjectId, menu.Id);
         var permission = await db.Permissions.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
         var module = Truncate($"{menu.ProjectName} / {menu.ModuleName}", 100);
         var name = Truncate($"View {menu.Name}", 150);
