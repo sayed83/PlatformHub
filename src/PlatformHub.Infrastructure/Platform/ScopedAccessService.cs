@@ -72,8 +72,15 @@ public sealed class ScopedAccessService(
             if (!projectValid) return Deny("Project is not active or is not assigned to the requested tenant.");
         }
 
-        // Platform administrator status is re-read from the database, not trusted solely from JWT.
-        if (user.IsPlatformAdmin) return true;
+        // Only the protected global Platform Super Admin assignment bypasses ordinary scoped
+        // permission grants. A regular Platform Admin account must still hold the requested
+        // permission; IsPlatformAdmin is an account classification, not an authorization grant.
+        var isSuperAdmin = await db.UserRoleAssignments.AsNoTracking().AnyAsync(
+            a => a.UserId == userId
+                && a.TenantId == null && a.BranchId == null && a.ProjectId == null
+                && a.Role.IsActive && a.Role.Code == PlatformRbacSeeder.SuperAdminCode,
+            cancellationToken);
+        if (isSuperAdmin) return true;
 
         var matchingAssignment = from assignment in db.UserRoleAssignments.AsNoTracking()
                                  join rolePermission in db.RolePermissions.AsNoTracking()
