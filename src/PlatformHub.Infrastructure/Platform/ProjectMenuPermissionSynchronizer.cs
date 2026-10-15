@@ -19,12 +19,13 @@ public static class ProjectMenuPermissionSynchronizer
         PlatformDbContext db,
         CancellationToken cancellationToken = default)
     {
-        var menuIds = await db.MenuItems.AsNoTracking()
-            .Select(x => new ValueTuple<long, long>(x.Id, x.ProjectId))
+        var menuRows = await db.MenuItems.AsNoTracking()
+            .Select(x => new { x.Id, x.ProjectId })
             .ToListAsync(cancellationToken);
+        var menuIds = menuRows.Select(x => (Id: x.Id, ProjectId: x.ProjectId)).ToArray();
 
         foreach (var menu in menuIds)
-            await UpsertMenuPermissionAsync(db, menu.Item2, menu.Item1, cancellationToken);
+            await UpsertMenuPermissionAsync(db, menu.ProjectId, menu.Id, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         await RemoveMenuPermissionsFromGlobalRoleAssignmentsAsync(db, menuIds, cancellationToken);
@@ -45,6 +46,8 @@ public static class ProjectMenuPermissionSynchronizer
             await UpsertMenuPermissionAsync(db, projectId, menuId, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
+        await RemoveMenuPermissionsFromGlobalRoleAssignmentsAsync(
+            db, menuIds.Select(id => (Id: id, ProjectId: projectId)).ToArray(), cancellationToken);
         await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
@@ -56,6 +59,8 @@ public static class ProjectMenuPermissionSynchronizer
     {
         await UpsertMenuPermissionAsync(db, projectId, menuItemId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await RemoveMenuPermissionsFromGlobalRoleAssignmentsAsync(
+            db, new[] { (Id: menuItemId, ProjectId: projectId) }, cancellationToken);
         await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
