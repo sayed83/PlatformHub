@@ -19,15 +19,14 @@ public static class ProjectMenuPermissionSynchronizer
         PlatformDbContext db,
         CancellationToken cancellationToken = default)
     {
-        var menus = await db.MenuItems.AsNoTracking()
-            .Select(x => new { x.Id, x.ProjectId, x.ModuleId, x.Code, x.Name })
+        var menuIds = await db.MenuItems.AsNoTracking()
+            .Select(x => new { x.Id, x.ProjectId })
             .ToListAsync(cancellationToken);
 
-        foreach (var menu in menus)
-        {
-            await SyncAsync(db, menu.ProjectId, menu.Id, cancellationToken);
-        }
+        foreach (var menu in menuIds)
+            await UpsertMenuPermissionAsync(db, menu.ProjectId, menu.Id, cancellationToken);
 
+        await db.SaveChangesAsync(cancellationToken);
         await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
@@ -36,6 +35,17 @@ public static class ProjectMenuPermissionSynchronizer
         long projectId,
         long menuItemId,
         CancellationToken cancellationToken = default)
+    {
+        await UpsertMenuPermissionAsync(db, projectId, menuItemId, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
+    }
+
+    private static async Task UpsertMenuPermissionAsync(
+        PlatformDbContext db,
+        long projectId,
+        long menuItemId,
+        CancellationToken cancellationToken)
     {
         var menu = await db.MenuItems.AsNoTracking()
             .Where(x => x.Id == menuItemId && x.ProjectId == projectId)
@@ -79,9 +89,6 @@ public static class ProjectMenuPermissionSynchronizer
             permission.Description = description;
             permission.IsSystemPermission = false;
         }
-
-        await db.SaveChangesAsync(cancellationToken);
-        await EnsureSuperAdminHasAllPermissionsAsync(db, cancellationToken);
     }
 
     private static async Task EnsureSuperAdminHasAllPermissionsAsync(
