@@ -195,6 +195,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> ModuleHardDeleteDetails(long moduleId, [FromQuery] long projectId, CancellationToken ct)
     {
+        if (!User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         var module = await db.ProjectModules.AsNoTracking()
             .Where(x => x.Id == moduleId && x.ProjectId == projectId)
             .Select(x => new { x.Id, x.ProjectId, x.Code, x.Name, x.IsActive })
@@ -214,6 +215,7 @@ public sealed class ProjectMenusController(PlatformDbContext db) : ControllerBas
     [Authorize(Policy = "Project.Update")]
     public async Task<IActionResult> MenuHardDeleteDetails(long menuItemId, [FromQuery] long projectId, CancellationToken ct)
     {
+        if (!User.HasClaim("ph_role", PlatformRbacSeeder.SuperAdminCode)) return Forbid();
         var menu = await db.MenuItems.AsNoTracking().Where(x => x.Id == menuItemId && x.ProjectId == projectId)
             .Select(x => new { x.Id, x.ProjectId, x.ModuleId, ModuleName = x.Module == null ? "Standalone" : x.Module.Name,
                 x.ParentMenuId, ParentMenuName = x.ParentMenu == null ? null : x.ParentMenu.Name,
