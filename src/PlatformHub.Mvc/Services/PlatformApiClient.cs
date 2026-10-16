@@ -11,10 +11,7 @@ using System.Text.Json;
 
 namespace PlatformHub.Mvc.Services;
 
-public sealed class PlatformApiClient(
-    IHttpClientFactory factory,
-    ILogger<PlatformApiClient> logger,
-    IHttpContextAccessor httpContextAccessor)
+public sealed class PlatformApiClient(IHttpClientFactory factory, ILogger<PlatformApiClient> logger, IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
